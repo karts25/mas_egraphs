@@ -1,6 +1,6 @@
 #include<ros/ros.h>
 #include<mas_egraphs/GetXYThetaPlan.h>
-#include <egraphs/egraph_stat_writer.h>
+#include <mas_egraphs/egraph_stat_writer.h>
 
 int main(int argc, char** argv){
   if(argc < 2){
@@ -14,12 +14,12 @@ int main(int argc, char** argv){
   mas_egraphs::GetXYThetaPlan::Response res;
 
   //egraph and planner parameters
-  req.egraph_eps = 5.0;
-  req.final_egraph_eps = 5.0;
+  req.egraph_eps = 1.0;
+  req.final_egraph_eps = 1.0;
   req.dec_egraph_eps = 1.0;
-  req.initial_eps = 2.0;
-  req.final_eps = 2.0;
-  req.dec_eps = 0.2;
+  req.initial_eps = 1.0;
+  req.final_eps = 1.0;
+  req.dec_eps = 0;
   req.feedback_path = false;
   req.save_egraph = false;
   req.use_egraph = false;

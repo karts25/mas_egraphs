@@ -152,11 +152,11 @@ static unsigned int inthash(unsigned int key)
 bool EnvironmentMASNAVXYTHETALAT::InitializeMDPCfg(MDPConfig *MDPCfg){
   return true;}
 
-EnvMASNAVXYTHETALATHashEntry_t* EnvironmentMASNAVXYTHETALAT::GetHashEntry_lookup(std::vector<pose_t> pose, std::vector<bool> goalsVisited){
+EnvMASNAVXYTHETALATHashEntry_t* EnvironmentMASNAVXYTHETALAT::GetHashEntry_lookup(std::vector<pose_t>& pose, std::vector<bool> goalsVisited){
 return NULL;
 }
 
-EnvMASNAVXYTHETALATHashEntry_t* EnvironmentMASNAVXYTHETALAT::CreateNewHashEntry_lookup(std::vector<pose_t> pose, std::vector<bool> goalsVisited){
+EnvMASNAVXYTHETALATHashEntry_t* EnvironmentMASNAVXYTHETALAT::CreateNewHashEntry_lookup(std::vector<pose_t>& pose, std::vector<bool> goalsVisited){
 return NULL;
 }
 
@@ -956,14 +956,14 @@ bool EnvironmentMASNAVXYTHETALAT::IsWithinMapCell(int X, int Y)
     return (X >= 0 && X < EnvMASNAVXYTHETALATCfg.EnvWidth_c && Y >= 0 && Y < EnvMASNAVXYTHETALATCfg.EnvHeight_c);
 }
 
-/* TODO: Check for collision of robot footprints*/
+/* TODO: Check for collision of robot footprints with each other*/
 bool EnvironmentMASNAVXYTHETALAT::IsValidConfiguration(std::vector<pose_t> pos)
 {
     vector<sbpl_2Dcell_t> footprint;
     sbpl_xy_theta_pt_t pose;
 
     //compute continuous pose
-    for(int i = 0; i < pos.size(); ++i)
+    for(int i = 0; i < (int)pos.size(); ++i)
       {
 	pose.x = DISCXY2CONT(pos[i].x, EnvMASNAVXYTHETALATCfg.cellsize_m);
 	pose.y = DISCXY2CONT(pos[i].y, EnvMASNAVXYTHETALATCfg.cellsize_m);
@@ -1327,13 +1327,13 @@ bool EnvironmentMASNAVXYTHETALAT::InitializeEnv(int width, int height, const uns
     EnvMASNAVXYTHETALATCfg.obsthresh = obsthresh;
 
     //TODO - need to set the tolerance as well
-    for(int i = 0; i < start.size(); i++){
+    for(int i = 0; i < (int)start.size(); i++){
       start[i].x = CONTXY2DISC(start[i].x, cellsize_m);
       start[i].y = CONTXY2DISC(start[i].y, cellsize_m);
       start[i].theta = ContTheta2Disc(start[i].theta, EnvMASNAVXYTHETALATCfg.NumThetaDirs);	
     }
     
-    for(int i = 0; i < goal.size(); i++){
+    for(int i = 0; i < (int)goal.size(); i++){
       goal[i].x = CONTXY2DISC(goal[i].x, cellsize_m);
       goal[i].y = CONTXY2DISC(goal[i].y, cellsize_m);
       goal[i].theta = ContTheta2Disc(goal[i].theta, EnvMASNAVXYTHETALATCfg.NumThetaDirs);
@@ -1438,9 +1438,9 @@ void EnvironmentMASNAVXYTHETALAT::GetLazySuccs(int SourceStateID, std::vector<in
 }
 
 //lazysuccswithuniqueids returns true succs
-void EnvironmentMASNAVXYTHETALAT::GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<bool>* isTrueCost, std::vector<EnvMASNAVXYTHETALATAction_t*>* actionindV/*=NULL*/){
-  GetSuccsWithUniqueIds(SourceStateID, SuccIDV, CostV, actionindV);
-  for(int i = 0; i < SuccIDV->size(); i++)
+void EnvironmentMASNAVXYTHETALAT::GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<bool>* isTrueCost){
+  GetSuccsWithUniqueIds(SourceStateID, SuccIDV, CostV);
+  for(int i = 0; i < (int)SuccIDV->size(); i++)
     isTrueCost->push_back(true);
 }
 
@@ -1505,32 +1505,6 @@ bool EnvironmentMASNAVXYTHETALAT::IsObstacle(int x, int y)
 
     return (EnvMASNAVXYTHETALATCfg.Grid2D[x][y] >= EnvMASNAVXYTHETALATCfg.obsthresh);
 }
-
-/*
-void EnvironmentMASNAVXYTHETALAT::GetEnvParms(int *size_x, std::vector<pose_t>* start, std::vector<pose_t>* goal,
-                                               double* cellsize_m, double* nominalvel_mpersecs,
-                                               double* timetoturn45degsinplace_secs, unsigned char* obsthresh,
-                                               vector<SBPL_masxytheta_mprimitive>* mprimitiveV)
-{
-    *size_x = EnvMASNAVXYTHETALATCfg.EnvWidth_c;
-    *size_y = EnvMASNAVXYTHETALATCfg.EnvHeight_c;
-
-    *startx = DISCXY2CONT(EnvMASNAVXYTHETALATCfg.StartX_c, EnvMASNAVXYTHETALATCfg.cellsize_m);
-    *starty = DISCXY2CONT(EnvMASNAVXYTHETALATCfg.StartY_c, EnvMASNAVXYTHETALATCfg.cellsize_m);
-    *starttheta = DiscTheta2Cont(EnvMASNAVXYTHETALATCfg.StartTheta, EnvMASNAVXYTHETALATCfg.NumThetaDirs);
-    *goalx = DISCXY2CONT(EnvMASNAVXYTHETALATCfg.EndX_c, EnvMASNAVXYTHETALATCfg.cellsize_m);
-    *goaly = DISCXY2CONT(EnvMASNAVXYTHETALATCfg.EndY_c, EnvMASNAVXYTHETALATCfg.cellsize_m);
-    *goaltheta = DiscTheta2Cont(EnvMASNAVXYTHETALATCfg.EndTheta, EnvMASNAVXYTHETALATCfg.NumThetaDirs);
-
-    *cellsize_m = EnvMASNAVXYTHETALATCfg.cellsize_m;
-    *nominalvel_mpersecs = EnvMASNAVXYTHETALATCfg.nominalvel_mpersecs;
-    *timetoturn45degsinplace_secs = EnvMASNAVXYTHETALATCfg.timetoturn45degsinplace_secs;
-
-    *obsthresh = EnvMASNAVXYTHETALATCfg.obsthresh;
-
-    *mprimitiveV = EnvMASNAVXYTHETALATCfg.mprimV;
-}
-*/
 
 bool EnvironmentMASNAVXYTHETALAT::PoseContToDisc(double px, double py, double pth, int &ix, int &iy, int &ith) const
 {
@@ -1624,7 +1598,7 @@ void EnvironmentMASNAVXYTHETALAT::GetCoordFromState(int stateID, vector<pose_t>&
     goalsVisited = HashEntry->goalsVisited;
 }
 
-int EnvironmentMASNAVXYTHETALAT::GetStateFromCoord(vector<pose_t> poses, vector<bool> goalsVisited)
+int EnvironmentMASNAVXYTHETALAT::GetStateFromCoord(vector<pose_t>& poses, vector<bool> goalsVisited)
 {
     EnvMASNAVXYTHETALATHashEntry_t* OutHashEntry;
     if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited)) == NULL) {
@@ -1634,101 +1608,16 @@ int EnvironmentMASNAVXYTHETALAT::GetStateFromCoord(vector<pose_t> poses, vector<
     return OutHashEntry->stateID;
 }
 
-/*
-void EnvironmentMASNAVXYTHETALAT::ConvertStateIDPathintoXYThetaPath(vector<int>* stateIDPath,
-                                                                 vector<sbpl_xy_theta_pt_t>* xythetaPath)
+int EnvironmentMASNAVXYTHETALAT::GetNumGoals() const
 {
-    vector<EnvMASNAVXYTHETALATAction_t*> actionV;
-    vector<int> CostV;
-    vector<int> SuccIDV;
-    int targetx_c, targety_c, targettheta_c;
-    int sourcex_c, sourcey_c, sourcetheta_c;
-
-    SBPL_INFO("checks=%ld\n", checks);
-
-    xythetaPath->clear();
-
-#if DEBUG
-    SBPL_FPRINTF(fDeb, "converting stateid path into coordinates:\n");
-#endif
-
-    for (int pind = 0; pind < (int)(stateIDPath->size()) - 1; pind++) {
-        int sourceID = stateIDPath->at(pind);
-        int targetID = stateIDPath->at(pind + 1);
-
-#if DEBUG
-        GetCoordFromState(sourceID, sourcex_c, sourcey_c, sourcetheta_c);
-#endif
-
-        //get successors and pick the target via the cheapest action
-        SuccIDV.clear();
-        CostV.clear();
-        actionV.clear();
-        GetSuccs(sourceID, &SuccIDV, &CostV, &actionV);
-
-        int bestcost = INFINITECOST;
-        int bestsind = -1;
-
-#if DEBUG
-        GetCoordFromState(sourceID, sourcex_c, sourcey_c, sourcetheta_c);
-        GetCoordFromState(targetID, targetx_c, targety_c, targettheta_c);
-        SBPL_FPRINTF(fDeb, "looking for %d %d %d -> %d %d %d (numofsuccs=%d)\n", sourcex_c, sourcey_c, sourcetheta_c,
-                     targetx_c, targety_c, targettheta_c, (int)SuccIDV.size());
-#endif
-
-        for (int sind = 0; sind < (int)SuccIDV.size(); sind++) {
-#if DEBUG
-            int x_c, y_c, theta_c;
-            GetCoordFromState(SuccIDV[sind], x_c, y_c, theta_c);
-            SBPL_FPRINTF(fDeb, "succ: %d %d %d\n", x_c, y_c, theta_c);
-#endif
-
-            if (SuccIDV[sind] == targetID && CostV[sind] <= bestcost) {
-                bestcost = CostV[sind];
-                bestsind = sind;
-            }
-        }
-        if (bestsind == -1) {
-            SBPL_ERROR("ERROR: successor not found for transition:\n");
-            GetCoordFromState(sourceID, sourcex_c, sourcey_c, sourcetheta_c);
-            GetCoordFromState(targetID, targetx_c, targety_c, targettheta_c);
-            SBPL_INFO("%d %d %d -> %d %d %d\n", sourcex_c, sourcey_c, sourcetheta_c, targetx_c, targety_c,
-                        targettheta_c);
-            throw new SBPL_Exception();
-        }
-
-        //now push in the actual path
-        int sourcex_c, sourcey_c, sourcetheta_c;
-        GetCoordFromState(sourceID, sourcex_c, sourcey_c, sourcetheta_c);
-        double sourcex, sourcey;
-        sourcex = DISCXY2CONT(sourcex_c, EnvMASNAVXYTHETALATCfg.cellsize_m);
-        sourcey = DISCXY2CONT(sourcey_c, EnvMASNAVXYTHETALATCfg.cellsize_m);
-        //TODO - when there are no motion primitives we should still print source state
-        for (int ipind = 0; ipind < ((int)actionV[bestsind]->intermptV.size()) - 1; ipind++) {
-            //translate appropriately
-            sbpl_xy_theta_pt_t intermpt = actionV[bestsind]->intermptV[ipind];
-            intermpt.x += sourcex;
-            intermpt.y += sourcey;
-
-#if DEBUG
-            int nx = CONTXY2DISC(intermpt.x, EnvMASNAVXYTHETALATCfg.cellsize_m);
-            int ny = CONTXY2DISC(intermpt.y, EnvMASNAVXYTHETALATCfg.cellsize_m);
-            SBPL_FPRINTF(fDeb, "%.3f %.3f %.3f (%d %d %d cost=%d) ",
-                intermpt.x, intermpt.y, intermpt.theta,
-                nx, ny,
-                ContTheta2Disc(intermpt.theta, EnvMASNAVXYTHETALATCfg.NumThetaDirs), EnvMASNAVXYTHETALATCfg.Grid2D[nx][ny]);
-            if(ipind == 0) SBPL_FPRINTF(fDeb, "first (heur=%d)\n", GetStartHeuristic(sourceID));
-            else SBPL_FPRINTF(fDeb, "\n");
-#endif
-
-            //store
-            xythetaPath->push_back(intermpt);
-        }
-    }
+  return EnvMASNAVXYTHETALATCfg.NumGoals;
 }
-*/
 
-
+int EnvironmentMASNAVXYTHETALAT::GetNumAgents() const
+{
+  SBPL_INFO("get numagents returning %d", EnvMASNAVXYTHETALATCfg.NumAgents); 
+  return EnvMASNAVXYTHETALATCfg.NumAgents;
+} 
 
 bool EnvironmentMASNAVXYTHETALAT::SetNumGoals(int numgoals)
 {
@@ -1790,7 +1679,7 @@ int EnvironmentMASNAVXYTHETALAT::SetGoal(std::vector<sbpl_xy_theta_pt_t> goal_m)
         bNeedtoRecomputeStartHeuristics = true; //because termination condition may not plan all the way to the new goal
         bNeedtoRecomputeGoalHeuristics = true; //because goal heuristics change
     }
-
+    // note that goal is unique
     EnvMASNAVXYTHETALAT.goalstateid = OutHashEntry->stateID;
 
     EnvMASNAVXYTHETALATCfg.end = goal;
@@ -1824,8 +1713,8 @@ int EnvironmentMASNAVXYTHETALAT::SetStart(std::vector<sbpl_xy_theta_pt_t> start_
     SBPL_INFO("WARNING: start configuration is invalid\n");
   }
 	   
-    EnvMASNAVXYTHETALATHashEntry_t* OutHashEntry;
-    std::vector<bool> goalsvisited(EnvMASNAVXYTHETALATCfg.NumGoals, false);
+    EnvMASNAVXYTHETALATHashEntry_t* OutHashEntry; 
+    std::vector<bool> goalsvisited = getGoalsVisited(start);
     if ((OutHashEntry = (this->*GetHashEntry)(start, goalsvisited)) == NULL) {
         //have to create a new entry
       OutHashEntry = (this->*CreateNewHashEntry)(start, goalsvisited);
@@ -1841,11 +1730,10 @@ int EnvironmentMASNAVXYTHETALAT::SetStart(std::vector<sbpl_xy_theta_pt_t> start_
     //set start
     EnvMASNAVXYTHETALAT.startstateid = OutHashEntry->stateID;
     EnvMASNAVXYTHETALATCfg.start = start;
-    
     return EnvMASNAVXYTHETALAT.startstateid;
 }
 
-void EnvironmentMASNAVXYTHETALAT::GetFakePath(int stateID, std::vector<double>& coord)
+void EnvironmentMASNAVXYTHETALAT::GetFakeCoord(int stateID, std::vector<double>& coord)
 {
   std::vector<int> d_coord(3);
   std::vector<double> c_coord(3);
@@ -1864,8 +1752,31 @@ void EnvironmentMASNAVXYTHETALAT::GetFakePath(int stateID, std::vector<double>& 
 	  coord[i+2] = c_coord[2];
 	}
       else
-	SBPL_ERROR("ERROR in EnvMASNAVXYTHETALAT... function:Get Fake Path"); 
+	SBPL_ERROR("ERROR in EnvMASNAVXYTHETALAT... function:Get Fake Coord"); 
     }
+}
+
+bool EnvironmentMASNAVXYTHETALAT::GetFakePlan(int startstateID, std::vector<int>& solutionstateIDs)
+{
+  // apply motion primitives
+  std::vector<int> CostV;
+  std::vector<int> SuccIDV;
+  std::vector<bool> isTrueCost;
+  int id = startstateID;
+  for(int i = 0; i < 50; i++){
+    PrintState(id, true);
+    solutionstateIDs.push_back(id);
+    GetLazySuccsWithUniqueIds(id, &SuccIDV, &CostV, &isTrueCost);
+    int newsucc_i = rand() % SuccIDV.size(); 
+    /*for(int j = 0; j < SuccIDV.size(); j++)
+      {
+	SBPL_INFO("Successor %d cost %d\n", j, CostV[j]);
+	PrintState(SuccIDV[j],true);
+	solutionstateIDs.push_back(SuccIDV[j]);
+	}*/
+    id = SuccIDV[newsucc_i];
+  }
+  return true;
 }
 
 void EnvironmentMASNAVXYTHETALAT::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/)
@@ -1888,8 +1799,15 @@ void EnvironmentMASNAVXYTHETALAT::PrintState(int stateID, bool bVerbose, FILE* f
 
     if (bVerbose)
       {
-	for(int i = 0; i < EnvMASNAVXYTHETALATCfg.NumAgents; i++)
+	for(int i = 0; i < EnvMASNAVXYTHETALATCfg.NumAgents; i++){
 	  SBPL_FPRINTF(fOut, "X=%d Y=%d Theta=%d\n", HashEntry->poses[i].x, HashEntry->poses[i].y, HashEntry->poses[i].theta);
+	  SBPL_INFO("Agent %d (X=%d Y=%d Theta=%d)", i, HashEntry->poses[i].x, HashEntry->poses[i].y, HashEntry->poses[i].theta);
+	}
+	SBPL_INFO("Goals Visited:");
+	for(int i = 0; i < EnvMASNAVXYTHETALATCfg.NumGoals; i++){
+	  SBPL_INFO("%d ", (int) HashEntry->goalsVisited[i]);
+	}
+	
       }
     else
       {
@@ -1902,7 +1820,7 @@ void EnvironmentMASNAVXYTHETALAT::PrintState(int stateID, bool bVerbose, FILE* f
 
 
 
-EnvMASNAVXYTHETALATHashEntry_t* EnvironmentMASNAVXYTHETALAT::GetHashEntry_hash(std::vector<pose_t> poses, std::vector<bool> GoalsVisited)
+EnvMASNAVXYTHETALATHashEntry_t* EnvironmentMASNAVXYTHETALAT::GetHashEntry_hash(std::vector<pose_t>& poses, std::vector<bool> GoalsVisited)
 {
 #if TIME_DEBUG
     clock_t currenttime = clock();
@@ -1934,7 +1852,7 @@ EnvMASNAVXYTHETALATHashEntry_t* EnvironmentMASNAVXYTHETALAT::GetHashEntry_hash(s
     return NULL;
 }
 
-bool EnvironmentMASNAVXYTHETALAT::IsEqualHashEntry(EnvMASNAVXYTHETALATHashEntry_t* hashentry, std::vector<pose_t> poses, std::vector<bool> GoalsVisited)
+bool EnvironmentMASNAVXYTHETALAT::IsEqualHashEntry(EnvMASNAVXYTHETALATHashEntry_t* hashentry, std::vector<pose_t>& poses, std::vector<bool> GoalsVisited)
 {
   bool matchfound = true;
   for (int agent_i =0; agent_i <  EnvMASNAVXYTHETALATCfg.NumAgents; agent_i++){
@@ -1948,7 +1866,7 @@ bool EnvironmentMASNAVXYTHETALAT::IsEqualHashEntry(EnvMASNAVXYTHETALATHashEntry_
   return matchfound;
 }
 
-EnvMASNAVXYTHETALATHashEntry_t* EnvironmentMASNAVXYTHETALAT::CreateNewHashEntry_hash(std::vector<pose_t> poses, std::vector<bool> GoalsVisited)
+EnvMASNAVXYTHETALATHashEntry_t* EnvironmentMASNAVXYTHETALAT::CreateNewHashEntry_hash(std::vector<pose_t>& poses, std::vector<bool> GoalsVisited)
 {
     int i;
 
@@ -1958,15 +1876,14 @@ EnvMASNAVXYTHETALATHashEntry_t* EnvironmentMASNAVXYTHETALAT::CreateNewHashEntry_
 
     EnvMASNAVXYTHETALATHashEntry_t* HashEntry = new EnvMASNAVXYTHETALATHashEntry_t;
 
-    HashEntry->poses = poses;;
+    HashEntry->poses = poses;
     HashEntry->goalsVisited = GoalsVisited;
     HashEntry->iteration = 0;
 
     HashEntry->stateID = StateID2CoordTable.size();
-
+   
     //insert into the tables
     StateID2CoordTable.push_back(HashEntry);
-
     //get the hash table bin
     i = GETHASHBIN(HashEntry->poses, HashEntry->goalsVisited);
 
@@ -1997,11 +1914,11 @@ void EnvironmentMASNAVXYTHETALAT::GetSuccs(int SourceStateID, vector<int>* SuccI
   SBPL_INFO("Undefined");
 }
 
+
+// TODO: Just up down left right
 void EnvironmentMASNAVXYTHETALAT::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vector<int>* CostV, vector<
 					     EnvMASNAVXYTHETALATAction_t*>* actionV /*=NULL*/)
 {
-  SBPL_INFO("Undefined");
-  /*  
 #if TIME_DEBUG
   clock_t currenttime = clock();
 #endif
@@ -2016,44 +1933,216 @@ void EnvironmentMASNAVXYTHETALAT::GetSuccs(int SourceStateID, vector<int>* SuccI
     actionV->reserve(EnvMASNAVXYTHETALATCfg.actionwidth);
   }
 
-    //goal state should be absorbing
-    if (SourceStateID == EnvMASNAVXYTHETALAT.goalstateid) return;
-
-    //get X, Y for the state
-    EnvMASNAVXYTHETALATHashEntry_t* HashEntry = StateID2CoordTable[SourceStateID];
-
-    //iterate through actions
-    for (aind = 0; aind < EnvMASNAVXYTHETALATCfg.actionwidth; aind++) {
-        EnvMASNAVXYTHETALATAction_t* nav3daction = &EnvMASNAVXYTHETALATCfg.ActionsV[(unsigned int)HashEntry->Theta][aind];
-        int newX = HashEntry->X + nav3daction->dX;
-        int newY = HashEntry->Y + nav3daction->dY;
-        int newTheta = NORMALIZEDISCTHETA(nav3daction->endtheta, EnvMASNAVXYTHETALATCfg.NumThetaDirs);
-
-        //skip the invalid cells
-        if (!IsValidCell(newX, newY)) continue;
-
-        //get cost
-        int cost = GetActionCost(HashEntry->X, HashEntry->Y, HashEntry->Theta, nav3daction);
-        if (cost >= INFINITECOST) continue;
-
-        EnvMASNAVXYTHETALATHashEntry_t* OutHashEntry;
-        if ((OutHashEntry = (this->*GetHashEntry)(newX, newY, newTheta)) == NULL) {
-            //have to create a new entry
-            OutHashEntry = (this->*CreateNewHashEntry)(newX, newY, newTheta);
-        }
-
-        SuccIDV->push_back(OutHashEntry->stateID);
-        CostV->push_back(cost);
-        if (actionV != NULL) actionV->push_back(nav3daction);
+  //get X, Y for the state
+  EnvMASNAVXYTHETALATHashEntry_t* HashEntry = StateID2CoordTable[SourceStateID];
+  // goal state should be absorbing
+  std::vector<bool> allgoalsVisited(EnvMASNAVXYTHETALATCfg.NumGoals,true);
+  if (HashEntry->goalsVisited == allgoalsVisited)
+    return;
+  
+  // Make numAgents x numActions structure of poses and costs
+  std::vector<std::vector<pose_t>> allnewPoses(EnvMASNAVXYTHETALATCfg.NumAgents);
+  std::vector<std::vector<int>> allnewCosts(EnvMASNAVXYTHETALATCfg.NumAgents);
+  int cost;
+  const int numActions = EnvMASNAVXYTHETALATCfg.actionwidth + 1;
+  for(int agent_i = 0; agent_i < EnvMASNAVXYTHETALATCfg.NumAgents; agent_i++)
+    {
+      // + 1 because we are adding a stop motion
+      
+      allnewPoses[agent_i] = std::vector<pose_t> (numActions);
+      allnewCosts[agent_i] = std::vector<int>(numActions);
     }
+  //iterate through agents
+  for(int agent_i = 0; agent_i < EnvMASNAVXYTHETALATCfg.NumAgents; agent_i++){
+    //iterate through actions
+    int aind;
+    for (aind = 0; aind < EnvMASNAVXYTHETALATCfg.actionwidth; aind++) {
+      EnvMASNAVXYTHETALATAction_t* nav3daction = &EnvMASNAVXYTHETALATCfg.ActionsV[(unsigned int)HashEntry->poses[agent_i].theta][aind];
+      int newX = HashEntry->poses[agent_i].x + nav3daction->dX;
+      int newY = HashEntry->poses[agent_i].y + nav3daction->dY;
+      int newTheta = NORMALIZEDISCTHETA(nav3daction->endtheta, EnvMASNAVXYTHETALATCfg.NumThetaDirs);
+      //skip the invalid cells
+      if (!IsValidCell(newX, newY))
+	cost = INFINITECOST;
+      else
+	//get cost
+	cost = GetActionCost(HashEntry->poses[agent_i].x, HashEntry->poses[agent_i].y, HashEntry->poses[agent_i].theta, nav3daction);
+    
+      // record this action for this agent
+      pose_t newPose;
+      newPose.x = newX;
+      newPose.y = newY;
+      newPose.theta = newTheta;
+      allnewPoses[agent_i][aind] = newPose;
+      allnewCosts[agent_i][aind] = cost;
+    }
+    // stop motion
+    allnewPoses[agent_i][aind] = HashEntry->poses[agent_i];
+    allnewCosts[agent_i][aind] = 1;
+  }
 
+    EnvMASNAVXYTHETALATHashEntry_t* OutHashEntry;
+    std::vector<pose_t> poses;
+    // Make successors from all possible combinations of agents and actions
+    // TODO: this can be precomputed
+    // We have numActions^ numagents primitives
+    int numPrimitives = pow(numActions, EnvMASNAVXYTHETALATCfg.NumAgents);
+    //SBPL_INFO("NumAgents %d NumActions %d NumPrimitives %d", EnvMASNAVXYTHETALATCfg.NumAgents, numActions, numPrimitives);
+    for(int i = 0; i < numPrimitives; i++){
+      poses.clear();
+
+      // action index is i in base numActions
+      int index = i;
+      cost = 0;
+      for(int agent_i = 0; agent_i < EnvMASNAVXYTHETALATCfg.NumAgents; agent_i++){
+	int action_i = index % numActions;
+	index = (int) index/numActions;	
+	cost = std::max(cost, allnewCosts[agent_i][action_i]);
+	poses.push_back(allnewPoses[agent_i][action_i]);
+      }
+      if (cost >= INFINITECOST)
+	{
+	  //SBPL_INFO("Found an infinite cost action");
+	  continue;
+	}
+      std::vector<bool> goalsVisited = getGoalsVisited(poses);
+      if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited)) == NULL) {
+	//have to create a new entry
+	OutHashEntry = (this->*CreateNewHashEntry)(poses, goalsVisited);
+      }
+    
+      SuccIDV->push_back(OutHashEntry->stateID);
+      CostV->push_back(cost);
+    }
+  
 #if TIME_DEBUG
     time_getsuccs += clock()-currenttime;
-#endif
-  */
+#endif 
 }
 
 
+/* TODO: This is the "right" thing to do
+void EnvironmentMASNAVXYTHETALAT::GetSuccs(int SourceStateID, vector<int>* SuccIDV, vector<int>* CostV, vector<
+					     EnvMASNAVXYTHETALATAction_t*>* actionV /*=NULL)
+{
+#if TIME_DEBUG
+  clock_t currenttime = clock();
+#endif
+  
+  //clear the successor array
+  SuccIDV->clear();
+  CostV->clear();
+  SuccIDV->reserve(EnvMASNAVXYTHETALATCfg.actionwidth);
+  CostV->reserve(EnvMASNAVXYTHETALATCfg.actionwidth);
+  if (actionV != NULL) {
+    actionV->clear();
+    actionV->reserve(EnvMASNAVXYTHETALATCfg.actionwidth);
+  }
+
+  //get X, Y for the state
+  EnvMASNAVXYTHETALATHashEntry_t* HashEntry = StateID2CoordTable[SourceStateID];
+  // goal state should be absorbing
+  std::vector<bool> allgoalsVisited(EnvMASNAVXYTHETALATCfg.NumGoals,true);
+  if (HashEntry->goalsVisited == allgoalsVisited)
+    return;
+  
+  // Make numAgents x numActions structure of poses and costs
+  std::vector<std::vector<pose_t>> allnewPoses(EnvMASNAVXYTHETALATCfg.NumAgents);
+  std::vector<std::vector<int>> allnewCosts(EnvMASNAVXYTHETALATCfg.NumAgents);
+  int cost;
+  const int numActions = EnvMASNAVXYTHETALATCfg.actionwidth + 1;
+  for(int agent_i = 0; agent_i < EnvMASNAVXYTHETALATCfg.NumAgents; agent_i++)
+    {
+      // + 1 because we are adding a stop motion
+      
+      allnewPoses[agent_i] = std::vector<pose_t> (numActions);
+      allnewCosts[agent_i] = std::vector<int>(numActions);
+    }
+  //iterate through agents
+  for(int agent_i = 0; agent_i < EnvMASNAVXYTHETALATCfg.NumAgents; agent_i++){
+    //iterate through actions
+    int aind;
+    for (aind = 0; aind < EnvMASNAVXYTHETALATCfg.actionwidth; aind++) {
+      EnvMASNAVXYTHETALATAction_t* nav3daction = &EnvMASNAVXYTHETALATCfg.ActionsV[(unsigned int)HashEntry->poses[agent_i].theta][aind];
+      int newX = HashEntry->poses[agent_i].x + nav3daction->dX;
+      int newY = HashEntry->poses[agent_i].y + nav3daction->dY;
+      int newTheta = NORMALIZEDISCTHETA(nav3daction->endtheta, EnvMASNAVXYTHETALATCfg.NumThetaDirs);
+      //skip the invalid cells
+      if (!IsValidCell(newX, newY))
+	cost = INFINITECOST;
+      else
+	//get cost
+	cost = GetActionCost(HashEntry->poses[agent_i].x, HashEntry->poses[agent_i].y, HashEntry->poses[agent_i].theta, nav3daction);
+    
+      // record this action for this agent
+      pose_t newPose;
+      newPose.x = newX;
+      newPose.y = newY;
+      newPose.theta = newTheta;
+      allnewPoses[agent_i][aind] = newPose;
+      allnewCosts[agent_i][aind] = cost;
+    }
+    // stop motion
+    allnewPoses[agent_i][aind] = HashEntry->poses[agent_i];
+    allnewCosts[agent_i][aind] = 1;
+  }
+
+    EnvMASNAVXYTHETALATHashEntry_t* OutHashEntry;
+    std::vector<pose_t> poses;
+    // Make successors from all possible combinations of agents and actions
+    // TODO: this can be precomputed
+    // We have numActions^ numagents primitives
+    int numPrimitives = pow(numActions, EnvMASNAVXYTHETALATCfg.NumAgents);
+    //SBPL_INFO("NumAgents %d NumActions %d NumPrimitives %d", EnvMASNAVXYTHETALATCfg.NumAgents, numActions, numPrimitives);
+    for(int i = 0; i < numPrimitives; i++){
+      poses.clear();
+
+      // action index is i in base numActions
+      int index = i;
+      cost = 0;
+      for(int agent_i = 0; agent_i < EnvMASNAVXYTHETALATCfg.NumAgents; agent_i++){
+	int action_i = index % numActions;
+	index = (int) index/numActions;	
+	cost = std::max(cost, allnewCosts[agent_i][action_i]);
+	poses.push_back(allnewPoses[agent_i][action_i]);
+      }
+      if (cost >= INFINITECOST)
+	{
+	  //SBPL_INFO("Found an infinite cost action");
+	  continue;
+	}
+      std::vector<bool> goalsVisited = getGoalsVisited(poses);
+      if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited)) == NULL) {
+	//have to create a new entry
+	OutHashEntry = (this->*CreateNewHashEntry)(poses, goalsVisited);
+      }
+    
+      SuccIDV->push_back(OutHashEntry->stateID);
+      CostV->push_back(cost);
+    }
+  
+#if TIME_DEBUG
+    time_getsuccs += clock()-currenttime;
+#endif 
+}
+*/
+
+std::vector<bool> EnvironmentMASNAVXYTHETALAT::getGoalsVisited(std::vector<pose_t> poses)
+{
+  std::vector<bool> goalsVisited(EnvMASNAVXYTHETALATCfg.NumGoals, false);
+  for(int i = 0; i < (int)poses.size(); i++){
+    int x = poses[i].x;
+    int y = poses[i].y;
+    for(int j = 0; j < EnvMASNAVXYTHETALATCfg.NumGoals; j++)
+      {
+	if((x == EnvMASNAVXYTHETALATCfg.end[j].x) && (y == EnvMASNAVXYTHETALATCfg.end[j].y))
+	  goalsVisited[j] = true;
+      }
+  }
+  return goalsVisited;
+
+}
+  
 
 void EnvironmentMASNAVXYTHETALAT::GetPreds(int TargetStateID, vector<int>* PredIDV, vector<int>* CostV)
 {
@@ -2069,8 +2158,7 @@ void EnvironmentMASNAVXYTHETALAT::InitializeEnvironment()
 {
     EnvMASNAVXYTHETALATHashEntry_t* HashEntry;
 
-    int maxsize = EnvMASNAVXYTHETALATCfg.EnvWidth_c * EnvMASNAVXYTHETALATCfg.EnvHeight_c * EnvMASNAVXYTHETALATCfg.NumThetaDirs;
-
+    //int maxsize = EnvMASNAVXYTHETALATCfg.EnvWidth_c * EnvMASNAVXYTHETALATCfg.EnvHeight_c * EnvMASNAVXYTHETALATCfg.NumThetaDirs;
     
     SBPL_INFO("environment stores states in hashtable\n");
     
@@ -2114,7 +2202,7 @@ void EnvironmentMASNAVXYTHETALAT::InitializeEnvironment()
 unsigned int EnvironmentMASNAVXYTHETALAT::GETHASHBIN(std::vector<pose_t> poses, std::vector<bool> goalsVisited)
 {
   unsigned int hashbin = 0;
-  for(int i = 0; i < poses.size(); ++i)
+  for(int i = 0; i < (int) poses.size(); ++i)
     {
       hashbin += inthash(inthash(poses[i].x) + (inthash(poses[i].y) << 1) + (inthash(poses[i].theta) << 2));
     }
@@ -2227,7 +2315,7 @@ int EnvironmentMASNAVXYTHETALAT::GetStartHeuristic(int stateID)
     //define this function if it is used in the planner (heuristic backward search would use it)
     return (int)(((double)__max(h2D, hEuclid)) / EnvMASNAVXYTHETALATCfg.nominalvel_mpersecs);
   */
-  SBPL_INFO("TODO: GetStartHeuristic not define");
+  SBPL_INFO("TODO: GetStartHeuristic not defined");
   return 0;
 }
 
