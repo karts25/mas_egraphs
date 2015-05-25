@@ -1,12 +1,11 @@
 #include <mas_egraphs/egraph_xy_node.h>
 #include <nav_msgs/Path.h>
-
 using namespace std;
 
 EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   ros::NodeHandle private_nh("~");
   ros::NodeHandle nh;
-
+  
   private_nh.param("primitive_filename",primitive_filename_,string(""));
   double nominalvel_mpersecs, timetoturn45degsinplace_secs;
   private_nh.param("nominalvel_mpersecs", nominalvel_mpersecs, 1.0);
@@ -17,11 +16,10 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   lethal_obstacle_ = (unsigned char) lethal_obstacle;
   inscribed_inflated_obstacle_ = lethal_obstacle_-1;
   sbpl_cost_multiplier_ = (unsigned char) (costmap_2d::INSCRIBED_INFLATED_OBSTACLE/inscribed_inflated_obstacle_ + 1);
-
+  
   costmap_ros_ = costmap_ros;
   costmap_ros_->clearRobotFootprint();
   costmap_ros_->getCostmapCopy(cost_map_);
-
   env_ = new EGraphXY();
 
   /*if(!env_->SetEnvParameter("cost_inscribed_thresh", costMapCostToSBPLCost(costmap_2d::INSCRIBED_INFLATED_OBSTACLE))){
@@ -31,9 +29,9 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   if(!env_->SetEnvParameter("cost_possibly_circumscribed_thresh", costMapCostToSBPLCost(cost_map_.getCircumscribedCost()))){
     ROS_ERROR("Failed to set cost_possibly_circumscribed_thresh parameter");
     exit(1);
-    }*/
+    }
   int obst_cost_thresh = costMapCostToSBPLCost(costmap_2d::LETHAL_OBSTACLE);
-
+  */
   bool ret;
   try{
     std::vector<pose_t> start(1);
@@ -72,14 +70,11 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
     egraph_ = new EGraph(env_, 2, 0);
   else
     egraph_ = new EGraph(env_,egraph_filename);
-
-  heur_ = new EGraphMAS2dGridHeuristic(*env_, costmap_ros_->getSizeInCellsX(), costmap_ros_->getSizeInCellsY(), 1/nominalvel_mpersecs);
-  egraph_mgr_ = new EGraphManager<vector<int> >(egraph_, env_, heur_);
-  planner_ = new LazyAEGPlanner<vector<int> >(env_, true, egraph_mgr_);
-  egraph_vis_ = new EGraphVisualizer(egraph_, env_);
-
-  egraph_vis_->visualize();
-
+  
+  
+  //egraph_vis_ = new EGraphVisualizer(egraph_, env_);
+  // egraph_vis_->visualize();
+   
   interrupt_sub_ = nh.subscribe("/sbpl_planning/interrupt", 1, &EGraphXYNode::interruptPlannerCallback,this);
   plan_pub_ = nh.advertise<visualization_msgs::MarkerArray>("plan", 1);
   plan_service_ = nh.advertiseService("/sbpl_planning/plan_path",&EGraphXYNode::makePlan,this);
@@ -112,6 +107,11 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   costmap_ros_->getCostmapCopy(cost_map_);
   SBPL_INFO("Received request with numAgents = %d",req.num_agents);
   SBPL_ERROR("Checking error message"); 
+
+  heur_ = new EGraphMAS2dGridHeuristic(*env_, costmap_ros_->getSizeInCellsX(), costmap_ros_->getSizeInCellsY(), 1);
+  egraph_mgr_ = new EGraphManager<vector<int> > (egraph_, env_, heur_, req.num_goals, req.num_agents); //TODO
+  planner_ = new LazyAEGPlanner<vector<int> >(env_, true, egraph_mgr_);
+  
   try{
     bool ret = env_->SetNumAgents(req.num_agents);
     if (!ret)
@@ -179,6 +179,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
     return false;
   }
 
+
   //publish starts and goals
   ros::Time req_time = ros::Time::now();
   visualization_msgs::MarkerArray start_and_goals;
@@ -219,8 +220,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
 	start_and_goals.markers.push_back(marker);
    }
    plan_pub_.publish(start_and_goals);
-
-  
+   
   vector<vector<bool> > heur_grid(cost_map_.getSizeInCellsX(), vector<bool>(cost_map_.getSizeInCellsY(), false));
   for(unsigned int ix = 0; ix < cost_map_.getSizeInCellsX(); ix++){
     for(unsigned int iy = 0; iy < cost_map_.getSizeInCellsY(); iy++){
@@ -230,9 +230,9 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
         heur_grid[ix][iy] = true;
     }
   }
-  heur_->setGrid(heur_grid);
-  
-  egraph_mgr_->updateManager();
+   
+  egraph_mgr_->updateManager(); // updates start and goal
+  egraph_mgr_->updateHeuristicGrids(heur_grid);
 
   EGraphReplanParams params(100.0);
   params.initial_eps = req.initial_eps;
@@ -258,7 +258,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   }
   if(!ret)
     return false;
-
+  
   if(req.save_egraph)
     egraph_->save("xydemo_egraph.eg");
   
@@ -317,7 +317,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
     }
   plan_pub_.publish(gui_path);
 
-  egraph_vis_->visualize();
+  //egraph_vis_->visualize();
   return true;
   
 }

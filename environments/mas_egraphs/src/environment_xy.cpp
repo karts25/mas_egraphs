@@ -103,8 +103,8 @@ bool Environment_xy::InitializeEnv()
     //create start state
     std::vector<bool> goalsVisited(EnvXYCfg.numGoals,false);
     if ((HashEntry = (this->*GetHashEntry)(EnvXYCfg.start, goalsVisited)) == NULL) {
-        //have to create a new entry
-        HashEntry = (this->*CreateNewHashEntry)(EnvXYCfg.start, goalsVisited);
+      //have to create a new entry
+      HashEntry = (this->*CreateNewHashEntry)(EnvXYCfg.start, goalsVisited);
     }
     EnvXY.startstateid = HashEntry->stateID;
 
@@ -432,6 +432,7 @@ int Environment_xy::SetStart(std::vector<sbpl_xy_theta_pt_t> start_m)
 // Hashing functions
 EnvXYHashEntry_t* Environment_xy::GetHashEntry_hash(std::vector<pose_t>& poses, std::vector<bool> GoalsVisited)
 {
+  
 #if TIME_DEBUG
     clock_t currenttime = clock();
 #endif
@@ -478,7 +479,7 @@ bool Environment_xy::IsEqualHashEntry(EnvXYHashEntry_t* hashentry, std::vector<p
 
 EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& poses, std::vector<bool> GoalsVisited)
 {
-    int i;
+  int i;
 
 #if TIME_DEBUG	
     clock_t currenttime = clock();
@@ -515,7 +516,6 @@ EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& p
 #if TIME_DEBUG
     time_createhash += clock()-currenttime;
 #endif
-
     return HashEntry;
 }
 
@@ -738,12 +738,11 @@ bool Environment_xy::GetFakePlan(int startstateID, std::vector<int>& solutionsta
     solutionstateIDs.push_back(id);
     GetLazySuccsWithUniqueIds(id, &SuccIDV, &CostV, &isTrueCost);
     int newsucc_i = rand() % SuccIDV.size(); 
-    /*for(int j = 0; j < SuccIDV.size(); j++)
-      {
+    for(int j = 0; j < SuccIDV.size(); j++){
 	SBPL_INFO("Successor %d cost %d\n", j, CostV[j]);
 	PrintState(SuccIDV[j],true);
 	solutionstateIDs.push_back(SuccIDV[j]);
-	}*/
+      }
     id = SuccIDV[newsucc_i];
   }
   return true;

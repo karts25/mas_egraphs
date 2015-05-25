@@ -19,11 +19,12 @@ bool EGraphXY::InitializeEnv(int width, int height,
 			   goal, goaltol_x, goaltol_y,
 			   cellsize_m, nominalvel_mpersecs);
   return ret;
+  
 }
 
 int EGraphXY::GetNumGoals() const
 {
-  SBPL_INFO("get numagents returning %d", EnvXYCfg.numAgents); 
+  SBPL_INFO("get numagents returning %d", EnvXYCfg.numAgents);
   return EnvXYCfg.numGoals;
 }
 
@@ -132,7 +133,7 @@ void EGraphXY::projectGoalToHeuristicSpace(vector<int>& dp) const{
   }
   for(int i = 0; i < EnvXYCfg.numGoals; i++)
     dp.push_back(1);
-  //ROS_INFO("project goal -> (%d %d)",dp[0],dp[1]);
+  ROS_INFO("project goal -> (%d %d)", dp[0], dp[1]);
 }
 
 void EGraphXY::contToDisc(const vector<double>& c, vector<int>& d){

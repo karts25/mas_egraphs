@@ -5,7 +5,7 @@ using namespace std;
 #define HEUR_XY2ID(x,y) ((y + 1) * width_ + (x + 1))
 
 EGraphMAS2dGridHeuristic::EGraphMAS2dGridHeuristic(const EGraphable<vector<int> >& env, 
-                                             int size_x, int size_y, int move_cost): env_(env){
+					 int size_x, int size_y, int move_cost): env_(env){
   sizex_ = size_x;
   sizey_ = size_y;
   cost_1_move_ = move_cost;
@@ -34,6 +34,10 @@ EGraphMAS2dGridHeuristic::EGraphMAS2dGridHeuristic(const EGraphable<vector<int> 
     heur[i].id = i;
     sc[i].id = i;
   }
+}
+
+void EGraphMAS2dGridHeuristic::setAgentId(int agentId){
+  agentid_ = agentId;
 }
 
 void EGraphMAS2dGridHeuristic::setGrid(const vector<vector<bool> >& grid){
@@ -237,8 +241,8 @@ int EGraphMAS2dGridHeuristic::getHeuristic(const vector<int>& coord){
     //HEUR_SUCCESSOR(width_+1);                 //+y+x
     //HEUR_SUCCESSOR(width_-1);                 //+y-x
     vector<double> c_coord;
-    for(unsigned int i=0; i<state->egraph_vertices.size(); i++){
-      for(unsigned int j=0; j<state->egraph_vertices[i]->neighbors.size(); j++){
+    for(unsigned int i=0; i < state->egraph_vertices.size(); i++){
+      for(unsigned int j=0; j < state->egraph_vertices[i]->neighbors.size(); j++){
         if(!state->egraph_vertices[i]->valid[j])
           continue;
         eg_->discToCont(state->egraph_vertices[i]->neighbors[j],c_coord);

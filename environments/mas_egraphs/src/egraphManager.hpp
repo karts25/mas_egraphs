@@ -1,38 +1,68 @@
-#include<mas_egraphs/egraphManager.h>
-
+//#include<mas_egraphs/egraphManager.h>
 using namespace std;
 
+/*
 #ifndef DEBUG_HEUR
 #define DEBUG_HEUR
 #endif
+*/
 
 // Want this manager to split egraph by agent and call heuristic on each of them separately
 template <typename HeuristicType>
 EGraphManager<HeuristicType>::EGraphManager(EGraphPtr egraph,
 					    EGraphablePtr egraph_env,
-					    EGraphHeuristicPtr egraph_heur):
-  egraph_env_(egraph_env), egraph_(egraph), egraph_heur_(egraph_heur) {
-  egraph_heur_->initialize(egraph_);
+					    EGraphHeuristicPtr egraph_heur,
+					    int numgoals, int numagents):
+  egraph_env_(egraph_env), egraph_(egraph), egraph_heurs_vec_(numgoals*numagents, egraph_heur) {
+  
+  numgoals_  = numgoals; 
+  numagents_ = numagents; 
+  
   params_.feedback_path = true;
   params_.update_stats = true;
-  bool set_goal = false;
-  initEGraph(set_goal);
-  
-  numgoals_  = egraph_env->GetNumGoals(); 
-  numagents_ = egraph_env->GetNumAgents(); 
+ 
+  int i = 0;
+  egraph_heurs_.resize(numagents_);
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    egraph_heurs_[agent_i].resize(numgoals_);
+    for(int goal_i = 0; goal_i < numgoals_; goal_i++){
+      egraph_heurs_[agent_i][goal_i] = egraph_heurs_vec_[i];
+      egraph_heurs_[agent_i][goal_i]->setAgentId(agent_i);
+      i++;
+    }
+  }
+  //updateManager();
+  egraph_heurs_vec_.clear(); // don't need this anymore
+}
 
-  setGoal();
+template <typename HeuristicType>
+void EGraphManager<HeuristicType>::updateHeuristicGrids(const std::vector<std::vector<bool> >& grid){
+  // set up a heuristic grid for each agent-goal pair
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    for(int goal_i = 0; goal_i < numgoals_; goal_i++){
+      egraph_heurs_[agent_i][goal_i]->setGrid(grid);
+      }
+  }  
+}
+
+template <typename HeuristicType>
+void EGraphManager<HeuristicType>::setEpsE(double epsE){  
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    for(int goal_i = 0; goal_i < numgoals_; goal_i++){
+      egraph_heurs_[agent_i][goal_i]->setEpsE(epsE);
+    }
+  }
 }
 
 template <typename HeuristicType>
 void EGraphManager<HeuristicType>::updateManager(){
-  numgoals_  = egraph_env_->GetNumGoals(); 
-  numagents_ = egraph_env_->GetNumAgents(); 
   segmentEGraph();
+  initEGraph(true);
   setGoal();
   
-  // edgecosts_agent_i is a [#numgoals+1 x #numgoals+1] vector
+  // Allocate edgecosts_agent_i ( [#numgoals+1 x #numgoals+1] vector )
   TSPEdgecosts_.clear();
+
   for(int agent_i = 0; agent_i < numagents_; agent_i++){
     Matrix TSPEdgecosts_agent_i;
     for(int i = 0; i < numgoals_ + 1; i++){
@@ -41,6 +71,7 @@ void EGraphManager<HeuristicType>::updateManager(){
     }
     TSPEdgecosts_.push_back(TSPEdgecosts_agent_i);
   }
+
   // compute distances between goals for each agent
   for(int agent_i = 0; agent_i < numagents_; agent_i++)
     computeGoalDistances(agent_i);
@@ -109,37 +140,37 @@ template <typename HeuristicType>
 int EGraphManager<HeuristicType>::getHeuristicPerAgent(int state_id, int agent_i, 
 					   std::vector<int>& heur_coord_agent,
 					   std::vector<int>& assignment){
-  std::vector<int> goals;
+  std::vector<int> goalindices;
   //computeGoalDistances(agent_i);
 #ifdef DEBUG_HEUR
   SBPL_INFO("Getting heuristic for agent at (%d,%d)", heur_coord_agent[0], heur_coord_agent[1]);
 #endif
   for(int i = 0; i < numgoals_; i ++){
     if(assignment[i] == agent_i){
-      goals.push_back(i);
+      goalindices.push_back(i);
     }
   }
-  
+  //initialize heuristic with relevant segment of egraph for this agent
   // for each goal, run 2d bfs
-  for(int i = 0; i < (int)goals.size(); i++){
+  for(int i = 0; i < (int)goalindices.size(); i++){
+    EGraphHeuristicPtr egraph_heur = egraph_heurs_[agent_i][goalindices[i]];
+    egraph_heur->initialize(egraphperagent_[agent_i]);
     std::vector<int> goalcoord;
-    getGoalCoord(goals[i], goalcoord);
-    //initialize heuristic with relevant segment of egraph for this agent
-    egraph_heur_->initialize(egraphperagent_[i]); 
-    egraph_heur_->setGoal(goalcoord);
+    getGoalCoord(goalindices[i], goalcoord);
+    egraph_heur->setGoal(goalcoord);
 #ifdef DEBUG_HEUR
     SBPL_INFO("Goal is (%d,%d)", goalcoord[0], goalcoord[1]);
 #endif
-    int heur_val = egraph_heur_->getHeuristic(heur_coord_agent);
+    int heur_val = egraph_heur->getHeuristic(heur_coord_agent);
 #ifdef DEBUG_HEUR
     SBPL_INFO("Heuristic is %d", heur_val);
 #endif
     // update row of edgecosts for this goal
-    TSPEdgecosts_[agent_i][numgoals_][i] = heur_val;
-    TSPEdgecosts_[agent_i][i][numgoals_] = heur_val;
+    TSPEdgecosts_[agent_i][numgoals_][goalindices[i]] = heur_val;
+    TSPEdgecosts_[agent_i][goalindices[i]][numgoals_] = heur_val;
   }
   // solve the TSP
-  int heur = solveTSP(agent_i, goals);
+  int heur = solveTSP(agent_i, goalindices);
 #ifdef DEBUG_HEUR
     SBPL_INFO("SolveTSP returned %d", heur);
 #endif
@@ -153,6 +184,7 @@ void EGraphManager<HeuristicType>::getGoalCoord(int i, std::vector<int>& coord){
   coord.push_back(allgoals_coord_[2*i]);
   coord.push_back(allgoals_coord_[2*i+1]);
 }
+
 
 template <typename HeuristicType>
 bool EGraphManager<HeuristicType>::setGoal(){
@@ -177,19 +209,14 @@ template <typename HeuristicType>
 void EGraphManager<HeuristicType>::computeGoalDistances(int agent_i)
 {
   std::vector<int> start(2,0);
-  std::vector<int> goal(2,0);
-
   //Initialize with relevant segment of egraph
   for(int i = 0; i < numgoals_; i++){
     start[0] = allgoals_coord_[2*i];
     start[1] = allgoals_coord_[2*i+1];
     for(int j = i+1; j < numgoals_; j++){
-      goal[0] = allgoals_coord_[2*j];
-      goal[1] = allgoals_coord_[2*j+1];
-      egraph_heur_->initialize(egraphperagent_[agent_i]);
-      egraph_heur_->setGoal(goal);
-      int heur = egraph_heur_->getHeuristic(start);
-      TSPEdgecosts_[agent_i][i][j] = heur;
+      int goal_i = j;
+      int heurval = egraph_heurs_[agent_i][goal_i]->getHeuristic(start);
+      TSPEdgecosts_[agent_i][i][j] = heurval;
       TSPEdgecosts_[agent_i][j][i] = TSPEdgecosts_[agent_i][i][j];
       //SBPL_INFO("computeGoalDistances: start (%d,%d) goal (%d,%d)", start[0], start[1], goal[0], goal[1]); 
       //SBPL_INFO("computeGoalDistances: heur is %d", heur);
@@ -210,12 +237,16 @@ int EGraphManager<HeuristicType>::solveTSP(int agent_i, std::vector<int>& goalin
   do{
     for(int i =0; i < (int) goalindices.size(); i++)
       //SBPL_INFO("solveTSP: goalindices =%d",goalindices[i]);
-    // cost from agent to first goal
+      // cost from agent to first goal
     heur = TSPEdgecosts_[agent_i][numgoals_][goalindices[0]];
-    //SBPL_INFO("solveTSP: heur is %d", heur);
+#ifdef DEBUG_HEUR
+    SBPL_INFO("solveTSP: heur is %d", heur);
+#endif
     // add costs from each goal to the next
     for(int i = 0; i < (int)goalindices.size()-1; i++){
-      //SBPL_INFO("solveTSP: heur adding %d", TSPEdgecosts_[agent_i][goalindices[i]][goalindices[i+1]]);
+#ifdef DEBUG_HEUR
+      SBPL_INFO("solveTSP: heur adding %d", TSPEdgecosts_[agent_i][goalindices[i]][goalindices[i+1]]);
+#endif
       heur += TSPEdgecosts_[agent_i][goalindices[i]][goalindices[i+1]];
       if(heur > bestheursofar)
 	break;
@@ -276,14 +307,16 @@ void EGraphManager<HeuristicType>::validateEGraph(bool update_egraph){
     }
     if (update_egraph){
         egraph_->computeComponents();
-        egraph_heur_->runPrecomputations();
+	for(int agent_i = 0; agent_i < numagents_; agent_i++){
+	  for(int goal_i = 0; goal_i < numgoals_; goal_i++){
+	  egraph_heurs_[agent_i][goal_i]->runPrecomputations();
+	  }
+	}
     }
 
     ROS_INFO("num invalid edges from full egraph check: %d", num_invalid_edges);
     stats_.egraph_validity_check_time = double(clock()-time)/CLOCKS_PER_SEC;
 }
-
-
 
 //-----------TODO: Copied from egraphManager.cpp
 
@@ -683,16 +716,23 @@ void EGraphManager<HeuristicType>::fillInDirectShortcut (int parent_id, int shor
 template <typename HeuristicType>
 void EGraphManager<HeuristicType>::storeLastPath(const std::vector<int>& path, 
                                   const std::vector<int>& costs){
-    EGraphPath full_path;
-    assert(path.size()-1 == costs.size());
-    for (auto& state_id : path){
-        ContState coord;
-        egraph_env_->getCoord(state_id, coord);
-        //printVector(coord);
-        full_path.push_back(coord);
+  std::vector<EGraphPath> full_path_allagents(numagents_);
+  assert(path.size()-1 == costs.size());
+  for (auto& state_id : path){
+    ContState coord;
+    egraph_env_->getCoord(state_id, coord);
+    //printVector(coord);
+    for(int agent_i = 0; agent_i < numagents_; agent_i++){
+      ContState coord_agent;
+      coord_agent.push_back(coord[0]);
+      coord_agent.push_back(coord[1]);
+      full_path_allagents[agent_i].push_back(coord_agent);
     }
-    update_eg_thread_data_.path_to_feedback = full_path;
-    update_eg_thread_data_.costs = costs;
+  }
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    update_eg_thread_data_.path_to_feedback = full_path_allagents[agent_i];
+    update_eg_thread_data_.costs = costs; //todo: this will become cost per agent/ we just recompute
+  }
 }
 
 // given a start and end id, we get all the egraph vertices in between (with
@@ -813,7 +853,7 @@ void EGraphManager<HeuristicType>::feedbackLastPath(){
     if(params_.update_stats){
         egraph_->recordStats(update_eg_thread_data_.path_to_feedback);
     }
-
+    
     egraph_->addPath(update_eg_thread_data_.path_to_feedback,
                      update_eg_thread_data_.costs);
     stats_.feedback_time = ros::Time::now().toSec() - t0;
@@ -824,7 +864,7 @@ void EGraphManager<HeuristicType>::feedbackLastPath(){
         errorCheckEGraphVertex(v);
     }
     if (update_eg_thread_data_.path_to_feedback.size()){
-        egraph_heur_->runPrecomputations();
+      egraph_heurs_[0][0]->runPrecomputations(); //TODO
     }
     double t3 = ros::Time::now().toSec();
     stats_.error_check_time = t3-t2;
@@ -861,14 +901,25 @@ void EGraphManager<HeuristicType>::initEGraph(bool set_goal){
     // components
     clock_t time = clock();
     egraph_->computeComponents();
-    egraph_heur_->runPrecomputations();
-    stats_.precomp_time += static_cast<double>(clock()-time)/CLOCKS_PER_SEC;
-
+    HeuristicType coord;
     if (set_goal){
-        HeuristicType coord;
-        egraph_env_->projectGoalToHeuristicSpace(coord);
-        egraph_heur_->setGoal(coord);
+      egraph_env_->projectGoalToHeuristicSpace(coord);
     }
+
+    for(int agent_i = 0; agent_i < numagents_; agent_i++){
+      for(int goal_i = 0; goal_i < numgoals_; goal_i++){
+	egraph_heurs_[agent_i][goal_i]->runPrecomputations();
+	if (set_goal){
+	  HeuristicType coord_goal(2);
+	  coord_goal[0] = coord[2*goal_i];
+	  coord_goal[1] = coord[2*goal_i + 1];
+	  egraph_heurs_[agent_i][goal_i]->initialize(egraphperagent_[agent_i]);
+	  egraph_heurs_[agent_i][goal_i]->setGoal(coord_goal);
+	}
+      }
+    }
+    stats_.precomp_time += static_cast<double>(clock()-time)/CLOCKS_PER_SEC;
+     
 }
 
 // let's double check that we can transform between egraph vertices (continuous

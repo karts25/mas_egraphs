@@ -30,6 +30,10 @@
 #include <algorithm>
 #include <numeric>
 
+/*#ifndef DEBUG_PLANNER
+#define DEBUG_PLANNER
+#endif
+*/
 using namespace std;
 
 template <typename HeuristicType>
@@ -296,6 +300,7 @@ void LazyAEGPlanner<HeuristicType>::putStateInHeap(LazyAEGState* state){
   if(state->iteration_closed != search_iteration){
     CKey key;
     key.key[0] = state->g + int(eps * state->h);
+    key.key[1] = state->h;
     if(print)
       printf("put state in open with f %lu\n", key.key[0]);
     //if the state is already in the heap, just update its priority
@@ -344,10 +349,13 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
 
     //get the state		
     LazyAEGState* state = (LazyAEGState*)heap.deleteminheap();
+
+#ifdef DEBUG_PLANNER    
     SBPL_INFO("Expanding:");
     environment_->PrintState(state->id, true);
     SBPL_INFO("g = %d h = %d\n", state->g, state->h);
-    /*SBPL_INFO("Goal state (id %d) :", goal_state.id);*/
+#endif
+    
     if(state->v == state->g){
       printf("ERROR: consistent state is being expanded\n");
       printf("id=%d v=%d g=%d isTrueCost=%d lazyListSize=%lu\n",
@@ -384,7 +392,9 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
 
     //get the min key for the next iteration
     min_key = heap.getminkeyheap();
+#ifdef DEBUG_PLANNER
     std::cin.get();
+#endif
   }
 
   search_expands += expands;
@@ -614,6 +624,7 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
   assert(start_state->h >= 0);
   CKey key;
   key.key[0] = eps*start_state->h;
+  key.key[1] = start_state->h;
   heap.insertheap(start_state, key);
 
   //ensure heuristics are up-to-date
@@ -698,13 +709,15 @@ void LazyAEGPlanner<HeuristicType>::prepareNextSearchIteration(){
     incons.pop_back();
     s->in_incons = false;
     key.key[0] = s->g + int(eps * s->h);
+    key.key[1] = s->h;
     heap.insertheap(s,key);
   }
 
   //recompute priorities for states in OPEN and reorder it
   for (int i=1; i<=heap.currentsize; ++i){
     LazyAEGState* state = (LazyAEGState*)heap.heap[i].heapstate;
-    heap.heap[i].key.key[0] = state->g + int(eps * state->h); 
+    heap.heap[i].key.key[0] = state->g + int(eps * state->h);
+    heap.heap[i].key.key[1] = state->h;
   }
   heap.makeheap();
 
@@ -739,7 +752,6 @@ int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGra
   params = p;
   use_repair_time = params.repair_time >= 0;
   interruptFlag = false;
-
   egraph_mgr_->setEpsE(p.epsE);
   set_goal();
 
