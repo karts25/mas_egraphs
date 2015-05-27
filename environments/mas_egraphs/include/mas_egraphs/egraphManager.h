@@ -68,9 +68,9 @@ template <typename HeuristicType>
 class EGraphManager {
  public:
         typedef EGraphable<HeuristicType>* EGraphablePtr;
-        typedef EGraphHeuristic<HeuristicType>* EGraphHeuristicPtr;
+        typedef EGraphMAS2dGridHeuristic* EGraphHeuristicPtr; //TODO: this should really be of base class type to support multiple heuristics
 	typedef std::vector<std::vector<int>> Matrix;
-	EGraphManager(EGraphPtr egraph, EGraphablePtr egraph_env, EGraphHeuristicPtr egraph_heur, int numgoals, int numagents);
+	EGraphManager(std::vector<EGraphPtr> egraphs, EGraphablePtr egraph_env, std::vector<std::vector<EGraphHeuristicPtr> > egraph_heur, int numgoals, int numagents);
 	void setEpsE(double epsE);
 	bool setGoal();
 	void updateManager();
@@ -140,7 +140,6 @@ class EGraphManager {
 	EGraphPtr egraph_;
 	EGraphHeuristicPtr egraph_heur_;
 	std::vector<std::vector<EGraphHeuristicPtr> > egraph_heurs_;
-	std::vector<EGraphHeuristicPtr> egraph_heurs_vec_;
         UpdateEGThreadData update_eg_thread_data_;
         EGraphStats stats_;
 

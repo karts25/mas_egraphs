@@ -21,7 +21,10 @@ class EGraphMAS2dGridHeuristic : public EGraphHeuristic<std::vector<int> >{
   void runPrecomputations();
   void getDirectShortcut(int component, std::vector<EGraph::EGraphVertex*>& shortcuts);
   virtual void resetShortcuts();
-
+  virtual EGraphHeuristic* clone() const
+  {
+    return new EGraphMAS2dGridHeuristic(*this);
+  }
   protected:
     class EGraphMAS2dGridHeuristicCell: public AbstractSearchState{
       public:

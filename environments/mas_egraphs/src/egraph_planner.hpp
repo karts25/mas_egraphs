@@ -30,10 +30,12 @@
 #include <algorithm>
 #include <numeric>
 
-/*#ifndef DEBUG_PLANNER
+/*
+#ifndef DEBUG_PLANNER
 #define DEBUG_PLANNER
 #endif
 */
+
 using namespace std;
 
 template <typename HeuristicType>
@@ -88,8 +90,13 @@ LazyAEGState* LazyAEGPlanner<HeuristicType>::GetState(int id){
     //compute heuristics
     if(bforwardsearch){
       clock_t h_t0 = clock();
+#ifdef DEBUG_PLANNER
+      SBPL_INFO("Planner: Getting heuristic for id %d", s->id);
+#endif
       s->h = egraph_mgr_->getHeuristic(s->id);
-      SBPL_PRINTF("Planner: heuristic is %d",s->h);
+#ifdef DEBUG_PLANNER
+      SBPL_PRINTF("Planner: heuristic is %d", s->h);
+#endif
       clock_t h_t1 = clock();
       heuristicClock += h_t1-h_t0;
     } else {
@@ -127,10 +134,10 @@ void LazyAEGPlanner<HeuristicType>::ExpandState(LazyAEGState* parent){
 
     //egraph_mgr_->getSnapSuccessors(parent->id, &children, &costs, &isTrueCost, &edgeTypes);
     clock_t shortcut_t0 = clock();
-    egraph_mgr_->getDirectShortcutSuccessors(parent->id, &children, &costs, &isTrueCost, &edgeTypes);
+    //egraph_mgr_->getDirectShortcutSuccessors(parent->id, &children, &costs, &isTrueCost, &edgeTypes);
 
-    snap_midpoints.resize(children.size(),-1);
-    egraph_mgr_->getSnapShortcuts(parent->id, &children, &costs, &isTrueCost, &edgeTypes, &snap_midpoints);
+    //snap_midpoints.resize(children.size(),-1);
+    //egraph_mgr_->getSnapShortcuts(parent->id, &children, &costs, &isTrueCost, &edgeTypes, &snap_midpoints);
     if(edgeTypes.size()>0 && edgeTypes.back() == EdgeType::SNAP_DIRECT_SHORTCUT)
       assert(snap_midpoints.back()>=0);
     clock_t shortcut_t1 = clock();
@@ -322,9 +329,6 @@ void LazyAEGPlanner<HeuristicType>::putStateInHeap(LazyAEGState* state){
 
 template <typename HeuristicType>
 void LazyAEGPlanner<HeuristicType>::updateGoal(LazyAEGState* state){
-  /*SBPL_INFO("in updateGoal with state g= %d, goal_state.g = %d", state->g, goal_state.g);
-  environment_->PrintState(state->id, true);
-  SBPL_INFO("isGoal returned %d",egraph_mgr_->egraph_env_->isGoal(state->id));*/
   if(egraph_mgr_->egraph_env_->isGoal(state->id) && state->isTrueCost && state->g < goal_state.g){
     //ROS_INFO("updating the goal state");
     goal_state.id = state->id;
@@ -848,7 +852,9 @@ template <typename HeuristicType>
 int LazyAEGPlanner<HeuristicType>::set_start(int id){
   //printf("planner: setting start to %d\n", id);
   //if(bforwardsearch)
+#ifdef DEBUG_PLANNER
   SBPL_INFO("Setting start state");
+#endif
   environment_->PrintState(id,true);
     start_state_id = id;
   //else

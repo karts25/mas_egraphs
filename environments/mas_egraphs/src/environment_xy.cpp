@@ -208,9 +208,7 @@ void Environment_xy::SetConfiguration(int width, int height, const unsigned char
 
 bool Environment_xy::UpdateCost(int x, int y, unsigned char newcost)
 {
-#if DEBUG
-    //SBPL_FPRINTF(fDeb, "Cost updated for cell %d %d from old cost=%d to new cost=%d\n", x,y,EnvXYCfg.Grid2D[x][y], newcost);
-#endif
+  //SBPL_FPRINTF(fDeb, "Cost updated for cell %d %d from old cost=%d to new cost=%d\n", x,y,EnvXYCfg.Grid2D[x][y], newcost);
   
   EnvXYCfg.Grid2D[x][y] = newcost;
   return true;

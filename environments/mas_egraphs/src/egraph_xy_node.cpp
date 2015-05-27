@@ -64,14 +64,6 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
     for (ssize_t iy(0); iy < costmap_ros_->getSizeInCellsY(); ++iy)
       env_->UpdateCost(ix, iy, costMapCostToSBPLCost(cost_map_.getCost(ix,iy)));
 
-  string egraph_filename;
-  private_nh.param<string>("egraph_filename", egraph_filename, "");
-  if(egraph_filename.empty())
-    egraph_ = new EGraph(env_, 2, 0);
-  else
-    egraph_ = new EGraph(env_,egraph_filename);
-  
-  
   //egraph_vis_ = new EGraphVisualizer(egraph_, env_);
   // egraph_vis_->visualize();
    
@@ -107,10 +99,6 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   costmap_ros_->getCostmapCopy(cost_map_);
   SBPL_INFO("Received request with numAgents = %d",req.num_agents);
   SBPL_ERROR("Checking error message"); 
-
-  heur_ = new EGraphMAS2dGridHeuristic(*env_, costmap_ros_->getSizeInCellsX(), costmap_ros_->getSizeInCellsY(), 1);
-  egraph_mgr_ = new EGraphManager<vector<int> > (egraph_, env_, heur_, req.num_goals, req.num_agents); //TODO
-  planner_ = new LazyAEGPlanner<vector<int> >(env_, true, egraph_mgr_);
   
   try{
     bool ret = env_->SetNumAgents(req.num_agents);
@@ -137,6 +125,29 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
     ROS_ERROR("SBPL encountered a fatal exception while setting the number of goals");
     return false;
   }
+
+  heurs_.resize(req.num_agents);
+  for(int agent_i=0; agent_i < req.num_agents; agent_i++){
+    heurs_[agent_i].resize(req.num_goals);
+    for(int goal_i=0; goal_i < req.num_goals; goal_i ++){
+      heurs_[agent_i][goal_i] = new EGraphMAS2dGridHeuristic(*env_, costmap_ros_->getSizeInCellsX(), costmap_ros_->getSizeInCellsY(), 1);
+    }
+  }
+
+  string egraph_filename;
+  /*
+  private_nh.param<string>("egraph_filename", egraph_filename, "");
+  if(egraph_filename.empty())
+    egraph_ = new EGraph(env_, 2, 0);
+  else
+    egraph_ = new EGraph(env_,egraph_filename);
+  */
+  egraphs_.resize(req.num_agents);
+  for(int agent_i = 0; agent_i < req.num_agents; agent_i++)
+    egraphs_[agent_i] = new EGraph(env_, 2 + req.num_goals, 0);
+  
+  egraph_mgr_ = new EGraphManager<vector<int> > (egraphs_, env_, heurs_, req.num_goals, req.num_agents); //TODO
+  planner_ = new LazyAEGPlanner<vector<int> >(env_, true, egraph_mgr_);
 
   try{
     std::vector<sbpl_xy_theta_pt_t> goal_shifted(req.num_goals);
@@ -259,9 +270,9 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   if(!ret)
     return false;
   
-  if(req.save_egraph)
+  /*  if(req.save_egraph)
     egraph_->save("xydemo_egraph.eg");
-  
+  */
 
   //bool ret = env_->GetFakePlan(startstateID, solution_stateIDs);
   ros::Time plan_time = ros::Time::now();

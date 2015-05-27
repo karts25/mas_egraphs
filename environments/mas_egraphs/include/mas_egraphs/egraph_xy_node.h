@@ -34,7 +34,7 @@ class EGraphXYNode{
   std::vector<geometry_msgs::Point> footprint_;
   
   EGraphXY* env_;
-  EGraph* egraph_;
+  std::vector<EGraph*> egraphs_;
   EGraphMAS2dGridHeuristic* heur_;
   std::vector<std::vector<EGraphMAS2dGridHeuristic*> > heurs_;
   EGraphManager<std::vector<int> >* egraph_mgr_;

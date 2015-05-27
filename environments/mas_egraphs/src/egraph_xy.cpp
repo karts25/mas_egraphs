@@ -24,7 +24,6 @@ bool EGraphXY::InitializeEnv(int width, int height,
 
 int EGraphXY::GetNumGoals() const
 {
-  SBPL_INFO("get numagents returning %d", EnvXYCfg.numAgents);
   return EnvXYCfg.numGoals;
 }
 
@@ -68,8 +67,8 @@ bool EGraphXY::getCoord(int id, vector<double>& coord){
     discToCont(d_coord_agent, coord_agent);
     coord[i] = coord_agent[0];
     coord[i+1] = coord_agent[1];
-    //SBPL_INFO("Getcoord x,y = (%d,%d) converted to (%f,%f)", d_coord_agent[0], d_coord_agent[1], coord[i], coord[i+1]);
   }
+
   for(int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i++, i++){
     coord[i] = hashEntry->goalsVisited[goal_i];
   }
@@ -118,7 +117,7 @@ void EGraphXY::projectToHeuristicSpace(const vector<double>& coord, vector<int>&
       int y = CONTXY2DISC(coord[i+1], EnvXYCfg.cellsize_m);
       dp.push_back(x);
       dp.push_back(y);
-      //SBPL_INFO("project (%f %f) -> (%d %d)",coord[i],coord[i+1],x,y);
+      SBPL_INFO("project (%f %f) -> (%d %d). Cellsize is %f", coord[i], coord[i+1],x, y, EnvXYCfg.cellsize_m);
     }
   for(; i < EnvXYCfg.numGoals; i++)
     dp.push_back(coord[i]);
@@ -133,25 +132,28 @@ void EGraphXY::projectGoalToHeuristicSpace(vector<int>& dp) const{
   }
   for(int i = 0; i < EnvXYCfg.numGoals; i++)
     dp.push_back(1);
-  ROS_INFO("project goal -> (%d %d)", dp[0], dp[1]);
 }
 
+// Hack: assume there are n poses, and a vector of goals visited. At some point, 
+// need to convert this to pose_t and bool vector instead of a vector<int>
 void EGraphXY::contToDisc(const vector<double>& c, vector<int>& d){
-  d.resize(2*EnvXYCfg.numAgents + EnvXYCfg.numGoals);
-  int i = 0;
-  for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++, i+=2)
-    PoseContToDisc(c[i],c[i+1],d[i],d[i+1]);
-  for(; i < EnvXYCfg.numGoals; i++)
+  d.resize(c.size());
+  int i;
+  for(i = 0; i < (int) c.size(); i +=2){
+    PoseContToDisc(c[i], c[i+1], d[i], d[i+1]);
+  }
+  // copy over goals
+  for(; i < (int) c.size(); i++)
     d[i] = c[i];
 }
 
 void EGraphXY::discToCont(const vector<int>& d, vector<double>& c){
-  c.resize(2*EnvXYCfg.numAgents + EnvXYCfg.numGoals);
-  int i = 0;
-  for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++, i+=2)
+  c.resize(d.size());
+  int i;
+  //SBPL_INFO("in disctocont with numgoals %d, d.size() is %d", EnvXYCfg.numGoals, (int) d.size());
+  for(i =0; i < (int) d.size(); i+=2){
     PoseDiscToCont(d[i], d[i+1], c[i], c[i+1]);
-  for(; i < EnvXYCfg.numGoals; i++)
-    c[i] = d[i];
+  }
 }
 
 bool EGraphXY::isValidEdge(const vector<double>& coord, const vector<double>& coord2, bool& change_cost, int& cost){
