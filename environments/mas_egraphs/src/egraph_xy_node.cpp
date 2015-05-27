@@ -89,6 +89,7 @@ unsigned char EGraphXYNode::costMapCostToSBPLCost(unsigned char newcost){
     return 0;
   else
     return (unsigned char) (newcost/sbpl_cost_multiplier_ + 0.5);
+  
 }
 
 bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egraphs::GetXYThetaPlan::Response& res){

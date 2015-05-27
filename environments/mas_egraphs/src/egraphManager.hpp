@@ -84,7 +84,6 @@ int EGraphManager<HeuristicType>::getHeuristic(int state_id){
     return 0;
   }
 
-  SBPL_INFO("In getHeuristic with stateid = %d", state_id);
   ContState cont_state;
   egraph_env_->getCoord(state_id, cont_state); // TODO: We'd like getcoord to return pose, goalsvisited
 

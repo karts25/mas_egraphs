@@ -39,7 +39,7 @@
 #include <sbpl/discrete_space_information/environment.h>
 #include <sbpl/utils/utils.h>
 
-#define ENVXY_DEFAULTOBSTHRESH 254	//see explanation of the value below
+#define ENVXY_DEFAULTOBSTHRESH 20	//see explanation of the value below
 #define DEFAULTACTIONWIDTH 5
 
 class SBPL2DGridSearch;

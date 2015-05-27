@@ -117,7 +117,6 @@ void EGraphXY::projectToHeuristicSpace(const vector<double>& coord, vector<int>&
       int y = CONTXY2DISC(coord[i+1], EnvXYCfg.cellsize_m);
       dp.push_back(x);
       dp.push_back(y);
-      SBPL_INFO("project (%f %f) -> (%d %d). Cellsize is %f", coord[i], coord[i+1],x, y, EnvXYCfg.cellsize_m);
     }
   for(; i < EnvXYCfg.numGoals; i++)
     dp.push_back(coord[i]);

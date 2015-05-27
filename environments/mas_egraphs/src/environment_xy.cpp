@@ -657,8 +657,8 @@ std::vector<bool> Environment_xy::getGoalsVisited(std::vector<pose_t> poses, std
 
 bool Environment_xy::IsValidCell(int X, int Y)
 {
-    return (X >= 0 && X < EnvXYCfg.EnvWidth_c && Y >= 0 && Y < EnvXYCfg.EnvHeight_c &&
-            EnvXYCfg.Grid2D[X][Y] < EnvXYCfg.obsthresh);
+  return (X >= 0 && X < EnvXYCfg.EnvWidth_c && Y >= 0 && Y < EnvXYCfg.EnvHeight_c &&
+	  EnvXYCfg.Grid2D[X][Y] < EnvXYCfg.obsthresh);
 }
 
 
