@@ -193,28 +193,11 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   }
 
 
-  //publish starts and goals
+  //publish goals
   ros::Time req_time = ros::Time::now();
-  visualization_msgs::MarkerArray start_and_goals;
+  visualization_msgs::MarkerArray goals;
   int id = 0;
-  for(int agent_i = 0; agent_i < req.num_agents; agent_i++){
-    visualization_msgs::Marker marker;
-	marker.id = id; 
-	id++;
-	marker.scale.x = 0.5;
-	marker.scale.y = 0.5;
-	marker.scale.z = 0;
-	marker.color.r = 1;
-	marker.color.a = 1;
-	marker.type = visualization_msgs::Marker::SPHERE;
-	marker.header.stamp = req_time;
-	marker.header.frame_id = costmap_ros_->getGlobalFrameID();
-	marker.pose.position.x = req.start_x[agent_i];
-	marker.pose.position.y = req.start_y[agent_i];
-	marker.pose.position.z = 0;
-	start_and_goals.markers.push_back(marker);
-  }
-
+  
    for(int goal_i = 0; goal_i < req.num_goals; goal_i++){
     visualization_msgs::Marker marker;
 	marker.id = id; 
@@ -230,23 +213,10 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
 	marker.pose.position.x = req.goal_x[goal_i];
 	marker.pose.position.y = req.goal_y[goal_i];
 	marker.pose.position.z = 0;
-	start_and_goals.markers.push_back(marker);
+	goals.markers.push_back(marker);
    }
-   plan_pub_.publish(start_and_goals);
+   plan_pub_.publish(goals);
    
-  vector<vector<bool> > heur_grid(cost_map_.getSizeInCellsX(), vector<bool>(cost_map_.getSizeInCellsY(), false));
-  for(unsigned int ix = 0; ix < cost_map_.getSizeInCellsX(); ix++){
-    for(unsigned int iy = 0; iy < cost_map_.getSizeInCellsY(); iy++){
-      unsigned char c = costMapCostToSBPLCost(cost_map_.getCost(ix,iy));
-      env_->UpdateCost(ix, iy, c);
-      if(c >= inscribed_inflated_obstacle_)
-        heur_grid[ix][iy] = true;
-    }
-  }
-   
-  egraph_mgr_->updateManager(); // updates start and goal
-  egraph_mgr_->updateHeuristicGrids(heur_grid);
-
   EGraphReplanParams params(100.0);
   params.initial_eps = req.initial_eps;
   params.dec_eps = req.dec_eps;
@@ -258,40 +228,11 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   params.use_egraph = req.use_egraph;
   params.feedback_path = req.feedback_path;
 
-  
-  vector<int> solution_stateIDs;
-  bool ret = planner_->replan(&solution_stateIDs, params);
-  SBPL_INFO("Plan returned %d", ret);
-  map<string,double> stats = planner_->getStats();
-  for(map<string,double>::iterator it=stats.begin(); it!=stats.end(); it++){
-    res.stat_names.push_back(it->first);
-    res.stat_values.push_back(it->second);
-  }
-  if(!ret)
-    return false;
-  
-  /*  if(req.save_egraph)
-    egraph_->save("xydemo_egraph.eg");
-  */
-
-  //bool ret = env_->GetFakePlan(startstateID, solution_stateIDs);
-  //create a message for the plan 
-  //gui_path.markers.resize(solution_stateIDs.size());
-  publishPath(solution_stateIDs, res);
-
-  /*
-  for(int timestep = 0; timestep < 4; timestep++){
-    SBPL_INFO("Hit a key to simulate");
-    std::cin.get();
-    ret = simulate(solution_stateIDs, params, timestep, res);
-    }*/
-
-  //egraph_vis_->visualize();
-
-  return true;  
+  bool ret = simulate(req.start_x, req.start_y, params, res);
+  return ret;  
 }
 
-void EGraphXYNode::publishPath(std::vector<int> solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res){
+void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res){
   visualization_msgs::MarkerArray gui_path;
   vector<double> coord;
   res.path.clear();
@@ -345,56 +286,90 @@ void EGraphXYNode::publishPath(std::vector<int> solution_stateIDs, mas_egraphs::
   plan_pub_.publish(gui_path);
 
 }
-/*
-bool EGraphXYNode::simulate(std::vector<int>* solution_stateIDs_V, EGraphReplanParams* params, int iteration, mas_egraphs::GetXYThetaPlan::Response& res){
-   unsigned int planlength = solution_stateIDs_V->size();
-   float r1percents[] = {0.2, 0.4, 0.75, 1.0};
-   float r2percents[] = {0.2, 0.25, 0.35, 0.5};
 
-  std::vector<double> coord;
-  std::vector<sbpl_xy_theta_pt_t> start_shifted(2);
-  int r1id = (int) r1percents[iteration]*planlength;
-  int r2id = (int) r2percents[iteration]*planlength;
+bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> start_y, EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res){
+  std::vector<int> solution_stateIDs;
   
-  env_->getCoord(solution_stateIDs[r1id], coord);
-  start_shifted[0].x = coord[0] - cost_map_.getOriginX();
-  start_shifted[0].y = coord[1] - cost_map_.getOriginY();
-  env_->getCoord(solution_stateIDs[r2id], coord);
-  start_shifted[1].x = coord[0] - cost_map_.getOriginX();
-  start_shifted[1].y = coord[1] - cost_map_.getOriginY();
-  env_->SetStart(start_shifted);
-  
-  ros::Time req_time = ros::Time::now();
-  visualization_msgs::MarkerArray agentstates;
-  int id = 0;
-  for(int agent_i = 0; agent_i < numagents_; agent_i++){
-    visualization_msgs::Marker marker;
-    marker.id = id; 
-    id++;
-    marker.scale.x = 0.5;
-    marker.scale.y = 0.5;
-    marker.scale.z = 0;
-    marker.color.r = 1;
-    marker.color.a = 1;
-    marker.type = visualization_msgs::Marker::SPHERE;
-    marker.header.stamp = req_time;
-    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
-    marker.pose.position.x = start_shifted[2*agent_i];
-    marker.pose.position.y = start_shifted[2*agent_i+1];
-    marker.pose.position.z = 0;
-    agentstates.markers.push_back(marker);
+  // right now, robots follow original plan at different rates
+  float r1percents[] = {0, 0.2, 0.4, 0.75, 1.0};
+  float r2percents[] = {0, 0.2, 0.25, 0.35, 0.5};
+  std::vector<sbpl_xy_theta_pt_t> start_shifted(numagents_);
+  for(int timestep = 0; timestep < 4; timestep++){
+    // set start state
+    if(timestep == 0){
+      start_shifted[0].x = start_x[0] - cost_map_.getOriginX();
+      start_shifted[0].y = start_y[0] - cost_map_.getOriginY();
+      start_shifted[1].x = start_x[1] - cost_map_.getOriginX();
+      start_shifted[1].y = start_y[1] - cost_map_.getOriginY();
+    }
+    else{
+      std::vector<double> coord;
+      unsigned int planlength = solution_stateIDs.size();
+      int r1id = (int) (r1percents[timestep]* (float) planlength);
+      int r2id = (int) (r2percents[timestep]* (float) planlength);
+      SBPL_INFO("r1id = %d, r2id = %d", r1id, r2id);
+      env_->getCoord(solution_stateIDs[r1id], coord);
+      start_shifted[0].x = coord[0];
+      start_shifted[0].y = coord[1];
+      env_->getCoord(solution_stateIDs[r2id], coord);
+      start_shifted[1].x = coord[2];
+      start_shifted[1].y = coord[3];
+    }
+
+    int retid = env_->SetStart(start_shifted);
+    if(retid < 0 || planner_->set_start(retid) == 0){
+      ROS_ERROR("ERROR: failed to set start state\n");
+      return false;
+    }
+    
+    // publish start
+    int id = numgoals_;
+    visualization_msgs::MarkerArray startmarkers;
+    ros::Time req_time = ros::Time::now();
+    for(int agent_i = 0; agent_i < numagents_; agent_i++){
+      visualization_msgs::Marker marker;
+      marker.id = id; 
+      id++;
+      marker.scale.x = 0.5;
+      marker.scale.y = 0.5;
+      marker.scale.z = 0;
+      marker.color.r = 1;
+      marker.color.a = 1;
+      marker.type = visualization_msgs::Marker::SPHERE;
+      marker.header.stamp = req_time;
+      marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+      marker.pose.position.x = start_shifted[agent_i].x + cost_map_.getOriginX();
+      marker.pose.position.y = start_shifted[agent_i].y + cost_map_.getOriginY();
+      marker.pose.position.z = 0;
+      startmarkers.markers.push_back(marker);
+    }
+    plan_pub_.publish(startmarkers);
+
+
+    vector<vector<bool> > heur_grid(cost_map_.getSizeInCellsX(), vector<bool>(cost_map_.getSizeInCellsY(), false));
+    for(unsigned int ix = 0; ix < cost_map_.getSizeInCellsX(); ix++){
+      for(unsigned int iy = 0; iy < cost_map_.getSizeInCellsY(); iy++){
+	unsigned char c = costMapCostToSBPLCost(cost_map_.getCost(ix,iy));
+	env_->UpdateCost(ix, iy, c);
+	if(c >= inscribed_inflated_obstacle_)
+	  heur_grid[ix][iy] = true;
+      }
+    }
+    
+    egraph_mgr_->updateManager(); // updates start and goal
+    egraph_mgr_->updateHeuristicGrids(heur_grid);
+    // plan!
+    solution_stateIDs.clear();
+    bool ret = planner_->replan(&solution_stateIDs, params);
+    if (!ret)
+      return false;
+    publishPath(solution_stateIDs, res);    
+    
+    SBPL_INFO("Hit any key to forward simulate");
+    std::cin.get();
   }
-
-  plan_pub_.publish(agentstates);   
-  vector<int> solution_stateIDs;
-  bool ret = planner_->replan(&newsolution_stateIDs_V, params);
-  if (!ret)
-    return false;
-  publishPath(&solution_stateIDs_V, res);
-  
   return true;
 }
-*/
 
 int main(int argc, char** argv){
   ros::init(argc, argv, "mas_egraphs_node");

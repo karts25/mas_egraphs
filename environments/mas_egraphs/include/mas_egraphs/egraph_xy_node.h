@@ -48,8 +48,8 @@ class EGraphXYNode{
   
   ros::Subscriber interrupt_sub_;
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
-  void simulate(std::vector<int>* solution_stateIDs_V, std::vector<int>* newsolution_stateIDs_V, EGraphReplanParams* params, int iteration, mas_egraphs::GetXYThetaPlan::Response& res);
-  void publishPath(std::vector<int> solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res);
+  bool simulate(std::vector<double> start_x, std::vector<double> start_y, EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res);
+  void publishPath(std::vector<int>& solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res);
 };
 
 #endif
