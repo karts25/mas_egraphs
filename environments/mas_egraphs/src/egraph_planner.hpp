@@ -775,7 +775,6 @@ int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGra
   vector<int> pathIds; 
   int PathCost;
   bool solnFound = Search(pathIds, PathCost);
-
   //copy the solution
   *solution_stateIDs_V = pathIds;
   *solcost = PathCost;

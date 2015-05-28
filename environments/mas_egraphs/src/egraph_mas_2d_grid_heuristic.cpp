@@ -82,7 +82,6 @@ void EGraphMAS2dGridHeuristic::getEGraphVerticesWithSameHeuristic(const vector<i
 }
 
 void EGraphMAS2dGridHeuristic::runPrecomputations(){
-  return; //TODO
   //ROS_INFO("begin precomputations");
   //refill the cell to egraph vertex mapping
   //clock_t time = clock();
@@ -98,7 +97,6 @@ void EGraphMAS2dGridHeuristic::runPrecomputations(){
   vector<double> c_coord;
   //ROS_INFO("down project edges...");
 
-  //TODO: Egraph stuff
   for(unsigned int i=0; i<eg_->id2vertex.size(); i++){
     bool valid = false;
     for(unsigned int a=0; a<eg_->id2vertex[i]->valid.size(); a++)
@@ -107,12 +105,16 @@ void EGraphMAS2dGridHeuristic::runPrecomputations(){
       empty_components_[eg_->id2vertex[i]->component] = true;
       continue;
     }
-
-    eg_->discToCont(eg_->id2vertex[i],c_coord);
+    
+    eg_->discToCont(eg_->id2vertex[i], c_coord);
+    /*
+    for(unsigned int i = 0; i < c_coord.size(); i+=2)
+      SBPL_INFO("%f, %f", c_coord[i], c_coord[i+1]);
+    */
     //ROS_INFO("size of coord %d",c_coord.size());
     env_.projectToHeuristicSpace(c_coord,dp);
     if(dp[0] > sizex_ || dp[1] > sizey_){
-      ROS_WARN("edge out of bounds %d",eg_->id2vertex[i]->id);
+      ROS_WARN("edge at id %d out of bounds (%d, %d), (sizex_, sizey_) = %d, %d ", eg_->id2vertex[i]->id, dp[0], dp[1], sizex_, sizey_);
       continue;
     }
     //ROS_INFO("size of coord %d",dp.size());
@@ -120,8 +122,8 @@ void EGraphMAS2dGridHeuristic::runPrecomputations(){
     heur[HEUR_XY2ID(dp[0],dp[1])].egraph_vertices.push_back(eg_->id2vertex[i]);
     sc[HEUR_XY2ID(dp[0],dp[1])].egraph_vertices.push_back(eg_->id2vertex[i]);
   }
-  shortcut_cache_.clear();
-  shortcut_cache_.resize(eg_->getNumComponents(), NULL);
+  //shortcut_cache_.clear();
+  //shortcut_cache_.resize(eg_->getNumComponents(), NULL);
   //ROS_INFO("precomp time took %f", double(clock()-time)/CLOCKS_PER_SEC);
   //ROS_INFO("done precomputations");
 }
@@ -145,11 +147,12 @@ void EGraphMAS2dGridHeuristic::resetShortcuts(){
 }
 
 void EGraphMAS2dGridHeuristic::setGoal(const vector<int>& goal){
+  ROS_INFO("Setting goal to (%d, %d)", goal[0], goal[1]);
   //ROS_ERROR("begin setGoal");
   iteration_++;
-  /*
+  
   //clear the heur data structure
-  for(int i=0; i<planeSize_; i++){
+  /*for(int i=0; i<planeSize_; i++){
     heur[i].id = i;
     heur[i].heapindex = 0;
     heur[i].closed = false;
@@ -162,8 +165,8 @@ void EGraphMAS2dGridHeuristic::setGoal(const vector<int>& goal){
     sc[i].closed = false;
     if(sc[i].cost!=-1)
       sc[i].cost = INFINITECOST;
-  }
-  */
+      }*/
+  
   vector<int> dp;
   if(goal.empty()){
     dp = goal_dp_;

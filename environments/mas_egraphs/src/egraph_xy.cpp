@@ -111,6 +111,14 @@ bool EGraphXY::isGoal(int id){
 void EGraphXY::projectToHeuristicSpace(const vector<double>& coord, vector<int>& dp) const{
   int i = 0;
   dp.clear();
+  for(int i = 0; i < (int) coord.size(); i+=2){
+    //SBPL_INFO("projecting (%f, %f)", coord[i], coord[i+1]);
+    int x = CONTXY2DISC(coord[i], EnvXYCfg.cellsize_m);
+    int y = CONTXY2DISC(coord[i+1], EnvXYCfg.cellsize_m);
+    dp.push_back(x);
+    dp.push_back(y);
+  }
+  /*
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++, i+=2)
     {
       int x = CONTXY2DISC(coord[i], EnvXYCfg.cellsize_m);
@@ -118,9 +126,10 @@ void EGraphXY::projectToHeuristicSpace(const vector<double>& coord, vector<int>&
       dp.push_back(x);
       dp.push_back(y);
     }
+  
   for(; i < EnvXYCfg.numGoals; i++)
     dp.push_back(coord[i]);
-  
+  */
 }
 
 void EGraphXY::projectGoalToHeuristicSpace(vector<int>& dp) const{
@@ -138,18 +147,16 @@ void EGraphXY::projectGoalToHeuristicSpace(vector<int>& dp) const{
 void EGraphXY::contToDisc(const vector<double>& c, vector<int>& d){
   d.resize(c.size());
   int i;
+  //SBPL_INFO("in conttodisc with (%f %f)", c[0],c[1]) ;
   for(i = 0; i < (int) c.size(); i +=2){
     PoseContToDisc(c[i], c[i+1], d[i], d[i+1]);
   }
-  // copy over goals
-  for(; i < (int) c.size(); i++)
-    d[i] = c[i];
 }
 
 void EGraphXY::discToCont(const vector<int>& d, vector<double>& c){
   c.resize(d.size());
   int i;
-  //SBPL_INFO("in disctocont with numgoals %d, d.size() is %d", EnvXYCfg.numGoals, (int) d.size());
+  //SBPL_INFO("in disctocont with (%d %d)", d[0],d[1]) ;
   for(i =0; i < (int) d.size(); i+=2){
     PoseDiscToCont(d[i], d[i+1], c[i], c[i+1]);
   }

@@ -113,7 +113,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
     ROS_ERROR("SBPL encountered a fatal exception while setting the number of agents");
     return false;
   }
-
+  numagents_ = req.num_agents;
   try{
   bool ret = env_->SetNumGoals(req.num_goals);
   if (!ret)
@@ -126,6 +126,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
     ROS_ERROR("SBPL encountered a fatal exception while setting the number of goals");
     return false;
   }
+  numgoals_ = req.num_goals;
 
   heurs_.resize(req.num_agents);
   for(int agent_i=0; agent_i < req.num_agents; agent_i++){
@@ -145,7 +146,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   */
   egraphs_.resize(req.num_agents);
   for(int agent_i = 0; agent_i < req.num_agents; agent_i++)
-    egraphs_[agent_i] = new EGraph(env_, 2 + req.num_goals, 0);
+    egraphs_[agent_i] = new EGraph(env_, 2, 0);
   
   egraph_mgr_ = new EGraphManager<vector<int> > (egraphs_, env_, heurs_, req.num_goals, req.num_agents); //TODO
   planner_ = new LazyAEGPlanner<vector<int> >(env_, true, egraph_mgr_);
@@ -259,8 +260,6 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
 
   
   vector<int> solution_stateIDs;
-  
-  
   bool ret = planner_->replan(&solution_stateIDs, params);
   SBPL_INFO("Plan returned %d", ret);
   map<string,double> stats = planner_->getStats();
@@ -276,19 +275,35 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   */
 
   //bool ret = env_->GetFakePlan(startstateID, solution_stateIDs);
-  ros::Time plan_time = ros::Time::now();
-  
   //create a message for the plan 
+  //gui_path.markers.resize(solution_stateIDs.size());
+  publishPath(solution_stateIDs, res);
+
+  /*
+  for(int timestep = 0; timestep < 4; timestep++){
+    SBPL_INFO("Hit a key to simulate");
+    std::cin.get();
+    ret = simulate(solution_stateIDs, params, timestep, res);
+    }*/
+
+  //egraph_vis_->visualize();
+
+  return true;  
+}
+
+void EGraphXYNode::publishPath(std::vector<int> solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res){
   visualization_msgs::MarkerArray gui_path;
   vector<double> coord;
-  //gui_path.markers.resize(solution_stateIDs.size());
-  for(int agent_i = 0; agent_i < req.num_agents; agent_i++)
+  res.path.clear();
+  int id = numgoals_ + numagents_;
+  ros::Time plan_time = ros::Time::now();  
+
+  for(int agent_i = 0; agent_i < numagents_; agent_i++)
     {
-      for(unsigned int i=0; i< solution_stateIDs.size(); i++){    
+      for(unsigned int i=0; i < solution_stateIDs.size(); i++){    
 	coord.clear();
        	env_->getCoord(solution_stateIDs[i], coord);    
 	//env_->GetFakePath(i, coord); 
-	
 	//SBPL_INFO("id %d (x,y) = (%f,%f)", solution_stateIDs[i], coord[0], coord[1]);
 
 	visualization_msgs::Marker marker;
@@ -317,10 +332,10 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
 	geometry_msgs::PoseStamped pose;
 	pose.header.stamp = marker.header.stamp;
 	pose.header.frame_id = marker.header.frame_id;
-	pose.pose.orientation.x = pose.pose.orientation.x; 
-	pose.pose.orientation.y = pose.pose.orientation.y;
-	pose.pose.orientation.z = pose.pose.orientation.z;
-	pose.pose.orientation.w = pose.pose.orientation.w;
+	pose.pose.orientation.x = marker.pose.orientation.x; 
+	pose.pose.orientation.y = marker.pose.orientation.y;
+	pose.pose.orientation.z = marker.pose.orientation.z;
+	pose.pose.orientation.w = marker.pose.orientation.w;
 	pose.pose.position.x = marker.pose.position.x;
 	pose.pose.position.y = marker.pose.position.y;
 	pose.pose.position.z = marker.pose.position.z;
@@ -329,10 +344,57 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
     }
   plan_pub_.publish(gui_path);
 
-  //egraph_vis_->visualize();
-  return true;
-  
 }
+/*
+bool EGraphXYNode::simulate(std::vector<int>* solution_stateIDs_V, EGraphReplanParams* params, int iteration, mas_egraphs::GetXYThetaPlan::Response& res){
+   unsigned int planlength = solution_stateIDs_V->size();
+   float r1percents[] = {0.2, 0.4, 0.75, 1.0};
+   float r2percents[] = {0.2, 0.25, 0.35, 0.5};
+
+  std::vector<double> coord;
+  std::vector<sbpl_xy_theta_pt_t> start_shifted(2);
+  int r1id = (int) r1percents[iteration]*planlength;
+  int r2id = (int) r2percents[iteration]*planlength;
+  
+  env_->getCoord(solution_stateIDs[r1id], coord);
+  start_shifted[0].x = coord[0] - cost_map_.getOriginX();
+  start_shifted[0].y = coord[1] - cost_map_.getOriginY();
+  env_->getCoord(solution_stateIDs[r2id], coord);
+  start_shifted[1].x = coord[0] - cost_map_.getOriginX();
+  start_shifted[1].y = coord[1] - cost_map_.getOriginY();
+  env_->SetStart(start_shifted);
+  
+  ros::Time req_time = ros::Time::now();
+  visualization_msgs::MarkerArray agentstates;
+  int id = 0;
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    visualization_msgs::Marker marker;
+    marker.id = id; 
+    id++;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0;
+    marker.color.r = 1;
+    marker.color.a = 1;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.header.stamp = req_time;
+    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+    marker.pose.position.x = start_shifted[2*agent_i];
+    marker.pose.position.y = start_shifted[2*agent_i+1];
+    marker.pose.position.z = 0;
+    agentstates.markers.push_back(marker);
+  }
+
+  plan_pub_.publish(agentstates);   
+  vector<int> solution_stateIDs;
+  bool ret = planner_->replan(&newsolution_stateIDs_V, params);
+  if (!ret)
+    return false;
+  publishPath(&solution_stateIDs_V, res);
+  
+  return true;
+}
+*/
 
 int main(int argc, char** argv){
   ros::init(argc, argv, "mas_egraphs_node");

@@ -1,5 +1,6 @@
 //#include<mas_egraphs/egraphManager.h>
 using namespace std;
+
 /*
 #ifndef DEBUG_HEUR
 #define DEBUG_HEUR
@@ -33,7 +34,6 @@ EGraphManager<HeuristicType>::EGraphManager(std::vector<EGraphPtr> egraphs,
     }
   }
   //updateManager();
-  //egraph_heurs_vec_.clear(); // don't need this anymore
 }
 
 template <typename HeuristicType>
@@ -57,7 +57,6 @@ void EGraphManager<HeuristicType>::setEpsE(double epsE){
 
 template <typename HeuristicType>
 void EGraphManager<HeuristicType>::updateManager(){
-  //segmentEGraph();
   setGoal();
   initEGraph(true);
   
@@ -739,14 +738,16 @@ void EGraphManager<HeuristicType>::storeLastPath(const std::vector<int>& path,
     //printVector(coord);
     for(int agent_i = 0; agent_i < numagents_; agent_i++){
       ContState coord_agent;
-      coord_agent.push_back(coord[agent_i]);
-      coord_agent.push_back(coord[agent_i + 1]);
+      coord_agent.push_back(coord[2*agent_i]);
+      coord_agent.push_back(coord[2*agent_i + 1]);
       full_path_allagents[agent_i].push_back(coord_agent);
     }
   }
+  update_eg_thread_data_.path_to_feedback.resize(numagents_);
+  update_eg_thread_data_.costs.resize(numagents_);
   for(int agent_i = 0; agent_i < numagents_; agent_i++){
-    update_eg_thread_data_.path_to_feedback = full_path_allagents[agent_i];
-    update_eg_thread_data_.costs = costs; //todo: this will become cost per agent/ we just recompute
+    update_eg_thread_data_.path_to_feedback[agent_i] = full_path_allagents[agent_i];
+    update_eg_thread_data_.costs[agent_i] = costs; //todo: this will become cost per agent/ we just recompute
   }
 }
 
@@ -857,38 +858,40 @@ bool EGraphManager<HeuristicType>::reconstructComboSnapShortcut(LazyAEGState* su
 template <typename HeuristicType>
 void EGraphManager<HeuristicType>::feedbackLastPath(){
     double t0 = ros::Time::now().toSec();
-    for(unsigned int i=0; i<egraph_->id2vertex.size(); i++){
-        EGraph::EGraphVertex* v = egraph_->id2vertex[i];
+    for(int agent_i = 0; agent_i < numagents_; agent_i++){
+      for(unsigned int i=0; i<egraphperagent_[agent_i]->id2vertex.size(); i++){
+        EGraph::EGraphVertex* v = egraphperagent_[agent_i]->id2vertex[i];
         v->shortcuts.clear();
         v->shortcut_costs.clear();
         v->shortcutIteration = 0;
         v->search_iteration = 0;
+      }
+      egraphperagent_[agent_i]->search_iteration_ = 0;
+      if(params_.update_stats){
+        egraphperagent_[agent_i]->recordStats(update_eg_thread_data_.path_to_feedback[agent_i]);
+      }
+      
+      egraphperagent_[agent_i]->addPath(update_eg_thread_data_.path_to_feedback[agent_i],
+		       update_eg_thread_data_.costs[agent_i]);
+      stats_.feedback_time = ros::Time::now().toSec() - t0;
+      
+      double t2 = ros::Time::now().toSec();
+      for(unsigned int i=0; i<egraphperagent_[agent_i]->id2vertex.size(); i++){
+	EGraph::EGraphVertex* v = egraphperagent_[agent_i]->id2vertex[i];
+	//errorCheckEGraphVertex(v); //TODO
+      }
+      if (update_eg_thread_data_.path_to_feedback[agent_i].size()){
+	for(int goal_i = 0; goal_i < numgoals_; goal_i++)
+	  egraph_heurs_[agent_i][goal_i]->runPrecomputations(); 
+      }
+      double t3 = ros::Time::now().toSec();
+      stats_.error_check_time = t3-t2;
+      
+      
+      update_eg_thread_data_.path_to_feedback[agent_i].clear();
+      update_eg_thread_data_.costs[agent_i].clear();
+      stats_.precomp_time = 0;
     }
-    egraph_->search_iteration_ = 0;
-    if(params_.update_stats){
-        egraph_->recordStats(update_eg_thread_data_.path_to_feedback);
-    }
-    
-    egraph_->addPath(update_eg_thread_data_.path_to_feedback,
-                     update_eg_thread_data_.costs);
-    stats_.feedback_time = ros::Time::now().toSec() - t0;
-
-    double t2 = ros::Time::now().toSec();
-    for(unsigned int i=0; i<egraph_->id2vertex.size(); i++){
-        EGraph::EGraphVertex* v = egraph_->id2vertex[i];
-        //errorCheckEGraphVertex(v); //TODO
-    }
-    if (update_eg_thread_data_.path_to_feedback.size()){
-      egraph_heurs_[0][0]->runPrecomputations(); //TODO
-    }
-    double t3 = ros::Time::now().toSec();
-    stats_.error_check_time = t3-t2;
-
-
-    update_eg_thread_data_.path_to_feedback.clear();
-    update_eg_thread_data_.costs.clear();
-
-    stats_.precomp_time = 0;
 }
 
 template <typename HeuristicType>
@@ -923,7 +926,6 @@ void EGraphManager<HeuristicType>::initEGraph(bool set_goal){
     for(int agent_i = 0; agent_i < numagents_; agent_i++){
        egraphperagent_[agent_i]->computeComponents();
       for(int goal_i = 0; goal_i < numgoals_; goal_i++){
-	egraph_heurs_[agent_i][goal_i]->runPrecomputations();
 	if (set_goal){
 	  HeuristicType coord_goal(2);
 	  coord_goal[0] = coord[2*goal_i];
@@ -935,6 +937,7 @@ void EGraphManager<HeuristicType>::initEGraph(bool set_goal){
 	  egraph_heurs_[agent_i][goal_i]->initialize(egraphperagent_[agent_i]);
 	  egraph_heurs_[agent_i][goal_i]->setGoal(coord_goal);
 	}
+	egraph_heurs_[agent_i][goal_i]->runPrecomputations();
       }
     }
     stats_.precomp_time += static_cast<double>(clock()-time)/CLOCKS_PER_SEC;

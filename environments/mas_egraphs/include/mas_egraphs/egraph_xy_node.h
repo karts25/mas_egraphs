@@ -33,6 +33,8 @@ class EGraphXYNode{
   costmap_2d::Costmap2D cost_map_;        /**< local copy of the costmap underlying cost_map_ros_ */
   std::vector<geometry_msgs::Point> footprint_;
   
+  int numagents_;
+  int numgoals_;
   EGraphXY* env_;
   std::vector<EGraph*> egraphs_;
   EGraphMAS2dGridHeuristic* heur_;
@@ -46,6 +48,8 @@ class EGraphXYNode{
   
   ros::Subscriber interrupt_sub_;
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
+  void simulate(std::vector<int>* solution_stateIDs_V, std::vector<int>* newsolution_stateIDs_V, EGraphReplanParams* params, int iteration, mas_egraphs::GetXYThetaPlan::Response& res);
+  void publishPath(std::vector<int> solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res);
 };
 
 #endif

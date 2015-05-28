@@ -56,12 +56,12 @@ struct EGraphStats {
 };
 
 struct UpdateEGThreadData {
-    EGraphPath path_to_feedback;
-    EGraphCosts costs;
-    boost::thread* feedback_thread_;
-    boost::condition_variable egraph_cond_;
-    boost::mutex egraph_mutex_;
-    bool planner_ok_;
+  std::vector<EGraphPath> path_to_feedback;
+  std::vector<EGraphCosts> costs;
+  boost::thread* feedback_thread_;
+  boost::condition_variable egraph_cond_;
+  boost::mutex egraph_mutex_;
+  bool planner_ok_;
 };
 
 template <typename HeuristicType>
