@@ -517,6 +517,11 @@ EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& p
     return HashEntry;
 }
 
+void Environment_xy::GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<std::vector<int> >* PerAgentCostV, std::vector<bool>* isTrueCost){
+  GetSuccs(SourceStateID, SuccIDV, PerAgentCostV, CostV);
+  for(int i = 0; i < (int)SuccIDV->size(); i++)
+    isTrueCost->push_back(true);
+}
 
 //lazysuccswithuniqueids returns true succs
 void Environment_xy::GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<bool>* isTrueCost){
@@ -529,7 +534,11 @@ void Environment_xy::GetSuccsWithUniqueIds(int SourceStateID, std::vector<int>* 
   GetSuccs(SourceStateID, SuccIDV, CostV);
 }
 
-void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV)
+void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV){
+  // Keep virtual functions happy
+}
+
+void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<std::vector<int> >* PerAgentCostV, std::vector<int>* CostV)
 {
   //clear the successor array
   SuccIDV->clear();
@@ -557,7 +566,14 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
 
   //iterate through agents
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
-    pose_t newPose;
+    pose_t newPose;    
+    // stop
+    newPose.x = HashEntry->poses[agent_i].x;
+    newPose.y = HashEntry->poses[agent_i].y;
+    cost = 1/EnvXYCfg.nominalvel_mpersecs;
+    allnewPoses[agent_i][4] = newPose;
+    allnewCosts[agent_i][4] = 0;  // incur zero cost for stopping
+
     // right
     newPose.x = HashEntry->poses[agent_i].x + 1;
     newPose.y = HashEntry->poses[agent_i].y;
@@ -598,19 +614,13 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
     allnewPoses[agent_i][3] = newPose;
     allnewCosts[agent_i][3] = cost;
 
-    // stop
-    newPose.x = HashEntry->poses[agent_i].x;
-    newPose.y = HashEntry->poses[agent_i].y;
-    cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[agent_i][4] = newPose;
-    allnewCosts[agent_i][4] = cost;
   }
 
   EnvXYHashEntry_t* OutHashEntry;
   std::vector<pose_t> poses;
   // Make successors from all possible combinations of agents and actions
   // TODO: this can be precomputed
-    // We have numActions^ numagents primitives
+  // We have numActions^ numagents primitives
   int numPrimitives = pow(numActions, EnvXYCfg.numAgents);
   for(int i = 0; i < numPrimitives; i++){
     poses.clear();
@@ -618,17 +628,23 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
     // action index is i in base numActions
       int index = i;
       cost = 0;
+      std::vector<int> costperagent;
       for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
 	int action_i = index % numActions;
 	index = (int) index/numActions;	
 	cost = std::max(cost, allnewCosts[agent_i][action_i]); // all costs are 1 anyway
 	poses.push_back(allnewPoses[agent_i][action_i]);
+	costperagent.push_back(allnewCosts[agent_i][action_i]);
       }
-      if (cost >= INFINITECOST)
-	{
+      if (cost >= INFINITECOST){
 	  //SBPL_INFO("Found an infinite cost action");
 	  continue;
 	}
+      if (cost == 0){
+	// TODO: we don't want all robots stopped as an action
+	continue;
+      }
+      PerAgentCostV->push_back(costperagent);
       std::vector<bool> goalsVisited = getGoalsVisited(poses, HashEntry->goalsVisited);
       if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited)) == NULL) {
 	//have to create a new entry
@@ -637,6 +653,7 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
       
       SuccIDV->push_back(OutHashEntry->stateID);
       CostV->push_back(cost);
+      //SBPL_INFO("Peragentcost is %d %d", costperagent[0], costperagent[1]);
   }
 }
 
@@ -664,6 +681,14 @@ bool Environment_xy::IsValidCell(int X, int Y)
 
 bool Environment_xy::IsValidConfiguration(std::vector<pose_t> pos)
 {
+  // collision check robots
+  for(unsigned int agent_i = 0; agent_i < pos.size(); agent_i++){
+    for(unsigned int agent2_i = agent_i+1; agent2_i < pos.size(); agent2_i++){
+      if ((pos[agent_i].x == pos[agent2_i].x) && (pos[agent2_i].y == pos[agent2_i].y))
+	return false;
+    }      
+  }
+
   for(int i = 0; i < (int) pos.size(); i++){
     if (!IsValidCell(pos[i].x, pos[i].y)){
 	return false;
@@ -690,8 +715,10 @@ bool Environment_xy::IsWithinMapCell(int X, int Y)
 
 int Environment_xy::GetEnvParameter(const char* parameter)
 {  
-    if (strcmp(parameter, "cost_obsthresh") == 0) 
-        return (int)EnvXYCfg.obsthresh;
+  if (strcmp(parameter, "cost_obsthresh") == 0) 
+      return (int)EnvXYCfg.obsthresh;
+  else
+    return 0; //TODO
 }
 
 bool Environment_xy::SetEnvParameter(const char* parameter, int value)

@@ -36,7 +36,7 @@
 #include <sbpl/headers.h>
 #include <queue>
 #include <mas_egraphs/egraphManager.h>
-#include <egraphs/planner_state.h>
+#include <mas_egraphs/planner_state.h>
 #include <vector>
 
 //class LazyAEGListElement;
@@ -160,7 +160,7 @@ class LazyAEGPlanner : public SBPLPlanner{
         virtual void ExpandState(LazyAEGState* parent);
         virtual void EvaluateState(LazyAEGState* parent);
         void getNextLazyElement(LazyAEGState* state);
-        void insertLazyList(LazyAEGState* state, LazyAEGState* parent, int edgeCost, bool isTrueCost, EdgeType edgeType, int snap_midpoint);
+        void insertLazyList(LazyAEGState* state, LazyAEGState* parent, int edgeCost, std::vector<int> perAgentCost, bool isTrueCost, EdgeType edgeType, int snap_midpoint);
         void putStateInHeap(LazyAEGState* state);
         void updateGoal(LazyAEGState* state);
 

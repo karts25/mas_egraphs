@@ -48,7 +48,7 @@ class EGraphXYNode{
   
   ros::Subscriber interrupt_sub_;
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
-  bool simulate(std::vector<double> start_x, std::vector<double> start_y, EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res);
+  bool simulate(std::vector<double> start_x, std::vector<double> start_y, EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res, int maxtime);
   void publishPath(std::vector<int>& solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res);
 };
 

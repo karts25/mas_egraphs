@@ -857,15 +857,11 @@ bool EGraphManager<HeuristicType>::reconstructComboSnapShortcut(LazyAEGState* su
 
 template <typename HeuristicType>
 void EGraphManager<HeuristicType>::feedbackLastPath(){
+
     double t0 = ros::Time::now().toSec();
     for(int agent_i = 0; agent_i < numagents_; agent_i++){
-      for(unsigned int i=0; i<egraphperagent_[agent_i]->id2vertex.size(); i++){
-        EGraph::EGraphVertex* v = egraphperagent_[agent_i]->id2vertex[i];
-        v->shortcuts.clear();
-        v->shortcut_costs.clear();
-        v->shortcutIteration = 0;
-        v->search_iteration = 0;
-      }
+      // only store last path as experience
+      egraphperagent_[agent_i]->clearEGraph();
       egraphperagent_[agent_i]->search_iteration_ = 0;
       if(params_.update_stats){
         egraphperagent_[agent_i]->recordStats(update_eg_thread_data_.path_to_feedback[agent_i]);
@@ -876,18 +872,17 @@ void EGraphManager<HeuristicType>::feedbackLastPath(){
       stats_.feedback_time = ros::Time::now().toSec() - t0;
       
       double t2 = ros::Time::now().toSec();
-      for(unsigned int i=0; i<egraphperagent_[agent_i]->id2vertex.size(); i++){
+      /*
+      for(unsigned int i=0; i < egraphperagent_[agent_i]->id2vertex.size(); i++){
 	EGraph::EGraphVertex* v = egraphperagent_[agent_i]->id2vertex[i];
 	//errorCheckEGraphVertex(v); //TODO
-      }
+	}*/
       if (update_eg_thread_data_.path_to_feedback[agent_i].size()){
 	for(int goal_i = 0; goal_i < numgoals_; goal_i++)
 	  egraph_heurs_[agent_i][goal_i]->runPrecomputations(); 
       }
       double t3 = ros::Time::now().toSec();
       stats_.error_check_time = t3-t2;
-      
-      
       update_eg_thread_data_.path_to_feedback[agent_i].clear();
       update_eg_thread_data_.costs[agent_i].clear();
       stats_.precomp_time = 0;

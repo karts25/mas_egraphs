@@ -15,7 +15,7 @@
 #include <memory>
 #include <string>
 #include <limits>
-#include <egraphs/planner_state.h>
+#include <mas_egraphs/planner_state.h>
 
 typedef EGraph* EGraphPtr;
 typedef std::vector<std::vector<double> > EGraphPath;

@@ -228,7 +228,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   params.use_egraph = req.use_egraph;
   params.feedback_path = req.feedback_path;
 
-  bool ret = simulate(req.start_x, req.start_y, params, res);
+  bool ret = simulate(req.start_x, req.start_y, params, res, 4);
   return ret;  
 }
 
@@ -284,19 +284,18 @@ void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs, mas_egraphs:
       }
     }
   plan_pub_.publish(gui_path);
-
 }
 
-bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> start_y, EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res){
+bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> start_y, EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res, int maxtime){
   std::vector<int> solution_stateIDs;
   // right now, robots follow original plan at different rates
-  std::vector<std::vector<double> > r1(4);
-  std::vector<std::vector<double> > r2(4);
+  std::vector<std::vector<double> > r1(maxtime);
+  std::vector<std::vector<double> > r2(maxtime);
   std::vector<sbpl_xy_theta_pt_t> start_shifted(numagents_);
   std::vector<double> coord;
 
   float r1percents[] = {0.2, 0.4, 0.8, 1};
-  float r2percents[] = {0.1, 0.2, 0.2, 0.2};
+  float r2percents[] = {0, 0.1, 0.1, 0.1};
   // set start state
   start_shifted[0].x = start_x[0] - cost_map_.getOriginX();
   start_shifted[0].y = start_y[0] - cost_map_.getOriginY();
@@ -358,7 +357,7 @@ do{
   if(timestep == 0){
     unsigned int planlength = solution_stateIDs.size();
     // r1,r2 at 20% of way
-    for(int i = 0; i < 4; i ++){
+    for(int i = 0; i < maxtime; i ++){
       int r1id = (int) (r1percents[i] * (float) planlength);
       int r2id = (int) (r2percents[i] * (float) planlength);
       SBPL_INFO("r1id = %d, r2id = %d", r1id, r2id);
@@ -382,9 +381,10 @@ do{
   SBPL_INFO("Hit any key to forward simulate");
   std::cin.get();
   timestep++;
- }while(timestep < 4);
+ }while(timestep < maxtime);
 
-return true;
+ SBPL_INFO("Simulation done");
+ return true;
 }
 
 int main(int argc, char** argv){

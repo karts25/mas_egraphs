@@ -116,13 +116,14 @@ void LazyAEGPlanner<HeuristicType>::ExpandState(LazyAEGState* parent){
   vector<int> children;
   vector<int> costs;
   vector<bool> isTrueCost;
-
+  vector<vector<int> > peragentcosts;
   clock_t getSucc_t0 = clock();
   if(bforwardsearch){
-    environment_->GetLazySuccsWithUniqueIds(parent->id, &children, &costs, &isTrueCost);
+    environment_->GetLazySuccsWithUniqueIds(parent->id, &children, &costs, &peragentcosts, &isTrueCost);
   }
   else
     environment_->GetLazyPredsWithUniqueIds(parent->id, &children, &costs, &isTrueCost);
+
   clock_t getSucc_t1 = clock();
   succsClock += getSucc_t1-getSucc_t0;
 
@@ -164,7 +165,7 @@ void LazyAEGPlanner<HeuristicType>::ExpandState(LazyAEGState* parent){
   for(int i=0; i<(int)children.size(); i++){
     //printf("  succ %d\n",children[i]);
     LazyAEGState* child = GetState(children[i]);
-    insertLazyList(child, parent, costs[i], isTrueCost[i], edgeTypes[i], snap_midpoints[i]);
+    insertLazyList(child, parent, costs[i], peragentcosts[i], isTrueCost[i], edgeTypes[i], snap_midpoints[i]);
   } 
 }
 
@@ -223,7 +224,7 @@ void LazyAEGPlanner<HeuristicType>::EvaluateState(LazyAEGState* state){
   if (print)
       printf("has a true cost of %d\n",trueCost);
   if(trueCost > 0) //if the evaluated true cost is valid (positive), insert it into the lazy list
-    insertLazyList(state,parent,trueCost,true,edgeType,snap_midpoint);
+    insertLazyList(state,parent,trueCost, state->g_peragent, true,edgeType,snap_midpoint);
 }
 
 //this should only be used with EvaluateState since it is assuming state hasn't been expanded yet (only evaluated)
@@ -231,6 +232,7 @@ template <typename HeuristicType>
 void LazyAEGPlanner<HeuristicType>::getNextLazyElement(LazyAEGState* state){
   if(state->lazyList.empty()){
     state->g = INFINITECOST;
+    state->g_peragent = std::vector<int> (egraph_mgr_->egraph_env_->GetNumAgents(), INFINITECOST);
     state->best_parent = NULL;
     state->best_edge_type = EdgeType::NONE;
     state->snap_midpoint = -1;
@@ -240,6 +242,8 @@ void LazyAEGPlanner<HeuristicType>::getNextLazyElement(LazyAEGState* state){
   LazyAEGListElement elem = state->lazyList.top();
   state->lazyList.pop();
   state->g = elem.parent->v + elem.edgeCost;
+  for(unsigned int i = 0; i < elem.parent->g_peragent.size(); i++)
+    state->g_peragent[i] = elem.parent->g_peragent[i] + elem.perAgentCost[i];
   state->best_parent = elem.parent;
   state->best_edge_type = elem.edgeType;
   state->snap_midpoint = elem.snap_midpoint;
@@ -253,7 +257,7 @@ void LazyAEGPlanner<HeuristicType>::getNextLazyElement(LazyAEGState* state){
 }
 
 template <typename HeuristicType>
-void LazyAEGPlanner<HeuristicType>::insertLazyList(LazyAEGState* state, LazyAEGState* parent, int edgeCost, bool isTrueCost, EdgeType edgeType, int snap_midpoint){
+void LazyAEGPlanner<HeuristicType>::insertLazyList(LazyAEGState* state, LazyAEGState* parent, int edgeCost, vector<int> perAgentCost, bool isTrueCost, EdgeType edgeType, int snap_midpoint){
   bool print = false; //state->id == 285566 || parent->id == 285566;
   if(state->v <= parent->v + edgeCost)
     return;
@@ -262,19 +266,19 @@ void LazyAEGPlanner<HeuristicType>::insertLazyList(LazyAEGState* state, LazyAEGS
     if(state->isTrueCost)
       return;
     //insert this guy into the lazy list
-    LazyAEGListElement elem(parent,edgeCost,isTrueCost,edgeType,snap_midpoint);
+    LazyAEGListElement elem(parent,edgeCost, perAgentCost, isTrueCost,edgeType,snap_midpoint);
     state->lazyList.push(elem);
   }
   else{//the new guy is the cheapest so far
     //should we save what was the previous best?
-    if(!isTrueCost && //the better guy's cost is not for sure
+    /*if(!isTrueCost && //the better guy's cost is not for sure
        //state->g < INFINITECOST && //we actually have a previous best (we actually don't need this line because of the next one)
        state->g < state->v){ //we're not saving something we already expanded (and is stored in v and expanded_best_parent)
       //we save it by putting it in the lazy list
       LazyAEGListElement elem(state->best_parent, state->g - state->best_parent->v, state->isTrueCost, state->best_edge_type, state->snap_midpoint);
       state->lazyList.push(elem);
       //printf("save the previous best\n");
-    }
+      } TODO: Not worried about lazy stuff*/
 
     //the new guy is the cheapest
     state->g = parent->v + edgeCost;
@@ -283,6 +287,9 @@ void LazyAEGPlanner<HeuristicType>::insertLazyList(LazyAEGState* state, LazyAEGS
     state->snap_midpoint = snap_midpoint;
     state->isTrueCost = isTrueCost;
 
+    for(unsigned int agent_i = 0; agent_i < perAgentCost.size(); agent_i++){
+      state->g_peragent.push_back(parent->g_peragent[agent_i] + perAgentCost[agent_i]);
+    }
     //the new value is cheapest and if the value is also true then we want to throw out all the other options
     if(isTrueCost){
       //printf("clear the lazy list\n");
@@ -308,6 +315,13 @@ void LazyAEGPlanner<HeuristicType>::putStateInHeap(LazyAEGState* state){
     CKey key;
     key.key[0] = state->g + int(eps * state->h);
     key.key[1] = state->h;
+
+    for(unsigned int agent_i = 0; agent_i < state->g_peragent.size(); agent_i ++){
+#ifdef DEBUG_PLANNER
+      SBPL_INFO("inserting g_peragent for agent %d = %d", agent_i, state->g_peragent[agent_i]);
+#endif
+      key.key[2+agent_i] = state->g_peragent[agent_i];
+    }
     if(print)
       printf("put state in open with f %lu\n", key.key[0]);
     //if the state is already in the heap, just update its priority
@@ -425,11 +439,12 @@ bool LazyAEGPlanner<HeuristicType>::reconstructSuccs(LazyAEGState* state,
     //ROS_INFO("reconstruct with standard edge start");
     vector<int> SuccIDV;
     vector<int> CostV;
+    vector<vector<int> > PerAgentCostV;
     vector<bool> isTrueCost;
     if(bforwardsearch)
-        environment_->GetLazySuccsWithUniqueIds(state->expanded_best_parent->id, &SuccIDV, &CostV, &isTrueCost);
+      environment_->GetLazySuccsWithUniqueIds(state->expanded_best_parent->id, &SuccIDV, &CostV, &PerAgentCostV, &isTrueCost);
     else
-        environment_->GetLazyPredsWithUniqueIds(state->expanded_best_parent->id, &SuccIDV, &CostV, &isTrueCost);
+      environment_->GetLazyPredsWithUniqueIds(state->expanded_best_parent->id, &SuccIDV, &CostV, &isTrueCost);
     int actioncost = INFINITECOST;
     //ROS_INFO("reconstruct with standard edge %d\n",state->expanded_best_parent->id);
     for(unsigned int i=0; i<SuccIDV.size(); i++){
@@ -624,6 +639,7 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
 
   //put start state in the heap
   start_state->g = 0;
+  start_state->g_peragent = std::vector<int>(egraph_mgr_->egraph_env_->GetNumAgents(),0);
   ROS_INFO("start state heuristic is %d", start_state->h);
   assert(start_state->h >= 0);
   CKey key;
