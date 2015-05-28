@@ -289,86 +289,102 @@ void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs, mas_egraphs:
 
 bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> start_y, EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res){
   std::vector<int> solution_stateIDs;
-  
   // right now, robots follow original plan at different rates
-  float r1percents[] = {0, 0.2, 0.4, 0.75, 1.0};
-  float r2percents[] = {0, 0.2, 0.25, 0.35, 0.5};
+  std::vector<std::vector<double> > r1(4);
+  std::vector<std::vector<double> > r2(4);
   std::vector<sbpl_xy_theta_pt_t> start_shifted(numagents_);
-  for(int timestep = 0; timestep < 4; timestep++){
-    // set start state
-    if(timestep == 0){
-      start_shifted[0].x = start_x[0] - cost_map_.getOriginX();
-      start_shifted[0].y = start_y[0] - cost_map_.getOriginY();
-      start_shifted[1].x = start_x[1] - cost_map_.getOriginX();
-      start_shifted[1].y = start_y[1] - cost_map_.getOriginY();
+  std::vector<double> coord;
+
+  float r1percents[] = {0.2, 0.4, 0.8, 1};
+  float r2percents[] = {0.1, 0.2, 0.2, 0.2};
+  // set start state
+  start_shifted[0].x = start_x[0] - cost_map_.getOriginX();
+  start_shifted[0].y = start_y[0] - cost_map_.getOriginY();
+  start_shifted[1].x = start_x[1] - cost_map_.getOriginX();
+  start_shifted[1].y = start_y[1] - cost_map_.getOriginY();
+
+int timestep = 0;
+do{
+  int retid = env_->SetStart(start_shifted);
+  if(retid < 0 || planner_->set_start(retid) == 0){
+    ROS_ERROR("ERROR: failed to set start state\n");
+    return false;
+  }
+  
+  // publish start
+  int id = numgoals_;
+  visualization_msgs::MarkerArray startmarkers;
+  ros::Time req_time = ros::Time::now();
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    visualization_msgs::Marker marker;
+    marker.id = id; 
+    id++;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0;
+    marker.color.r = 1;
+    marker.color.a = 1;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.header.stamp = req_time;
+    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+    marker.pose.position.x = start_shifted[agent_i].x + cost_map_.getOriginX();
+    marker.pose.position.y = start_shifted[agent_i].y + cost_map_.getOriginY();
+    marker.pose.position.z = 0;
+    startmarkers.markers.push_back(marker);
+  }
+  plan_pub_.publish(startmarkers);
+  
+  vector<vector<bool> > heur_grid(cost_map_.getSizeInCellsX(), vector<bool>(cost_map_.getSizeInCellsY(), false));
+  for(unsigned int ix = 0; ix < cost_map_.getSizeInCellsX(); ix++){
+    for(unsigned int iy = 0; iy < cost_map_.getSizeInCellsY(); iy++){
+      unsigned char c = costMapCostToSBPLCost(cost_map_.getCost(ix,iy));
+      env_->UpdateCost(ix, iy, c);
+      if(c >= inscribed_inflated_obstacle_)
+	heur_grid[ix][iy] = true;
     }
-    else{
-      std::vector<double> coord;
-      unsigned int planlength = solution_stateIDs.size();
-      int r1id = (int) (r1percents[timestep]* (float) planlength);
-      int r2id = (int) (r2percents[timestep]* (float) planlength);
+  }
+  
+  egraph_mgr_->updateManager(); // updates start and goal
+  egraph_mgr_->updateHeuristicGrids(heur_grid);
+  
+  // plan!
+  solution_stateIDs.clear();
+  bool ret = planner_->replan(&solution_stateIDs, params);
+  if (!ret)
+    return false;
+  publishPath(solution_stateIDs, res);    
+  
+  // extract locations from first plan to "simulate" robots
+  if(timestep == 0){
+    unsigned int planlength = solution_stateIDs.size();
+    // r1,r2 at 20% of way
+    for(int i = 0; i < 4; i ++){
+      int r1id = (int) (r1percents[i] * (float) planlength);
+      int r2id = (int) (r2percents[i] * (float) planlength);
       SBPL_INFO("r1id = %d, r2id = %d", r1id, r2id);
       env_->getCoord(solution_stateIDs[r1id], coord);
+      r1[i].push_back(coord[0]);
+      r1[i].push_back(coord[1]);
       start_shifted[0].x = coord[0];
       start_shifted[0].y = coord[1];
       env_->getCoord(solution_stateIDs[r2id], coord);
-      start_shifted[1].x = coord[2];
-      start_shifted[1].y = coord[3];
+      r2[i].push_back(coord[2]);
+      r2[i].push_back(coord[3]);
     }
-
-    int retid = env_->SetStart(start_shifted);
-    if(retid < 0 || planner_->set_start(retid) == 0){
-      ROS_ERROR("ERROR: failed to set start state\n");
-      return false;
-    }
-    
-    // publish start
-    int id = numgoals_;
-    visualization_msgs::MarkerArray startmarkers;
-    ros::Time req_time = ros::Time::now();
-    for(int agent_i = 0; agent_i < numagents_; agent_i++){
-      visualization_msgs::Marker marker;
-      marker.id = id; 
-      id++;
-      marker.scale.x = 0.5;
-      marker.scale.y = 0.5;
-      marker.scale.z = 0;
-      marker.color.r = 1;
-      marker.color.a = 1;
-      marker.type = visualization_msgs::Marker::SPHERE;
-      marker.header.stamp = req_time;
-      marker.header.frame_id = costmap_ros_->getGlobalFrameID();
-      marker.pose.position.x = start_shifted[agent_i].x + cost_map_.getOriginX();
-      marker.pose.position.y = start_shifted[agent_i].y + cost_map_.getOriginY();
-      marker.pose.position.z = 0;
-      startmarkers.markers.push_back(marker);
-    }
-    plan_pub_.publish(startmarkers);
-
-
-    vector<vector<bool> > heur_grid(cost_map_.getSizeInCellsX(), vector<bool>(cost_map_.getSizeInCellsY(), false));
-    for(unsigned int ix = 0; ix < cost_map_.getSizeInCellsX(); ix++){
-      for(unsigned int iy = 0; iy < cost_map_.getSizeInCellsY(); iy++){
-	unsigned char c = costMapCostToSBPLCost(cost_map_.getCost(ix,iy));
-	env_->UpdateCost(ix, iy, c);
-	if(c >= inscribed_inflated_obstacle_)
-	  heur_grid[ix][iy] = true;
-      }
-    }
-    
-    egraph_mgr_->updateManager(); // updates start and goal
-    egraph_mgr_->updateHeuristicGrids(heur_grid);
-    // plan!
-    solution_stateIDs.clear();
-    bool ret = planner_->replan(&solution_stateIDs, params);
-    if (!ret)
-      return false;
-    publishPath(solution_stateIDs, res);    
-    
-    SBPL_INFO("Hit any key to forward simulate");
-    std::cin.get();
   }
-  return true;
+
+  // reset start states
+  start_shifted[0].x = r1[timestep][0] - cost_map_.getOriginX();
+  start_shifted[0].y = r1[timestep][1] - cost_map_.getOriginY();
+  start_shifted[1].x = r2[timestep][0] - cost_map_.getOriginX();
+  start_shifted[1].y = r2[timestep][1] - cost_map_.getOriginY();
+  
+  SBPL_INFO("Hit any key to forward simulate");
+  std::cin.get();
+  timestep++;
+ }while(timestep < 4);
+
+return true;
 }
 
 int main(int argc, char** argv){
