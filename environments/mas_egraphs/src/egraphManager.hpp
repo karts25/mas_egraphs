@@ -78,9 +78,10 @@ void EGraphManager<HeuristicType>::updateManager(){
 }
 
 template <typename HeuristicType>
-int EGraphManager<HeuristicType>::getHeuristic(int state_id){
+std::vector<int> EGraphManager<HeuristicType>::getHeuristic(int state_id){
+  std::vector<int> heurs (1+numagents_,0);
   if(egraph_env_->isGoal(state_id)){
-    return 0;
+    return heurs;
   }
 
   ContState cont_state;
@@ -105,7 +106,7 @@ int EGraphManager<HeuristicType>::getHeuristic(int state_id){
   std::vector<int> heur_allassignments(numassignments, 0);
   std::vector<int> heur_allagents(numagents_, -1);
   std::vector<int> assignment(numgoals_);
-
+  std::vector<std::vector<int> > heur_allagents_allassignments;
   for(int i = 0; i < numassignments; i ++){
     int index = i;
     // assignment is index in base numagents
@@ -134,15 +135,22 @@ int EGraphManager<HeuristicType>::getHeuristic(int state_id){
 #endif
     }
     //for this assignment, heuristic is the max of heuristics for all agents
+    heur_allagents_allassignments.push_back(heur_allagents);
     heur_allassignments[i] = *std::max_element(heur_allagents.begin(), heur_allagents.end());
   }
   // Admissible heuristic is the min of all possible assignments 
-  int heur = *std::min_element(heur_allassignments.begin(), heur_allassignments.end());
+  vector<int>::const_iterator it = std::min_element(heur_allassignments.begin(), heur_allassignments.end());
+  int min_assignment_index = it - heur_allassignments.begin();
+  int heur = *it;
+
+  heurs[0] = heur;
 #ifdef DEBUG_HEUR  
   SBPL_INFO("Final heuristic is %d", heur);
 #endif
+  for(int agent_i = 0; agent_i < numagents_; agent_i++)
+    heurs[agent_i+1] = heur_allagents_allassignments[min_assignment_index][agent_i];
   //std::cin.get();
-  return heur;
+  return heurs;
 }
 
 template <typename HeuristicType>

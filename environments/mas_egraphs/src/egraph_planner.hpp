@@ -90,19 +90,26 @@ LazyAEGState* LazyAEGPlanner<HeuristicType>::GetState(int id){
     //compute heuristics
     if(bforwardsearch){
       clock_t h_t0 = clock();
+      std::vector<int> heurs;
+      heurs = egraph_mgr_->getHeuristic(s->id);
+      s->h = heurs[0];
 #ifdef DEBUG_PLANNER
       SBPL_INFO("Planner: Getting heuristic for id %d", s->id);
+      SBPL_INFO("Planner: Heuristic for id %d = %d", s->id, heurs[0]);
 #endif
-      s->h = egraph_mgr_->getHeuristic(s->id);
+      for(unsigned int i = 1; i < heurs.size(); i++){
+	s->h_peragent.push_back(heurs[i]); 
 #ifdef DEBUG_PLANNER
-      SBPL_PRINTF("Planner: heuristic is %d", s->h);
-#endif
+	SBPL_INFO("Planner: h for agent %d is %d", i-1, heurs[i]);
+#endif	
+      }
       clock_t h_t1 = clock();
       heuristicClock += h_t1-h_t0;
     } else {
       printf("backwards search not implemented!");
       assert(false);
       s->h = environment_->GetStartHeuristic(s->id);
+       
     }
   }
   return s;
@@ -112,7 +119,7 @@ template <typename HeuristicType>
 void LazyAEGPlanner<HeuristicType>::ExpandState(LazyAEGState* parent){
   bool print = false; //parent->id == 285566;
   if(print)
-    printf("expand %d\n",parent->id);
+    printf("expand %d\n", parent->id);
   vector<int> children;
   vector<int> costs;
   vector<bool> isTrueCost;
@@ -232,7 +239,7 @@ template <typename HeuristicType>
 void LazyAEGPlanner<HeuristicType>::getNextLazyElement(LazyAEGState* state){
   if(state->lazyList.empty()){
     state->g = INFINITECOST;
-    state->g_peragent = std::vector<int> (egraph_mgr_->egraph_env_->GetNumAgents(), INFINITECOST);
+    //state->g_peragent = std::vector<int> (egraph_mgr_->egraph_env_->GetNumAgents(), INFINITECOST);
     state->best_parent = NULL;
     state->best_edge_type = EdgeType::NONE;
     state->snap_midpoint = -1;
@@ -242,8 +249,8 @@ void LazyAEGPlanner<HeuristicType>::getNextLazyElement(LazyAEGState* state){
   LazyAEGListElement elem = state->lazyList.top();
   state->lazyList.pop();
   state->g = elem.parent->v + elem.edgeCost;
-  for(unsigned int i = 0; i < elem.parent->g_peragent.size(); i++)
-    state->g_peragent[i] = elem.parent->g_peragent[i] + elem.perAgentCost[i];
+  // for(unsigned int i = 0; i < elem.parent->g_peragent.size(); i++)
+  //  state->g_peragent[i] = elem.parent->g_peragent[i] + elem.perAgentCost[i];
   state->best_parent = elem.parent;
   state->best_edge_type = elem.edgeType;
   state->snap_midpoint = elem.snap_midpoint;
@@ -257,7 +264,7 @@ void LazyAEGPlanner<HeuristicType>::getNextLazyElement(LazyAEGState* state){
 }
 
 template <typename HeuristicType>
-void LazyAEGPlanner<HeuristicType>::insertLazyList(LazyAEGState* state, LazyAEGState* parent, int edgeCost, vector<int> perAgentCost, bool isTrueCost, EdgeType edgeType, int snap_midpoint){
+void LazyAEGPlanner<HeuristicType>::insertLazyList(LazyAEGState* state, LazyAEGState* parent, int edgeCost, std::vector<int> perAgentCost, bool isTrueCost, EdgeType edgeType, int snap_midpoint){
   bool print = false; //state->id == 285566 || parent->id == 285566;
   if(state->v <= parent->v + edgeCost)
     return;
@@ -287,9 +294,9 @@ void LazyAEGPlanner<HeuristicType>::insertLazyList(LazyAEGState* state, LazyAEGS
     state->snap_midpoint = snap_midpoint;
     state->isTrueCost = isTrueCost;
 
-    for(unsigned int agent_i = 0; agent_i < perAgentCost.size(); agent_i++){
+    /*for(unsigned int agent_i = 0; agent_i < perAgentCost.size(); agent_i++){
       state->g_peragent.push_back(parent->g_peragent[agent_i] + perAgentCost[agent_i]);
-    }
+      }*/
     //the new value is cheapest and if the value is also true then we want to throw out all the other options
     if(isTrueCost){
       //printf("clear the lazy list\n");
@@ -315,21 +322,21 @@ void LazyAEGPlanner<HeuristicType>::putStateInHeap(LazyAEGState* state){
     CKey key;
     key.key[0] = state->g + int(eps * state->h);
     key.key[1] = state->h;
-
-    for(unsigned int agent_i = 0; agent_i < state->g_peragent.size(); agent_i ++){
-#ifdef DEBUG_PLANNER
-      SBPL_INFO("inserting g_peragent for agent %d = %d", agent_i, state->g_peragent[agent_i]);
-#endif
-      key.key[2+agent_i] = state->g_peragent[agent_i];
+   
+    for(unsigned int agent_i = 0; agent_i < state->h_peragent.size(); agent_i ++){
+      key.key[2+agent_i] = state->h_peragent[agent_i];
     }
     if(print)
       printf("put state in open with f %lu\n", key.key[0]);
     //if the state is already in the heap, just update its priority
-    if(state->heapindex != 0)
+    if(state->heapindex != 0){
+      SBPL_INFO("updating heap");
       heap.updateheap(state,key);
+    }
     else //otherwise add it to the heap
       heap.insertheap(state,key);
   }
+ 
   //if the state has already been expanded once for this iteration
   //then add it to the incons list so we can keep track of states
   //that we know we have better costs for
@@ -369,9 +376,11 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
     LazyAEGState* state = (LazyAEGState*)heap.deleteminheap();
 
 #ifdef DEBUG_PLANNER    
-    SBPL_INFO("Expanding:");
+    SBPL_INFO("\n\nExpanding:");
     environment_->PrintState(state->id, true);
-    SBPL_INFO("g = %d h = %d\n", state->g, state->h);
+    SBPL_INFO("g = %d h = %d", state->g, state->h);
+    for(int i = 0; i < (int) state->h_peragent.size(); i++)
+      SBPL_INFO("h for agent %d is %d", i, state->h_peragent[i]);
 #endif
     
     if(state->v == state->g){
@@ -639,14 +648,26 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
 
   //put start state in the heap
   start_state->g = 0;
-  start_state->g_peragent = std::vector<int>(egraph_mgr_->egraph_env_->GetNumAgents(),0);
+  //start_state->g_peragent = std::vector<int>(egraph_mgr_->egraph_env_->GetNumAgents(),0);
   ROS_INFO("start state heuristic is %d", start_state->h);
   assert(start_state->h >= 0);
   CKey key;
+  key = heap.getminkeyheap();
+  SBPL_INFO("minkey is %ld %ld %ld %ld", key.key[0], key.key[1], key.key[2], key.key[3]);
+
   key.key[0] = eps*start_state->h;
   key.key[1] = start_state->h;
+  for(int i = 0; i < egraph_mgr_->egraph_env_->GetNumAgents(); i ++){
+#ifdef DEBUG_PLANNER
+    SBPL_INFO("start state h per agent is %d", start_state->h_peragent[i]);
+#endif
+    key.key[i+2] = start_state->h_peragent[i];
+  }
   heap.insertheap(start_state, key);
-
+  SBPL_INFO("key is %ld %ld %ld %ld", key.key[0], key.key[1], key.key[2], key.key[3]);
+  key = heap.getminkeyheap();
+  SBPL_INFO("minkey is %ld %ld %ld %ld", key.key[0], key.key[1], key.key[2], key.key[3]);
+  std::cin.get();
   //ensure heuristics are up-to-date
   //environment_->EnsureHeuristicsUpdated((bforwardsearch==true));
   //printf("computing heuristic took %f sec\n", ros::Time::now().toSec()-t0);
@@ -722,6 +743,7 @@ void LazyAEGPlanner<HeuristicType>::prepareNextSearchIteration(){
   if(eps < params.final_eps)
     eps = params.final_eps;
 
+  
   //dump the inconsistent states into the open list
   CKey key;
   while(!incons.empty()){
@@ -730,17 +752,29 @@ void LazyAEGPlanner<HeuristicType>::prepareNextSearchIteration(){
     s->in_incons = false;
     key.key[0] = s->g + int(eps * s->h);
     key.key[1] = s->h;
-    heap.insertheap(s,key);
+    for(unsigned int i = 0; i < s->h_peragent.size(); i++){
+      key.key[i+2] = s->h_peragent[i];
+#ifdef DEBUG_PLANNER
+      SBPL_INFO("Planner:preparenextsearchiteration: Inserting h_peragent for agent %d = %d", i, s->h_peragent[i]);
+#endif
+    }
+#ifdef DEBUG_PLANNER
+    SBPL_INFO("Planner:preparenextsearchiteration: Inserting s into heap");
+#endif      
+    heap.insertheap(s, key);
   }
-
+  
   //recompute priorities for states in OPEN and reorder it
-  for (int i=1; i<=heap.currentsize; ++i){
+  
+  for (int i=1; i <= heap.currentsize; ++i){
     LazyAEGState* state = (LazyAEGState*)heap.heap[i].heapstate;
     heap.heap[i].key.key[0] = state->g + int(eps * state->h);
     heap.heap[i].key.key[1] = state->h;
+    for(unsigned int j = 0; j < state->h_peragent.size(); j++)
+      heap.heap[j].key.key[j+2] = state->h_peragent[j];
   }
   heap.makeheap();
-
+  
   search_iteration++;
 }
 

@@ -75,7 +75,7 @@ class EGraphManager {
 	bool setGoal();
 	void updateManager();
 	void allocateHeuristics();
-	int getHeuristic(int state_id);
+	std::vector<int> getHeuristic(int state_id);
 	void updateHeuristicGrids(const std::vector<std::vector<bool> >& grid);
 	void printVector(std::vector<int>& v); 
 	void getSnapSuccessors(int stateID, std::vector<int>* SuccIDV, 

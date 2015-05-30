@@ -217,7 +217,7 @@ class Environment_xy: public DiscreteSpaceInformation
 
     virtual bool isGoal(int id);
 
-    virtual void GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV);
+    virtual void GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV){};
     virtual void GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<std::vector<int> >* PerAgentCostV, std::vector<int>* CostV);
     virtual void GetPreds(int TargetStateID, std::vector<int>* PredIDV, std::vector<int>* CostV);
     virtual void GetSuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV);

@@ -207,6 +207,7 @@ bool EGraphXY::isValidVertex(const vector<double>& coord){
   return collisionCheckPose(d_coord[0],d_coord[1],temp_cost);
 }
 
+
 visualization_msgs::MarkerArray EGraphXY::stateToVisualizationMarker(vector<double> coord){
   // coord looks like [x1,y1,theta1,x2,y2,theta2....]
   visualization_msgs::MarkerArray ma;
@@ -232,9 +233,12 @@ visualization_msgs::MarkerArray EGraphXY::stateToVisualizationMarker(vector<doub
   return ma;
 }
 
+
 visualization_msgs::MarkerArray EGraphXY::stateToDetailedVisualizationMarker(vector<double> coord){
   return stateToVisualizationMarker(coord);
 }
+
+
 
 visualization_msgs::MarkerArray EGraphXY::edgeToVisualizationMarker(vector<double> coord, vector<double> coord2){
   visualization_msgs::MarkerArray ma;
@@ -261,3 +265,4 @@ visualization_msgs::MarkerArray EGraphXY::edgeToVisualizationMarker(vector<doubl
     }
   return ma;
 }
+   

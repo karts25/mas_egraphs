@@ -386,20 +386,20 @@ int Environment_xy::SetStart(std::vector<sbpl_xy_theta_pt_t> start_m)
   std::vector<pose_t> start(EnvXYCfg.numAgents);
   std::vector<int> x(EnvXYCfg.numAgents), y(EnvXYCfg.numAgents);
   for (int agent_i = 0; agent_i < EnvXYCfg.numAgents; ++agent_i)
-	   {
-	     int x_agent = CONTXY2DISC(start_m[agent_i].x, EnvXYCfg.cellsize_m);
-	     int y_agent = CONTXY2DISC(start_m[agent_i].y, EnvXYCfg.cellsize_m);
-	     
-	     if (!IsWithinMapCell(x_agent, y_agent)) {
-	       SBPL_ERROR("ERROR: trying to set a start cell %d %d that is outside of map\n", x_agent, y_agent);
-	       return -1;
-	     }
-	     
-	     SBPL_INFO("env: setting start of Agent %d to %.3f %.3f (%d %d)\n", (agent_i+1), start_m[agent_i].x, start_m[agent_i].y, x_agent, y_agent);
-	     start[agent_i].x = x_agent;
-	     start[agent_i].y = y_agent;
-	   }  
-
+    {
+      int x_agent = CONTXY2DISC(start_m[agent_i].x, EnvXYCfg.cellsize_m);
+      int y_agent = CONTXY2DISC(start_m[agent_i].y, EnvXYCfg.cellsize_m);
+      
+      if (!IsWithinMapCell(x_agent, y_agent)) {
+	SBPL_ERROR("ERROR: trying to set a start cell %d %d that is outside of map\n", x_agent, y_agent);
+	return -1;
+      }
+      
+      SBPL_INFO("env: setting start of Agent %d to %.3f %.3f (%d %d)\n", (agent_i+1), start_m[agent_i].x, start_m[agent_i].y, x_agent, y_agent);
+      start[agent_i].x = x_agent;
+      start[agent_i].y = y_agent;
+    }  
+  
   if (!IsValidConfiguration(start)) {
     SBPL_INFO("WARNING: start configuration is invalid\n");
   }
@@ -534,9 +534,6 @@ void Environment_xy::GetSuccsWithUniqueIds(int SourceStateID, std::vector<int>* 
   GetSuccs(SourceStateID, SuccIDV, CostV);
 }
 
-void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV){
-  // Keep virtual functions happy
-}
 
 void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<std::vector<int> >* PerAgentCostV, std::vector<int>* CostV)
 {

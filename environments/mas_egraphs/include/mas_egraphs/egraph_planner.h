@@ -33,6 +33,7 @@
 #define ROS
 #endif
 
+#include <mas_egraphs/key.h>
 #include <sbpl/headers.h>
 #include <queue>
 #include <mas_egraphs/egraphManager.h>

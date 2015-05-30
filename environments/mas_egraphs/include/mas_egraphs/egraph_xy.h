@@ -5,6 +5,7 @@
 #define ROS
 #endif
 
+#include<mas_egraphs/key.h>
 #include<egraphs/egraph.h>
 #include<egraphs/egraphable.h>
 #include<mas_egraphs/egraph_mas_2d_grid_heuristic.h>
@@ -29,9 +30,6 @@ class EGraphXY:public Environment_xy, public EGraphable<std::vector<int> >, publ
     void discToCont(const std::vector<int>& d, std::vector<double>& c);
     virtual bool isValidEdge(const std::vector<double>& coord, const std::vector<double>& coord2, bool& change_cost, int& cost);
     virtual bool isValidVertex(const std::vector<double>& coord);
-    visualization_msgs::MarkerArray stateToVisualizationMarker(std::vector<double> coord);
-    visualization_msgs::MarkerArray stateToDetailedVisualizationMarker(std::vector<double> coord);
-    visualization_msgs::MarkerArray edgeToVisualizationMarker(std::vector<double> coord, std::vector<double> coord2);
 
     bool InitializeEnv(int width, int height,
 	const unsigned char* mapdata,
@@ -40,7 +38,9 @@ class EGraphXY:public Environment_xy, public EGraphable<std::vector<int> >, publ
 	std::vector<pose_t> goal,
         double goaltol_x, double goaltol_y,
         double cellsize_m, double nominalvel_mpersecs);
-
+    visualization_msgs::MarkerArray stateToVisualizationMarker(std::vector<double> coord);
+    visualization_msgs::MarkerArray stateToDetailedVisualizationMarker(std::vector<double> coord);
+    visualization_msgs::MarkerArray edgeToVisualizationMarker(std::vector<double> coord, std::vector<double> coord2);
 };
 
 #endif
