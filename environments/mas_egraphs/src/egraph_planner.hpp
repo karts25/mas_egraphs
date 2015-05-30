@@ -652,8 +652,6 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
   ROS_INFO("start state heuristic is %d", start_state->h);
   assert(start_state->h >= 0);
   CKey key;
-  key = heap.getminkeyheap();
-  SBPL_INFO("minkey is %ld %ld %ld %ld", key.key[0], key.key[1], key.key[2], key.key[3]);
 
   key.key[0] = eps*start_state->h;
   key.key[1] = start_state->h;
@@ -664,10 +662,6 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
     key.key[i+2] = start_state->h_peragent[i];
   }
   heap.insertheap(start_state, key);
-  SBPL_INFO("key is %ld %ld %ld %ld", key.key[0], key.key[1], key.key[2], key.key[3]);
-  key = heap.getminkeyheap();
-  SBPL_INFO("minkey is %ld %ld %ld %ld", key.key[0], key.key[1], key.key[2], key.key[3]);
-  std::cin.get();
   //ensure heuristics are up-to-date
   //environment_->EnsureHeuristicsUpdated((bforwardsearch==true));
   //printf("computing heuristic took %f sec\n", ros::Time::now().toSec()-t0);
