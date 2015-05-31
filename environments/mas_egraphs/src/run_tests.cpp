@@ -14,9 +14,9 @@ int main(int argc, char** argv){
   mas_egraphs::GetXYThetaPlan::Response res;
 
   //egraph and planner parameters
-  req.egraph_eps = 1000.0;
-  req.final_egraph_eps = 1000.0;
-  req.dec_egraph_eps = 1.0;
+  int maxiters = 4;
+  double egraph_eps_values[] = {1, 2, 10, 500};
+  req.dec_egraph_eps = 100.0;
   req.initial_eps = 1.0;
   req.final_eps = 1.0;
   req.dec_eps = 0;
@@ -53,7 +53,7 @@ int main(int argc, char** argv){
       break;
     
     printf("num_agents %d num_goals %d\n", req.num_agents, req.num_goals);
-    for(int agent_i = 0; agent_i < req.num_agents; ++agent_i)
+    for(int agent_i = 0; agent_i < req.num_agents; agent_i++)
       {
 	if(fscanf(fin,"    start: %lf %lf %lf\n", &start_x, &start_y, &start_theta) <= 0)
 	  break;
@@ -63,14 +63,20 @@ int main(int argc, char** argv){
       }
     for(int i = 0; i < req.num_goals; i++){
       if(fscanf(fin,"    goal: %lf %lf %lf\n", &goal_x, &goal_y, &goal_theta) <= 0)
-	  break;
+	break;
       req.goal_x.push_back(goal_x);
       req.goal_y.push_back(goal_y);
       req.goal_theta.push_back(goal_theta);
     }
-    planner.call(req,res);
-    EGraphStatWriter::writeStatsToFile("mas_egraphs_stats.csv", first, res.stat_names, res.stat_values);
-    first = false;
+    for(int iteration = 0; iteration < maxiters; iteration++){ 
+      ROS_INFO("EGRAPH EPS = %f", egraph_eps_values[iteration]);
+      req.egraph_eps = egraph_eps_values[iteration];
+      req.final_egraph_eps = egraph_eps_values[iteration];
+	
+      planner.call(req,res);
+      EGraphStatWriter::writeStatsToFile("mas_egraphs_stats.csv", first, res.stat_names, res.stat_values);
+      first = false;
+    }
   }
   return 0;
 }

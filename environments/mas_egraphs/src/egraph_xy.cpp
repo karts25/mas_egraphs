@@ -194,8 +194,6 @@ bool EGraphXY::isValidEdge(const vector<double>& coord, const vector<double>& co
     return true;
   }
 
-  //TODO: and demonstrations?
-
   change_cost = false;
   return false;
 }
@@ -207,6 +205,26 @@ bool EGraphXY::isValidVertex(const vector<double>& coord){
   return collisionCheckPose(d_coord[0],d_coord[1],temp_cost);
 }
 
+//TODO: This can be made much faster by just changing goalsVisited to a vector of assignment ints
+void EGraphXY::getAssignments(const std::vector<int>& solution_stateIDs_V, std::vector<int>& assignments) const{
+  assignments.clear();
+  assignments.resize(EnvXYCfg.numGoals, -1);
+  std::vector<bool> goalsVisited(EnvXYCfg.numGoals, false);
+  for(unsigned int i = 0; i < solution_stateIDs_V.size(); i++){
+    std::vector<pose_t> poses;
+    GetCoordFromState(solution_stateIDs_V[i], poses, goalsVisited);
+    for(unsigned int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+      int x = poses[agent_i].x;
+      int y = poses[agent_i].y;
+      for(unsigned int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i++){
+	if((assignments[goal_i] == -1) && (x == EnvXYCfg.goal[goal_i].x) && (y == EnvXYCfg.goal[goal_i].y)){
+	  //SBPL_INFO("Assigning goal %d to agent %d", goal_i, agent_i);
+	  assignments[goal_i] = agent_i;
+	}
+      }
+    }
+  }
+}
 
 visualization_msgs::MarkerArray EGraphXY::stateToVisualizationMarker(vector<double> coord){
   // coord looks like [x1,y1,theta1,x2,y2,theta2....]

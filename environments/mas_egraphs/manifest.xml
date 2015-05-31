@@ -1,0 +1,17 @@
+<package>
+  <description brief="mas_egraphs">
+
+     mas_egraphs
+
+  </description>
+  <author>Karthik Lakshmanan</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/mas_egraphs</url>
+  <depend package="roscpp"/>
+  <depend package="costmap_2d"/>
+  <depend package="egraphs"/>
+  <depend package="egraph_vis"/>
+</package>
+
+

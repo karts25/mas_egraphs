@@ -654,10 +654,11 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
   }
 }
 
-std::vector<bool> Environment_xy::getGoalsVisited(std::vector<pose_t> poses, std::vector<bool> goalsVisitedSoFar)
+
+std::vector<bool> Environment_xy::getGoalsVisited(const std::vector<pose_t>& poses, std::vector<bool> goalsVisitedSoFar)
 {
   std::vector<bool> goalsVisited = goalsVisitedSoFar;
-  for(int i = 0; i < (int)poses.size(); i++){
+  for(unsigned int i = 0; i < poses.size(); i++){
     int x = poses[i].x;
     int y = poses[i].y;
     for(int j = 0; j < EnvXYCfg.numGoals; j++)

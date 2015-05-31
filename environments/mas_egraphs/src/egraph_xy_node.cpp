@@ -232,18 +232,20 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   return ret;  
 }
 
+
 void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res){
   visualization_msgs::MarkerArray gui_path;
   vector<double> coord;
   res.path.clear();
   int id = numgoals_ + numagents_;
   ros::Time plan_time = ros::Time::now();  
-
+ 
   for(int agent_i = 0; agent_i < numagents_; agent_i++)
     {
       for(unsigned int i=0; i < solution_stateIDs.size(); i++){    
 	coord.clear();
-       	env_->getCoord(solution_stateIDs[i], coord);    
+       	env_->getCoord(solution_stateIDs[i], coord);
+	
 	//env_->GetFakePath(i, coord); 
 	//SBPL_INFO("id %d (x,y) = (%f,%f)", solution_stateIDs[i], coord[0], coord[1]);
 
@@ -293,7 +295,7 @@ bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> sta
   std::vector<std::vector<double> > r2(maxtime);
   std::vector<sbpl_xy_theta_pt_t> start_shifted(numagents_);
   std::vector<double> coord;
-
+  std::vector<int> assignments;
   float r1percents[] = {0.2, 0.4, 0.8, 1};
   float r2percents[] = {0, 0.1, 0.1, 0.1};
   // set start state
@@ -349,6 +351,10 @@ do{
   // plan!
   solution_stateIDs.clear();
   bool ret = planner_->replan(&solution_stateIDs, params);
+  env_->getAssignments(solution_stateIDs, assignments);
+  for(int i = 0; i < numgoals_; i++){
+    SBPL_INFO("Goal %d assigned to %d", i, assignments[i]);
+  }
   if (!ret)
     return false;
   publishPath(solution_stateIDs, res);    
@@ -362,6 +368,9 @@ do{
       int r2id = (int) (r2percents[i] * (float) planlength);
       SBPL_INFO("r1id = %d, r2id = %d", r1id, r2id);
       env_->getCoord(solution_stateIDs[r1id], coord);
+      /*std::vector<pose_t> poses;
+      std::vector<bool> goalsVisited;
+      env_->GetCoordFromState(solution_stateIDs[r1id], poses, goalsVisited)*/
       r1[i].push_back(coord[0]);
       r1[i].push_back(coord[1]);
       start_shifted[0].x = coord[0];

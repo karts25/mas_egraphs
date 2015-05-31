@@ -28,6 +28,7 @@ class EGraphXY:public Environment_xy, public EGraphable<std::vector<int> >, publ
     void projectGoalToHeuristicSpace(std::vector<int>& dp) const; 
     void contToDisc (const std::vector<double>& c, std::vector<int>& d);
     void discToCont(const std::vector<int>& d, std::vector<double>& c);
+    void getAssignments(const std::vector<int>& solution_stateIDs_V, std::vector<int>& assignments) const;
     virtual bool isValidEdge(const std::vector<double>& coord, const std::vector<double>& coord2, bool& change_cost, int& cost);
     virtual bool isValidVertex(const std::vector<double>& coord);
 

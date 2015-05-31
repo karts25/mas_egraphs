@@ -224,7 +224,7 @@ class Environment_xy: public DiscreteSpaceInformation
     virtual void GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<bool>* isTrueCost);
     virtual void GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<std::vector<int> >* PerAgentCostV, std::vector<bool>* isTrueCost);
 
-    virtual std::vector<bool> getGoalsVisited(std::vector<pose_t> poses, std::vector<bool> goalsVisitedSoFar);
+    virtual std::vector<bool> getGoalsVisited(const std::vector<pose_t>& poses, std::vector<bool> goalsVisitedSoFar);
 
     virtual unsigned int GETHASHBIN(std::vector<pose_t> pose, std::vector<bool> goalsVisited);
     
