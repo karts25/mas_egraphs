@@ -517,32 +517,23 @@ EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& p
     return HashEntry;
 }
 
-void Environment_xy::GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<std::vector<int> >* PerAgentCostV, std::vector<bool>* isTrueCost){
-  GetSuccs(SourceStateID, SuccIDV, PerAgentCostV, CostV);
+void Environment_xy::GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<bool>* isTrueCost){
+  GetSuccs(SourceStateID, SuccIDV, CostV);
   for(int i = 0; i < (int)SuccIDV->size(); i++)
     isTrueCost->push_back(true);
 }
 
-//lazysuccswithuniqueids returns true succs
-void Environment_xy::GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<bool>* isTrueCost){
-  GetSuccsWithUniqueIds(SourceStateID, SuccIDV, CostV);
-  for(int i = 0; i < (int)SuccIDV->size(); i++)
-    isTrueCost->push_back(true);
-}
 
 void Environment_xy::GetSuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV){
   GetSuccs(SourceStateID, SuccIDV, CostV);
 }
 
 
-void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<std::vector<int> >* PerAgentCostV, std::vector<int>* CostV)
+void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV)
 {
   //clear the successor array
   SuccIDV->clear();
   CostV->clear();
-
-  SuccIDV->reserve(EnvXYCfg.actionwidth);
-  CostV->reserve(EnvXYCfg.actionwidth);
 
   //get X, Y for the state
   EnvXYHashEntry_t* HashEntry = StateID2CoordTable[SourceStateID];
@@ -552,8 +543,8 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
     return;
   
   // Make numAgents x numActions structure of poses and costs
-  std::vector<std::vector<pose_t>> allnewPoses(EnvXYCfg.numAgents);
-  std::vector<std::vector<int>> allnewCosts(EnvXYCfg.numAgents);
+  std::vector<std::vector<pose_t> > allnewPoses(EnvXYCfg.numAgents);
+  std::vector<std::vector<int> > allnewCosts(EnvXYCfg.numAgents);
   int cost;
   const int numActions = EnvXYCfg.actionwidth;
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){   
@@ -564,20 +555,13 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
   //iterate through agents
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
     pose_t newPose;    
-    // stop
-    newPose.x = HashEntry->poses[agent_i].x;
-    newPose.y = HashEntry->poses[agent_i].y;
-    cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[agent_i][4] = newPose;
-    allnewCosts[agent_i][4] = 0;  // incur zero cost for stopping
-
     // right
     newPose.x = HashEntry->poses[agent_i].x + 1;
     newPose.y = HashEntry->poses[agent_i].y;
     if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
-      cost = 1/EnvXYCfg.nominalvel_mpersecs; //TODO: cost (in time) = 1/nominalvelocity
+      cost = 1/EnvXYCfg.nominalvel_mpersecs;
     allnewPoses[agent_i][0] = newPose;
     allnewCosts[agent_i][0] = cost;
     
@@ -611,27 +595,40 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
     allnewPoses[agent_i][3] = newPose;
     allnewCosts[agent_i][3] = cost;
 
+    // stop
+    newPose.x = HashEntry->poses[agent_i].x;
+    newPose.y = HashEntry->poses[agent_i].y;
+    cost = 1/EnvXYCfg.nominalvel_mpersecs;
+    allnewPoses[agent_i][4] = newPose;
+    allnewCosts[agent_i][4] = cost;
+
+    // retire robot only if it is at goal
+    newPose.x = HashEntry->poses[agent_i].x;
+    newPose.y = HashEntry->poses[agent_i].y;
+    if(isGoal(newPose))
+      cost = 0;
+    else
+      cost = INFINITECOST;
+    allnewPoses[agent_i][5] = newPose;
+    allnewCosts[agent_i][5] = cost;
   }
 
   EnvXYHashEntry_t* OutHashEntry;
   std::vector<pose_t> poses;
-  // Make successors from all possible combinations of agents and actions
+  // Make successors from all possible combinations of active agents and actions
   // TODO: this can be precomputed
-  // We have numActions^ numagents primitives
+  // We have numActions^numagents primitives
   int numPrimitives = pow(numActions, EnvXYCfg.numAgents);
   for(int i = 0; i < numPrimitives; i++){
     poses.clear();
-    
     // action index is i in base numActions
       int index = i;
       cost = 0;
-      std::vector<int> costperagent;
       for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
 	int action_i = index % numActions;
 	index = (int) index/numActions;	
-	cost = std::max(cost, allnewCosts[agent_i][action_i]); // all costs are 1 anyway
+	cost = cost + allnewCosts[agent_i][action_i]; 
 	poses.push_back(allnewPoses[agent_i][action_i]);
-	costperagent.push_back(allnewCosts[agent_i][action_i]);
       }
       if (cost >= INFINITECOST){
 	  //SBPL_INFO("Found an infinite cost action");
@@ -641,7 +638,6 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
 	// TODO: we don't want all robots stopped as an action
 	continue;
       }
-      PerAgentCostV->push_back(costperagent);
       std::vector<bool> goalsVisited = getGoalsVisited(poses, HashEntry->goalsVisited);
       if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited)) == NULL) {
 	//have to create a new entry
@@ -668,6 +664,15 @@ std::vector<bool> Environment_xy::getGoalsVisited(const std::vector<pose_t>& pos
       }
   }
   return goalsVisited;
+}
+
+bool Environment_xy::isGoal(const pose_t pose)
+{
+  for(int j = 0; j < EnvXYCfg.numGoals; j++)
+    {
+      if((pose.x == EnvXYCfg.goal[j].x) && (pose.y == EnvXYCfg.goal[j].y))
+	return true;
+    }
 }
 
 bool Environment_xy::IsValidCell(int X, int Y)

@@ -30,13 +30,12 @@ class LazyAEGState: public AbstractSearchState{
 
 class LazyAEGListElement{
   public:
-  LazyAEGListElement(LazyAEGState* p, int ec, std::vector<int> pAC, bool itc, EdgeType et, int snap_mp){
+  LazyAEGListElement(LazyAEGState* p, int ec, bool itc, EdgeType et, int snap_mp){
       parent = p;
       edgeCost = ec;
       isTrueCost = itc;
       edgeType = et;
       snap_midpoint = snap_mp;
-      perAgentCost = pAC;
   }
     bool operator< (const LazyAEGListElement& other) const{
       return (parent->v + edgeCost > other.parent->v + other.edgeCost);
@@ -47,7 +46,6 @@ class LazyAEGListElement{
     bool isTrueCost;
     EdgeType edgeType;
     int snap_midpoint;
-    std::vector<int> perAgentCost;
 };
 
 #endif
