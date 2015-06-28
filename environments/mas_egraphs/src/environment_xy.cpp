@@ -622,31 +622,31 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
   for(int i = 0; i < numPrimitives; i++){
     poses.clear();
     // action index is i in base numActions
-      int index = i;
-      cost = 0;
-      for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
-	int action_i = index % numActions;
-	index = (int) index/numActions;	
-	cost = cost + allnewCosts[agent_i][action_i]; 
-	poses.push_back(allnewPoses[agent_i][action_i]);
-      }
-      if (cost >= INFINITECOST){
-	  //SBPL_INFO("Found an infinite cost action");
-	  continue;
-	}
-      if (cost == 0){
-	// TODO: we don't want all robots stopped as an action
-	continue;
-      }
-      std::vector<bool> goalsVisited = getGoalsVisited(poses, HashEntry->goalsVisited);
-      if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited)) == NULL) {
-	//have to create a new entry
-	OutHashEntry = (this->*CreateNewHashEntry)(poses, goalsVisited);
-      }
-      
-      SuccIDV->push_back(OutHashEntry->stateID);
-      CostV->push_back(cost);
-      //SBPL_INFO("Peragentcost is %d %d", costperagent[0], costperagent[1]);
+    int index = i;
+    cost = 0;
+    for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+      int action_i = index % numActions;
+      index = (int) index/numActions;	
+      cost = cost + allnewCosts[agent_i][action_i]; 
+      poses.push_back(allnewPoses[agent_i][action_i]);
+    }
+    if (cost >= INFINITECOST){
+      //SBPL_INFO("Found an infinite cost action");
+      continue;
+    }
+    if (cost == 0){
+      // TODO: we don't want all robots stopped as an action
+      continue;
+    }
+    std::vector<bool> goalsVisited = getGoalsVisited(poses, HashEntry->goalsVisited);
+    if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited)) == NULL) {
+      //have to create a new entry
+      OutHashEntry = (this->*CreateNewHashEntry)(poses, goalsVisited);
+    }
+    
+    SuccIDV->push_back(OutHashEntry->stateID);
+    CostV->push_back(cost);
+    //SBPL_INFO("Peragentcost is %d %d", costperagent[0], costperagent[1]);
   }
 }
 
