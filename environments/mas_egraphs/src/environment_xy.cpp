@@ -73,7 +73,9 @@ static unsigned int inthash(unsigned int key)
 }
 
 //TODO: does not use goalsVisited in hash computation
-unsigned int Environment_xy::GETHASHBIN(std::vector<pose_t> poses, std::vector<bool> goalsVisited)
+unsigned int Environment_xy::GETHASHBIN(std::vector<pose_t> poses, 
+					std::vector<bool> goalsVisited, 
+					std::vector<bool> activeAgents)
 {
   unsigned int hashbin = 0;
   for(int i = 0; i < (int) poses.size(); ++i)
@@ -101,18 +103,20 @@ bool Environment_xy::InitializeEnv()
     StateID2CoordTable.clear();
 
     //create start state
-    std::vector<bool> goalsVisited(EnvXYCfg.numGoals,false);
-    if ((HashEntry = (this->*GetHashEntry)(EnvXYCfg.start, goalsVisited)) == NULL) {
+    std::vector<bool> goalsVisited(EnvXYCfg.numGoals, false);
+    std::vector<bool> activeAgents(EnvXYCfg.numAgents, true);
+    if ((HashEntry = (this->*GetHashEntry)(EnvXYCfg.start, goalsVisited, activeAgents)) == NULL) {
       //have to create a new entry
-      HashEntry = (this->*CreateNewHashEntry)(EnvXYCfg.start, goalsVisited);
+      HashEntry = (this->*CreateNewHashEntry)(EnvXYCfg.start, goalsVisited, activeAgents);
     }
     EnvXY.startstateid = HashEntry->stateID;
 
     //create goal state
-    if ((HashEntry = (this->*GetHashEntry)(EnvXYCfg.start, goalsVisited))==NULL) {
+    if ((HashEntry = (this->*GetHashEntry)(EnvXYCfg.start, goalsVisited, activeAgents))==NULL) {
         //have to create a new entry
         HashEntry = (this->*CreateNewHashEntry)(EnvXYCfg.start,
-						goalsVisited);
+						goalsVisited,
+						activeAgents);
     }
     EnvXY.goalstateid = HashEntry->stateID;
 
@@ -277,19 +281,23 @@ bool Environment_xy::SetMap(const unsigned char* mapdata)
     return true;
 }
 
-void Environment_xy::GetCoordFromState(int stateID, vector<pose_t>& poses, vector<bool>& goalsVisited) const
+void Environment_xy::GetCoordFromState(int stateID, vector<pose_t>& poses, 
+				       vector<bool>& goalsVisited,
+				       vector<bool>& activeAgents) const
 {
     EnvXYHashEntry_t* HashEntry = StateID2CoordTable[stateID];
     poses = HashEntry->poses;
     goalsVisited = HashEntry->goalsVisited;
+    activeAgents = HashEntry->activeAgents;
 }
 
-int Environment_xy::GetStateFromCoord(vector<pose_t>& poses, vector<bool> goalsVisited) 
+int Environment_xy::GetStateFromCoord(vector<pose_t>& poses, vector<bool> goalsVisited,
+				      std::vector<bool> activeAgents) 
 {
   EnvXYHashEntry_t* OutHashEntry;
-  if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited)) == NULL) {
+  if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited, activeAgents)) == NULL) {
     //have to create a new entry
-    OutHashEntry = (this->*CreateNewHashEntry)(poses, goalsVisited);
+    OutHashEntry = (this->*CreateNewHashEntry)(poses, goalsVisited, activeAgents);
   }
   return OutHashEntry->stateID;
 }
@@ -338,6 +346,16 @@ bool Environment_xy::isGoal(int id){
   return true;
 }
 
+bool Environment_xy::isStart(int id){
+  EnvXYHashEntry_t* HashEntry = StateID2CoordTable[id];
+  for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+    if((HashEntry->poses[agent_i].x != EnvXYCfg.start[agent_i].x) ||
+	(HashEntry->poses[agent_i].y != EnvXYCfg.start[agent_i].y))
+      return false;
+  }
+  return true;
+}
+
 int Environment_xy::SetGoal(std::vector<sbpl_xy_theta_pt_t> goal_m)
 {
   std::vector<pose_t> goal(EnvXYCfg.numGoals);
@@ -362,9 +380,10 @@ int Environment_xy::SetGoal(std::vector<sbpl_xy_theta_pt_t> goal_m)
     
     EnvXYHashEntry_t* OutHashEntry;
     std::vector<bool> goalsVisited(EnvXYCfg.numGoals, true);
-    if ((OutHashEntry = (this->*GetHashEntry)(goal, goalsVisited)) == NULL) {
+    std::vector<bool> activeAgents(EnvXYCfg.numAgents, true);
+    if ((OutHashEntry = (this->*GetHashEntry)(goal, goalsVisited, activeAgents)) == NULL) {
       //have to create a new entry
-      OutHashEntry = (this->*CreateNewHashEntry)(goal, goalsVisited);
+      OutHashEntry = (this->*CreateNewHashEntry)(goal, goalsVisited, activeAgents);
     }
 
     //need to recompute start heuristics?
@@ -407,9 +426,10 @@ int Environment_xy::SetStart(std::vector<sbpl_xy_theta_pt_t> start_m)
     EnvXYHashEntry_t* OutHashEntry; 
     std::vector<bool> goalsvisitedsofar(EnvXYCfg.numGoals, false);
     std::vector<bool> goalsvisited = getGoalsVisited(start, goalsvisitedsofar);
-    if ((OutHashEntry = (this->*GetHashEntry)(start, goalsvisited)) == NULL) {
+    std::vector<bool> activeAgents(EnvXYCfg.numAgents, true);
+    if ((OutHashEntry = (this->*GetHashEntry)(start, goalsvisited, activeAgents)) == NULL) {
       //have to create a new entry
-      OutHashEntry = (this->*CreateNewHashEntry)(start, goalsvisited);
+      OutHashEntry = (this->*CreateNewHashEntry)(start, goalsvisited, activeAgents);
     }
 
     //need to recompute start heuristics?
@@ -425,17 +445,15 @@ int Environment_xy::SetStart(std::vector<sbpl_xy_theta_pt_t> start_m)
     return EnvXY.startstateid;
 }
 
-
-
 // Hashing functions
-EnvXYHashEntry_t* Environment_xy::GetHashEntry_hash(std::vector<pose_t>& poses, std::vector<bool> GoalsVisited)
+EnvXYHashEntry_t* Environment_xy::GetHashEntry_hash(std::vector<pose_t>& poses, std::vector<bool> GoalsVisited, std::vector<bool> activeAgents)
 {
   
 #if TIME_DEBUG
     clock_t currenttime = clock();
 #endif
 
-    int binid = GETHASHBIN(poses, GoalsVisited);
+    int binid = GETHASHBIN(poses, GoalsVisited, activeAgents);
 
 #if DEBUG
     if ((int)Coord2StateIDHashTable[binid].size() > 5)
@@ -453,29 +471,32 @@ EnvXYHashEntry_t* Environment_xy::GetHashEntry_hash(std::vector<pose_t>& poses, 
       time_gethash += clock()-currenttime;
 #endif
       EnvXYHashEntry_t* hashentry = binV->at(ind);
-      bool matchfound = IsEqualHashEntry(hashentry, poses, GoalsVisited);
+      bool matchfound = IsEqualHashEntry(hashentry, poses, GoalsVisited, activeAgents);
       if (matchfound)
 	return hashentry;
     }
     return NULL;
 }
 
-bool Environment_xy::IsEqualHashEntry(EnvXYHashEntry_t* hashentry, std::vector<pose_t>& poses, std::vector<bool> GoalsVisited)
+bool Environment_xy::IsEqualHashEntry(EnvXYHashEntry_t* hashentry,
+				      std::vector<pose_t>& poses,
+				      std::vector<bool> GoalsVisited, 
+				      std::vector<bool> activeAgents) const
 {
-  bool matchfound = true;
+  if(hashentry->goalsVisited != GoalsVisited)
+    return false;
+  if(hashentry->activeAgents != activeAgents)
+    return false;
   for (int agent_i =0; agent_i <  EnvXYCfg.numAgents; agent_i++){
-    if ( (hashentry->poses[agent_i].x == poses[agent_i].x) && (hashentry->poses[agent_i].y == poses[agent_i].y) && (hashentry->goalsVisited == GoalsVisited)) {
-      }
-    else {
-      matchfound = false;
-      break;
-    }
+    if ((hashentry->poses[agent_i].x != poses[agent_i].x)
+	|| (hashentry->poses[agent_i].y != poses[agent_i].y)) 
+      return false;
   }
-  return matchfound;
+  return true;
 }
 
 
-EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& poses, std::vector<bool> GoalsVisited)
+EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& poses, std::vector<bool> goalsVisited, std::vector<bool> activeAgents)
 {
   int i;
 
@@ -486,7 +507,8 @@ EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& p
     EnvXYHashEntry_t* HashEntry = new EnvXYHashEntry_t;
 
     HashEntry->poses = poses;
-    HashEntry->goalsVisited = GoalsVisited;
+    HashEntry->goalsVisited = goalsVisited;
+    HashEntry->activeAgents = activeAgents;
     HashEntry->iteration = 0;
 
     HashEntry->stateID = StateID2CoordTable.size();
@@ -494,7 +516,7 @@ EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& p
     //insert into the tables
     StateID2CoordTable.push_back(HashEntry);
     //get the hash table bin
-    i = GETHASHBIN(HashEntry->poses, HashEntry->goalsVisited);
+    i = GETHASHBIN(HashEntry->poses, HashEntry->goalsVisited, HashEntry->activeAgents);
 
     //insert the entry into the bin
     Coord2StateIDHashTable[i].push_back(HashEntry);
@@ -517,19 +539,25 @@ EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& p
     return HashEntry;
 }
 
-void Environment_xy::GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<bool>* isTrueCost){
+void Environment_xy::GetLazySuccsWithUniqueIds(int SourceStateID,
+					       std::vector<int>* SuccIDV, std::vector<int>* CostV,
+					       std::vector<bool>* isTrueCost){ 
   GetSuccs(SourceStateID, SuccIDV, CostV);
   for(int i = 0; i < (int)SuccIDV->size(); i++)
     isTrueCost->push_back(true);
 }
 
 
-void Environment_xy::GetSuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV){
+void Environment_xy::GetSuccsWithUniqueIds(int SourceStateID, 
+					   std::vector<int>* SuccIDV, 
+					   std::vector<int>* CostV){
   GetSuccs(SourceStateID, SuccIDV, CostV);
 }
 
 
-void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV)
+void Environment_xy::GetSuccs(int SourceStateID,
+			      std::vector<int>* SuccIDV,
+			      std::vector<int>* CostV)
 {
   //clear the successor array
   SuccIDV->clear();
@@ -541,107 +569,131 @@ void Environment_xy::GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std:
   std::vector<bool> allgoalsVisited(EnvXYCfg.numGoals,true);
   if (HashEntry->goalsVisited == allgoalsVisited)
     return;
-  
+
+  // find number and indices of active agents
+  std::vector<int> activeAgents_indices;
+  for(int i = 0; i < EnvXYCfg.numAgents; i++)
+    if(HashEntry->activeAgents[i]){
+      activeAgents_indices.push_back(i);
+    }
+  int numActiveAgents = activeAgents_indices.size();
+
   // Make numAgents x numActions structure of poses and costs
-  std::vector<std::vector<pose_t> > allnewPoses(EnvXYCfg.numAgents);
-  std::vector<std::vector<int> > allnewCosts(EnvXYCfg.numAgents);
+  std::vector<std::vector<pose_t> > allnewPoses(numActiveAgents);
+  std::vector<std::vector<int> > allnewCosts(numActiveAgents);
   int cost;
   const int numActions = EnvXYCfg.actionwidth;
-  for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){   
+  for(int agent_i = 0; agent_i < numActiveAgents; agent_i++){   
       allnewPoses[agent_i] = std::vector<pose_t> (numActions);
       allnewCosts[agent_i] = std::vector<int>(numActions);
     }
 
-  //iterate through agents
+  //iterate through active agents
+  int activeagent_i = 0;
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+    if (!HashEntry->activeAgents[agent_i])
+      continue;
     pose_t newPose;    
     // right
-    newPose.x = HashEntry->poses[agent_i].x + 1;
-    newPose.y = HashEntry->poses[agent_i].y;
+    newPose.x = HashEntry->poses[activeagent_i].x + 1;
+    newPose.y = HashEntry->poses[activeagent_i].y;
     if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
       cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[agent_i][0] = newPose;
-    allnewCosts[agent_i][0] = cost;
+    allnewPoses[activeagent_i][0] = newPose;
+    allnewCosts[activeagent_i][0] = cost;
     
     //left
-    newPose.x = HashEntry->poses[agent_i].x - 1;
-    newPose.y = HashEntry->poses[agent_i].y;
+    newPose.x = HashEntry->poses[activeagent_i].x - 1;
+    newPose.y = HashEntry->poses[activeagent_i].y;
     if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
       cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[agent_i][1] = newPose;
-    allnewCosts[agent_i][1] = cost;
+    allnewPoses[activeagent_i][1] = newPose;
+    allnewCosts[activeagent_i][1] = cost;
 
     // up
-    newPose.x = HashEntry->poses[agent_i].x;
-    newPose.y = HashEntry->poses[agent_i].y + 1;
+    newPose.x = HashEntry->poses[activeagent_i].x;
+    newPose.y = HashEntry->poses[activeagent_i].y + 1;
     if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
       cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[agent_i][2] = newPose;
-    allnewCosts[agent_i][2] = cost;
+    allnewPoses[activeagent_i][2] = newPose;
+    allnewCosts[activeagent_i][2] = cost;
 
     // down
-    newPose.x = HashEntry->poses[agent_i].x;
-    newPose.y = HashEntry->poses[agent_i].y - 1;
+    newPose.x = HashEntry->poses[activeagent_i].x;
+    newPose.y = HashEntry->poses[activeagent_i].y - 1;
     if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
       cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[agent_i][3] = newPose;
-    allnewCosts[agent_i][3] = cost;
+    allnewPoses[activeagent_i][3] = newPose;
+    allnewCosts[activeagent_i][3] = cost;
 
     // stop
-    newPose.x = HashEntry->poses[agent_i].x;
-    newPose.y = HashEntry->poses[agent_i].y;
+    newPose.x = HashEntry->poses[activeagent_i].x;
+    newPose.y = HashEntry->poses[activeagent_i].y;
     cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[agent_i][4] = newPose;
-    allnewCosts[agent_i][4] = cost;
+    allnewPoses[activeagent_i][4] = newPose;
+    allnewCosts[activeagent_i][4] = cost;
 
-    // retire robot only if it is at goal
-    newPose.x = HashEntry->poses[agent_i].x;
-    newPose.y = HashEntry->poses[agent_i].y;
-    if(isGoal(newPose))
+    // retire robot only if it is at goal, or if are at start state
+    newPose.x = HashEntry->poses[activeagent_i].x;
+    newPose.y = HashEntry->poses[activeagent_i].y;
+    if(isGoal(newPose) || (SourceStateID == EnvXY.startstateid))
       cost = 0;
     else
       cost = INFINITECOST;
-    allnewPoses[agent_i][5] = newPose;
-    allnewCosts[agent_i][5] = cost;
+    allnewPoses[activeagent_i][5] = newPose;
+    allnewCosts[activeagent_i][5] = cost;
+    
+    activeagent_i++;
   }
 
   EnvXYHashEntry_t* OutHashEntry;
-  std::vector<pose_t> poses;
+  std::vector<pose_t> poses(EnvXYCfg.numAgents);
+  std::vector<bool> activeAgents(EnvXYCfg.numAgents, false);
+
   // Make successors from all possible combinations of active agents and actions
-  // TODO: this can be precomputed
   // We have numActions^numagents primitives
-  int numPrimitives = pow(numActions, EnvXYCfg.numAgents);
+  int numPrimitives = pow(numActions, numActiveAgents);
   for(int i = 0; i < numPrimitives; i++){
-    poses.clear();
+    poses = HashEntry->poses;
+    activeAgents = HashEntry->activeAgents;
     // action index is i in base numActions
     int index = i;
     cost = 0;
-    for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+    for(int agent_ctr = 0; agent_ctr < numActiveAgents; agent_ctr++){
       int action_i = index % numActions;
       index = (int) index/numActions;	
-      cost = cost + allnewCosts[agent_i][action_i]; 
-      poses.push_back(allnewPoses[agent_i][action_i]);
+      cost = cost + allnewCosts[agent_ctr][action_i]; 
+      int agent_index = activeAgents_indices[agent_ctr];
+      poses[agent_index] = allnewPoses[agent_ctr][action_i];
+      if (action_i == 5) // retire agent
+	activeAgents[agent_index] = 0;
     }
     if (cost >= INFINITECOST){
       //SBPL_INFO("Found an infinite cost action");
       continue;
     }
-    if (cost == 0){
-      // TODO: we don't want all robots stopped as an action
+    
+    // don't want all robots retired as an action
+    if (cost == 0)
       continue;
-    }
+    
     std::vector<bool> goalsVisited = getGoalsVisited(poses, HashEntry->goalsVisited);
-    if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited)) == NULL) {
+
+    // don't want all robots stopped as an action
+    if(IsEqualHashEntry(HashEntry, poses, goalsVisited, activeAgents))
+      continue;
+
+    if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited, activeAgents)) == NULL) {
       //have to create a new entry
-      OutHashEntry = (this->*CreateNewHashEntry)(poses, goalsVisited);
+      OutHashEntry = (this->*CreateNewHashEntry)(poses, goalsVisited, activeAgents);
     }
     
     SuccIDV->push_back(OutHashEntry->stateID);
@@ -802,4 +854,5 @@ void Environment_xy::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/
     for(int i = 0; i < EnvXYCfg.numGoals; i++){
       SBPL_INFO("%d ", (int) HashEntry->goalsVisited[i]);
     } 
+    
 }

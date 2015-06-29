@@ -53,7 +53,7 @@ bool EGraphXY::snap(const vector<double>& from, const vector<double>& to, int& i
 //requires a getCoord function which takes a state id (the ids the environment uses) and returns a vector with the coordinate so we can look for shortcuts in the e-graph
 //-we will never call getCoord on the goal (because it is possible we don't know what the goal state looks like)
 
-// getCoord now looks like [agent1.x agent1.y agent1.theta ........ goal1 goal2....]
+// getCoord now looks like [agent1.x agent1.y agent1.theta ........ goal1 goal2.... activeagent1 activeagent2...]
 bool EGraphXY::getCoord(int id, vector<double>& coord){
   coord.clear();
   EnvXYHashEntry_t* hashEntry = StateID2CoordTable[id];
@@ -82,20 +82,27 @@ int EGraphXY::getStateID(const vector<double>& coord){
   contToDisc(coord,d_coord);
   std::vector<pose_t> poses;
   std::vector<bool> goalsVisited;
+  std::vector<bool> activeAgents;
   int i =0;
   int ctr = 0;
-  for(; i < EnvXYCfg.numAgents; i+=2)
-    {
+  for(; i < EnvXYCfg.numAgents; i+=2){
       pose_t pose;
       pose.x = d_coord[i];
       pose.y = d_coord[i+1];
       poses[ctr] = pose;
     }
-  for(; i < EnvXYCfg.numGoals; i++)
-    {
+
+  for(; i < EnvXYCfg.numGoals; i++){
       goalsVisited[ctr] = coord[i];
+      ctr++;
     }
-  return GetStateFromCoord(poses, goalsVisited); 
+
+  for(; i < EnvXYCfg.numAgents; i++){
+    activeAgents[ctr] = coord[i];
+    ctr++;
+  }
+
+  return GetStateFromCoord(poses, goalsVisited, activeAgents); 
 }
 
 bool EGraphXY::isGoal(int id){
@@ -210,9 +217,10 @@ void EGraphXY::getAssignments(const std::vector<int>& solution_stateIDs_V, std::
   assignments.clear();
   assignments.resize(EnvXYCfg.numGoals, -1);
   std::vector<bool> goalsVisited(EnvXYCfg.numGoals, false);
+  std::vector<bool> activeAgents(EnvXYCfg.numAgents, false);
   for(unsigned int i = 0; i < solution_stateIDs_V.size(); i++){
     std::vector<pose_t> poses;
-    GetCoordFromState(solution_stateIDs_V[i], poses, goalsVisited);
+    GetCoordFromState(solution_stateIDs_V[i], poses, goalsVisited, activeAgents);
     for(unsigned int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
       int x = poses[agent_i].x;
       int y = poses[agent_i].y;
@@ -229,7 +237,7 @@ void EGraphXY::getAssignments(const std::vector<int>& solution_stateIDs_V, std::
 visualization_msgs::MarkerArray EGraphXY::stateToVisualizationMarker(vector<double> coord){
   // coord looks like [x1,y1,theta1,x2,y2,theta2....]
   visualization_msgs::MarkerArray ma;
-  for(int i = 0; i < coord.size(); i+=2)
+  for(unsigned int i = 0; i < coord.size(); i+=2)
     {
       visualization_msgs::Marker marker;
       marker.header.frame_id = "map";
@@ -260,7 +268,7 @@ visualization_msgs::MarkerArray EGraphXY::stateToDetailedVisualizationMarker(vec
 
 visualization_msgs::MarkerArray EGraphXY::edgeToVisualizationMarker(vector<double> coord, vector<double> coord2){
   visualization_msgs::MarkerArray ma;
-  for(int i = 0; i < coord.size(); i+=2)
+  for(unsigned int i = 0; i < coord.size(); i+=2)
     {
       visualization_msgs::Marker marker;
       marker.header.frame_id = "map";

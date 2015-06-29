@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <limits>
+#include <numeric>
 #include <mas_egraphs/planner_state.h>
 
 typedef EGraph* EGraphPtr;

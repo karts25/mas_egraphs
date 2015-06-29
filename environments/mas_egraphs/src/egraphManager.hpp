@@ -136,7 +136,7 @@ std::vector<int> EGraphManager<HeuristicType>::getHeuristic(int state_id){
     }
     //for this assignment, heuristic is the max of heuristics for all agents
     heur_allagents_allassignments.push_back(heur_allagents);
-    heur_allassignments[i] = *std::max_element(heur_allagents.begin(), heur_allagents.end());
+    heur_allassignments[i] = std::accumulate(heur_allagents.begin(), heur_allagents.end(), 0);
   }
   // Admissible heuristic is the min of all possible assignments 
   vector<int>::const_iterator it = std::min_element(heur_allassignments.begin(), heur_allassignments.end());
