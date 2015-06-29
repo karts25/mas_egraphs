@@ -113,7 +113,7 @@ std::vector<int> EGraphManager<HeuristicType>::getHeuristic(int state_id){
     for(int goal_i = 0; goal_i < numgoals_; goal_i++){
       int agentindex = index % numagents_;
       // if goal is already visited at this state, don't assign to agent
-      if(cont_state[2*numagents_ + goal_i])
+      if(cont_state[2*numagents_ + goal_i] >= 0)
 	assignment[goal_i] = -1;
       else
 	assignment[goal_i] = agentindex;
@@ -134,7 +134,7 @@ std::vector<int> EGraphManager<HeuristicType>::getHeuristic(int state_id){
       SBPL_INFO("heur_coord_agent is (%d,%d). Heuristic is %d", heur_coord_agent[0], heur_coord_agent[1], heur_allagents[agent_i]);
 #endif
     }
-    //for this assignment, heuristic is the max of heuristics for all agents
+    //for this assignment, heuristic is the sum of heuristics for all agents
     heur_allagents_allassignments.push_back(heur_allagents);
     heur_allassignments[i] = std::accumulate(heur_allagents.begin(), heur_allagents.end(), 0);
   }

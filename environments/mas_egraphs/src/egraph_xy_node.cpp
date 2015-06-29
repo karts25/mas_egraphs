@@ -46,6 +46,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
 			      costmap_ros_->getSizeInCellsY(), // height
 			      0, // mapdata
 			      1, // numAgents
+			      1, // numGoals
 			      start, // start vector of poses (x, y)
 			      goal, // goal vector of poses (x, y)
 			      0, 0, //goal tolerance
@@ -351,7 +352,7 @@ do{
   // plan!
   solution_stateIDs.clear();
   bool ret = planner_->replan(&solution_stateIDs, params);
-  env_->getAssignments(solution_stateIDs, assignments);
+  env_->getAssignments(solution_stateIDs[solution_stateIDs.size()-1], assignments);
   for(int i = 0; i < numgoals_; i++){
     SBPL_INFO("Goal %d assigned to %d", i, assignments[i]);
   }
@@ -366,7 +367,7 @@ do{
     for(int i = 0; i < maxtime; i ++){
       int r1id = (int) (r1percents[i] * (float) planlength);
       int r2id = (int) (r2percents[i] * (float) planlength);
-      SBPL_INFO("r1id = %d, r2id = %d", r1id, r2id);
+      //SBPL_INFO("r1id = %d, r2id = %d", r1id, r2id);
       env_->getCoord(solution_stateIDs[r1id], coord);
       /*std::vector<pose_t> poses;
       std::vector<bool> goalsVisited;

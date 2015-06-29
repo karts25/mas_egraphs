@@ -8,14 +8,14 @@ EGraphXY::EGraphXY(){
 
 
 bool EGraphXY::InitializeEnv(int width, int height,
-				  const unsigned char* mapdata,
-				  int numagents,
-				  std::vector<pose_t> start,
-				  std::vector<pose_t> goal,				  
-				  double goaltol_x, double goaltol_y,
-			          double cellsize_m, double nominalvel_mpersecs){
+			     const unsigned char* mapdata,
+			     int numagents, int numgoals,
+			     std::vector<pose_t> start,
+			     std::vector<pose_t> goal,				  
+			     double goaltol_x, double goaltol_y,
+			     double cellsize_m, double nominalvel_mpersecs){
 
-  bool ret = Environment_xy::InitializeEnv(width, height, mapdata, numagents, start,
+  bool ret = Environment_xy::InitializeEnv(width, height, mapdata, numagents, numgoals,  start,
 			   goal, goaltol_x, goaltol_y,
 			   cellsize_m, nominalvel_mpersecs);
   return ret;
@@ -81,7 +81,7 @@ int EGraphXY::getStateID(const vector<double>& coord){
   vector<int> d_coord;
   contToDisc(coord,d_coord);
   std::vector<pose_t> poses;
-  std::vector<bool> goalsVisited;
+  std::vector<int> goalsVisited;
   std::vector<bool> activeAgents;
   int i =0;
   int ctr = 0;
@@ -106,17 +106,10 @@ int EGraphXY::getStateID(const vector<double>& coord){
 }
 
 bool EGraphXY::isGoal(int id){
-  EnvXYHashEntry_t* HashEntry = StateID2CoordTable[id];
-  for(int i = 0; i < EnvXYCfg.numGoals; i++)
-    {
-      if (!HashEntry->goalsVisited[i])
-	return false;
-    }
-  return true;
-}
+  return Environment_xy::isGoal(id);
+  }
 
 void EGraphXY::projectToHeuristicSpace(const vector<double>& coord, vector<int>& dp) const{
-  int i = 0;
   dp.clear();
   for(int i = 0; i < (int) coord.size(); i+=2){
     //SBPL_INFO("projecting (%f, %f)", coord[i], coord[i+1]);
@@ -213,8 +206,12 @@ bool EGraphXY::isValidVertex(const vector<double>& coord){
 }
 
 //TODO: This can be made much faster by just changing goalsVisited to a vector of assignment ints
-void EGraphXY::getAssignments(const std::vector<int>& solution_stateIDs_V, std::vector<int>& assignments) const{
-  assignments.clear();
+void EGraphXY::getAssignments(int solution_stateID, std::vector<int>& assignments) const{
+  std::vector<pose_t> poses;
+  std::vector<bool> activeAgents;
+  GetCoordFromState(solution_stateID, poses, assignments, activeAgents);
+
+  /*  assignments.clear();
   assignments.resize(EnvXYCfg.numGoals, -1);
   std::vector<bool> goalsVisited(EnvXYCfg.numGoals, false);
   std::vector<bool> activeAgents(EnvXYCfg.numAgents, false);
@@ -232,6 +229,7 @@ void EGraphXY::getAssignments(const std::vector<int>& solution_stateIDs_V, std::
       }
     }
   }
+  */
 }
 
 visualization_msgs::MarkerArray EGraphXY::stateToVisualizationMarker(vector<double> coord){

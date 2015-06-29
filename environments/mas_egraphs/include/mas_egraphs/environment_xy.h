@@ -52,15 +52,9 @@ typedef struct
 
 typedef struct
 {
-  pose_t pose;
-  std::vector<bool> goalsVisited;
-} AgentState_t;
-
-typedef struct
-{
   int stateID;
-  std::vector<bool> goalsVisited; 
-  std::vector<bool> activeAgents;
+  std::vector<int> goalsVisited; // -1 if unvisited, index of agent that first visits each goal
+  std::vector<bool> activeAgents; // true if active, false otherwise
   std::vector<pose_t> poses;
   int iteration;
 } EnvXYHashEntry_t;
@@ -70,9 +64,7 @@ typedef struct
 {
     int startstateid;
     int goalstateid;
-
     bool bInitialized;
-
     //any additional variables
 } Environment_xy_t;
 
@@ -130,6 +122,7 @@ class Environment_xy: public DiscreteSpaceInformation
   virtual bool InitializeEnv(const char* sEnvFile);
 
   virtual bool InitializeEnv(int width, int height, const unsigned char* mapdata, int numagents, 
+			     int numgoals,
 			     std::vector<pose_t> start, std::vector<pose_t> goal,
 			     double goaltol_x, double goaltol_y,
 			     double cellsize_m, double nominalvel_mpersecs);
@@ -189,9 +182,9 @@ class Environment_xy: public DiscreteSpaceInformation
     
     virtual void PrintEnv_Config(FILE* fOut){};
 
-    void GetCoordFromState(int stateID, std::vector<pose_t>& poses, std::vector<bool>& goalsVisited, std::vector<bool>& activeAgents) const;
+    void GetCoordFromState(int stateID, std::vector<pose_t>& poses, std::vector<int>& goalsVisited, std::vector<bool>& activeAgents) const;
 
-    virtual int GetStateFromCoord(std::vector<pose_t>& poses, std::vector<bool> goalsVisited,
+    virtual int GetStateFromCoord(std::vector<pose_t>& poses, std::vector<int> goalsVisited,
 				  std::vector<bool> activeAgents);
     /**
      * \brief sets start in meters/radians
@@ -228,9 +221,9 @@ class Environment_xy: public DiscreteSpaceInformation
 
     virtual void GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<bool>* isTrueCost);
 
-    virtual std::vector<bool> getGoalsVisited(const std::vector<pose_t>& poses, std::vector<bool> goalsVisitedSoFar);
+    virtual void getGoalsVisited(const std::vector<pose_t>& poses, std::vector<int>& goalsVisited);
 
-    virtual unsigned int GETHASHBIN(std::vector<pose_t> pose, std::vector<bool> goalsVisited, std::vector<bool> activeAgents);
+    virtual unsigned int GETHASHBIN(std::vector<pose_t> pose, std::vector<int> goalsVisited, std::vector<bool> activeAgents);
     
     virtual void PrintState(int stateID, bool bVerbose, FILE* fOut = NULL);
 
@@ -288,14 +281,24 @@ class Environment_xy: public DiscreteSpaceInformation
     std::vector<EnvXYHashEntry_t*> StateID2CoordTable;
 
 
-    virtual EnvXYHashEntry_t* GetHashEntry_hash(std::vector<pose_t>& pose, std::vector<bool> goalsVisited, std::vector<bool> activeAgents);
-    virtual EnvXYHashEntry_t* CreateNewHashEntry_hash(std::vector<pose_t>& pose, std::vector<bool> goalsVisited, std::vector<bool> activeAgents);
-    virtual bool IsEqualHashEntry(EnvXYHashEntry_t* hashentry, std::vector<pose_t>& poses, 
-				  std::vector<bool> GoalsVisited, std::vector<bool> activeAgents) const;
+    virtual EnvXYHashEntry_t* GetHashEntry_hash(std::vector<pose_t>& pose, 
+						std::vector<int>& goalsVisited, 
+						std::vector<bool> activeAgents);
+    virtual EnvXYHashEntry_t* CreateNewHashEntry_hash(std::vector<pose_t>& pose, 
+						      std::vector<int>& goalsVisited, 
+						      std::vector<bool> activeAgents);
+    virtual bool IsEqualHashEntry(EnvXYHashEntry_t* hashentry, 
+				  std::vector<pose_t>& poses, 
+				  std::vector<int>& GoalsVisited, 
+				  std::vector<bool> activeAgents) const;
     
     //pointers to functions
-    EnvXYHashEntry_t* (Environment_xy::*GetHashEntry)(std::vector<pose_t>& pose, std::vector<bool> goalsVisited, std::vector<bool> activeAgents);
-    EnvXYHashEntry_t* (Environment_xy::*CreateNewHashEntry)(std::vector<pose_t>& pose, std::vector<bool> goalsVisited, std::vector<bool> activeAgents);
+    EnvXYHashEntry_t* (Environment_xy::*GetHashEntry)(std::vector<pose_t>& pose, 
+						      std::vector<int>& goalsVisited, 
+						      std::vector<bool> activeAgents);
+    EnvXYHashEntry_t* (Environment_xy::*CreateNewHashEntry)(std::vector<pose_t>& pose,
+							    std::vector<int>& goalsVisited,
+							    std::vector<bool> activeAgents);
     
 };
 

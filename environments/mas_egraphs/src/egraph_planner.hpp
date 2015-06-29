@@ -808,7 +808,9 @@ int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGra
     printf("ERROR searching: no start state set\n");
     return 0;
   }
+ 
   if (egraph_mgr_->egraph_env_->isGoal(start_state_id)){
+    ROS_INFO("start state id is %d", start_state_id);
     ROS_WARN("start is goal! nothing interesting returned");
     return true;
   }
