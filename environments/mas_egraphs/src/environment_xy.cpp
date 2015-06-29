@@ -847,7 +847,7 @@ void Environment_xy::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/
     }
 
     for(int i = 0; i < EnvXYCfg.numAgents; i++){
-      SBPL_INFO("Agent %d (X=%d Y=%d)", i, HashEntry->poses[i].x, HashEntry->poses[i].y);
+      SBPL_INFO("Agent %d (X=%d Y=%d) isActive: %d", i, HashEntry->poses[i].x, HashEntry->poses[i].y, (int) HashEntry->activeAgents[i]);
     }
 
     SBPL_INFO("Goals Visited:");
