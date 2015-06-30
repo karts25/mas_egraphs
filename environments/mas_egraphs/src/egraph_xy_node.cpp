@@ -297,7 +297,7 @@ bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> sta
   std::vector<sbpl_xy_theta_pt_t> start_shifted(numagents_);
   std::vector<double> coord;
   std::vector<int> assignments;
-  float r1percents[] = {0.2, 0.4, 0.8, 1};
+  float r1percents[] = {0.2, 0.4, 0.8, 0.9};
   float r2percents[] = {0, 0.1, 0.1, 0.1};
   // set start state
   start_shifted[0].x = start_x[0] - cost_map_.getOriginX();
@@ -365,9 +365,10 @@ do{
     unsigned int planlength = solution_stateIDs.size();
     // r1,r2 at 20% of way
     for(int i = 0; i < maxtime; i ++){
+      
       int r1id = (int) (r1percents[i] * (float) planlength);
       int r2id = (int) (r2percents[i] * (float) planlength);
-      //SBPL_INFO("r1id = %d, r2id = %d", r1id, r2id);
+//    SBPL_INFO("r1id = %d, r2id = %d", r1id, r2id);
       env_->getCoord(solution_stateIDs[r1id], coord);
       /*std::vector<pose_t> poses;
       std::vector<bool> goalsVisited;

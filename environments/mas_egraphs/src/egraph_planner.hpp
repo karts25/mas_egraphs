@@ -93,15 +93,19 @@ LazyAEGState* LazyAEGPlanner<HeuristicType>::GetState(int id){
       std::vector<int> heurs;
       heurs = egraph_mgr_->getHeuristic(s->id);
       s->h = heurs[0];
+      /*
 #ifdef DEBUG_PLANNER
       SBPL_INFO("Planner: Getting heuristic for id %d", s->id);
       SBPL_INFO("Planner: Heuristic for id %d = %d", s->id, heurs[0]);
 #endif
+      */
       for(unsigned int i = 1; i < heurs.size(); i++){
 	s->h_peragent.push_back(heurs[i]); 
+	/*
 #ifdef DEBUG_PLANNER
 	SBPL_INFO("Planner: h for agent %d is %d", i-1, heurs[i]);
 #endif	
+	*/
       }
       clock_t h_t1 = clock();
       heuristicClock += h_t1-h_t0;
@@ -380,6 +384,7 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
     SBPL_INFO("g = %d h = %d", state->g, state->h);
     for(int i = 0; i < (int) state->h_peragent.size(); i++)
       SBPL_INFO("h for agent %d is %d", i, state->h_peragent[i]);
+    std::cin.get();
 #endif
     
     if(state->v == state->g){
@@ -418,9 +423,6 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
 
     //get the min key for the next iteration
     min_key = heap.getminkeyheap();
-#ifdef DEBUG_PLANNER
-    std::cin.get();
-#endif
   }
 
   search_expands += expands;

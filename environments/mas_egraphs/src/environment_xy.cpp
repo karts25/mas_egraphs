@@ -7,9 +7,11 @@
 
 using namespace std;
 
-#ifndef DEBUG
-#define DEBUG
+/*
+#ifndef DEBUG_ENV
+#define DEBUG_ENV
 #endif
+*/
 
 Environment_xy::Environment_xy()
 {
@@ -260,10 +262,6 @@ int Environment_xy::GetStartHeuristic(int stateID)
 
 bool Environment_xy::IsObstacle(int x, int y)
 {
-#if DEBUG
-    SBPL_FPRINTF(fDeb, "Status of cell %d %d is queried. Its cost=%d\n", x,y,EnvXYCfg.Grid2D[x][y]);
-#endif
-
     return (EnvXYCfg.Grid2D[x][y] >= EnvXYCfg.obsthresh);
 }
 
@@ -512,7 +510,7 @@ EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& p
 {
   int i;
 
-#if TIME_DEBUG	
+#if TIME_DEBUG
     clock_t currenttime = clock();
 #endif
 
@@ -591,11 +589,12 @@ void Environment_xy::GetSuccs(int SourceStateID,
     }
   int numActiveAgents = activeAgents_indices.size();
 
-  // Make numAgents x numActions structure of poses and costs
+  // Make numActiveAgents x numActions structure of poses and costs
   std::vector<std::vector<pose_t> > allnewPoses(numActiveAgents);
   std::vector<std::vector<int> > allnewCosts(numActiveAgents);
   int cost;
   const int numActions = EnvXYCfg.actionwidth;
+  SBPL_INFO("num actions %d", numActions);
   for(int agent_i = 0; agent_i < numActiveAgents; agent_i++){   
       allnewPoses[agent_i] = std::vector<pose_t> (numActions);
       allnewCosts[agent_i] = std::vector<int>(numActions);
@@ -608,8 +607,8 @@ void Environment_xy::GetSuccs(int SourceStateID,
       continue;
     pose_t newPose;    
     // right
-    newPose.x = HashEntry->poses[activeagent_i].x + 1;
-    newPose.y = HashEntry->poses[activeagent_i].y;
+    newPose.x = HashEntry->poses[agent_i].x + 1;
+    newPose.y = HashEntry->poses[agent_i].y;
     if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
@@ -618,8 +617,8 @@ void Environment_xy::GetSuccs(int SourceStateID,
     allnewCosts[activeagent_i][0] = cost;
     
     //left
-    newPose.x = HashEntry->poses[activeagent_i].x - 1;
-    newPose.y = HashEntry->poses[activeagent_i].y;
+    newPose.x = HashEntry->poses[agent_i].x - 1;
+    newPose.y = HashEntry->poses[agent_i].y;
     if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
@@ -628,8 +627,8 @@ void Environment_xy::GetSuccs(int SourceStateID,
     allnewCosts[activeagent_i][1] = cost;
 
     // up
-    newPose.x = HashEntry->poses[activeagent_i].x;
-    newPose.y = HashEntry->poses[activeagent_i].y + 1;
+    newPose.x = HashEntry->poses[agent_i].x;
+    newPose.y = HashEntry->poses[agent_i].y + 1;
     if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
@@ -638,8 +637,8 @@ void Environment_xy::GetSuccs(int SourceStateID,
     allnewCosts[activeagent_i][2] = cost;
 
     // down
-    newPose.x = HashEntry->poses[activeagent_i].x;
-    newPose.y = HashEntry->poses[activeagent_i].y - 1;
+    newPose.x = HashEntry->poses[agent_i].x;
+    newPose.y = HashEntry->poses[agent_i].y - 1;
     if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
@@ -648,15 +647,15 @@ void Environment_xy::GetSuccs(int SourceStateID,
     allnewCosts[activeagent_i][3] = cost;
 
     // stop
-    newPose.x = HashEntry->poses[activeagent_i].x;
-    newPose.y = HashEntry->poses[activeagent_i].y;
+    newPose.x = HashEntry->poses[agent_i].x;
+    newPose.y = HashEntry->poses[agent_i].y;
     cost = 1/EnvXYCfg.nominalvel_mpersecs;
     allnewPoses[activeagent_i][4] = newPose;
     allnewCosts[activeagent_i][4] = cost;
 
     // retire robot only if it is at goal, or if are at start state
-    newPose.x = HashEntry->poses[activeagent_i].x;
-    newPose.y = HashEntry->poses[activeagent_i].y;
+    newPose.x = HashEntry->poses[agent_i].x;
+    newPose.y = HashEntry->poses[agent_i].y;
     if(isGoal(newPose) || (SourceStateID == EnvXY.startstateid))
       cost = 0;
     else
@@ -690,10 +689,8 @@ void Environment_xy::GetSuccs(int SourceStateID,
 	activeAgents[agent_index] = 0;
     }
     if (cost >= INFINITECOST){
-      //SBPL_INFO("Found an infinite cost action");
       continue;
     }
-    
     // don't want all robots retired as an action
     if (cost == 0)
       continue;
@@ -712,8 +709,13 @@ void Environment_xy::GetSuccs(int SourceStateID,
     
     SuccIDV->push_back(OutHashEntry->stateID);
     CostV->push_back(cost);
-    //SBPL_INFO("Peragentcost is %d %d", costperagent[0], costperagent[1]);
+#ifdef DEBUG_ENV
+    PrintState(OutHashEntry->stateID, true);
+#endif
   }
+#ifdef DEBUG_ENV_ENV
+  std::cin.get();
+#endif
 }
 
 
