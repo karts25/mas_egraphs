@@ -594,7 +594,6 @@ void Environment_xy::GetSuccs(int SourceStateID,
   std::vector<std::vector<int> > allnewCosts(numActiveAgents);
   int cost;
   const int numActions = EnvXYCfg.actionwidth;
-  SBPL_INFO("num actions %d", numActions);
   for(int agent_i = 0; agent_i < numActiveAgents; agent_i++){   
       allnewPoses[agent_i] = std::vector<pose_t> (numActions);
       allnewCosts[agent_i] = std::vector<int>(numActions);

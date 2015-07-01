@@ -7,7 +7,6 @@ using namespace std;
 #endif
 */
 
-// Want this manager to split egraph by agent and call heuristic on each of them separately
 template <typename HeuristicType>
 EGraphManager<HeuristicType>::EGraphManager(std::vector<EGraphPtr> egraphs,
 					    EGraphablePtr egraph_env,
