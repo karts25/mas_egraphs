@@ -1,0 +1,21 @@
+Immediate goals:
+1) Each agent is a separate class with a separate motion primitive file
+2) Change getSuccs to reflect 1)
+3) Clean up getcoord, egraph stuff
+4) Upgrade to x,y,z,theta
+5) Collision checking and footprint
+
+Future goals:
+1) Generate motion primitives
+2) Decentralized architecture + communication
+3) Generate goals from map
+4) Obstacle detection? planning?
+
+
+July 1 : Finish Immediate goals 1,2,3
+July 2 : Immediate goal 4 + start cleanup
+
+
+By July 6, 7: Get decentralized planner?
+
+Next week: Start work on robot?
