@@ -10,8 +10,8 @@ EGraphXY::EGraphXY(){
 bool EGraphXY::InitializeEnv(int width, int height,
 			     const unsigned char* mapdata,
 			     int numagents, int numgoals,
-			     std::vector<pose_t> start,
-			     std::vector<pose_t> goal,				  
+			     std::vector<pose_cont_t> start,
+			     std::vector<pose_cont_t> goal,				  
 			     double goaltol_x, double goaltol_y, double goaltol_theta,
 			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 			     double cellsize_m, double time_per_action,
@@ -86,13 +86,13 @@ int EGraphXY::getStateID(const vector<double>& coord){
   return 0;
   vector<int> d_coord;
   contToDisc(coord,d_coord);
-  std::vector<pose_t> poses;
+  std::vector<pose_disc_t> poses;
   std::vector<int> goalsVisited;
   std::vector<bool> activeAgents;
   int i =0;
   int ctr = 0;
   for(; i < EnvXYCfg.numAgents; i+=4){
-      pose_t pose;
+      pose_disc_t pose;
       pose.x = d_coord[i];
       pose.y = d_coord[i+1];
       pose.z = d_coord[i+2];
@@ -208,12 +208,12 @@ bool EGraphXY::isValidVertex(const vector<double>& coord){
   vector<int> d_coord;
   contToDisc(coord,d_coord);
   int temp_cost;
-  return collisionCheckPose(d_coord[0],d_coord[1],temp_cost);
+  return collisionCheckPose(d_coord[0],d_coord[1], d_coord[2], d_coord[3], temp_cost);
 }
 
 //TODO: This can be made much faster by just changing goalsVisited to a vector of assignment ints
 void EGraphXY::getAssignments(int solution_stateID, std::vector<int>& assignments) const{
-  std::vector<pose_t> poses;
+  std::vector<pose_disc_t> poses;
   std::vector<bool> activeAgents;
   GetCoordFromState(solution_stateID, poses, assignments, activeAgents);
 
@@ -222,7 +222,7 @@ void EGraphXY::getAssignments(int solution_stateID, std::vector<int>& assignment
   std::vector<bool> goalsVisited(EnvXYCfg.numGoals, false);
   std::vector<bool> activeAgents(EnvXYCfg.numAgents, false);
   for(unsigned int i = 0; i < solution_stateIDs_V.size(); i++){
-    std::vector<pose_t> poses;
+    std::vector<pose_disc_t> poses;
     GetCoordFromState(solution_stateIDs_V[i], poses, goalsVisited, activeAgents);
     for(unsigned int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
       int x = poses[agent_i].x;

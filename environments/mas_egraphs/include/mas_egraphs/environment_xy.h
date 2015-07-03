@@ -36,10 +36,12 @@
 
 #include <cstdio>
 #include <vector>
-#include <sbpl/discrete_space_information/environment.h>
+#include <sbpl/headers.h>
+//#include <sbpl/discrete_space_information/environment.h>
 #include <sbpl/utils/utils.h>
 
 #define ENVXY_DEFAULTOBSTHRESH 20	//see explanation of the value below
+#define DEFAULTACTIONWIDTH 8
 
 class SBPL2DGridSearch;
 
@@ -58,6 +60,7 @@ typedef struct
   double z;
   double theta;
 } pose_cont_t;
+
 typedef struct
 {
   int stateID;
@@ -92,6 +95,7 @@ typedef struct
   std::vector<sbpl_xy_theta_cell_t> interm3DcellsV;
 } EnvXYAction_t;
 
+/*
 typedef struct
 {
 int motprimID;
@@ -101,6 +105,7 @@ sbpl_xy_theta_cell_t endcell;
 //domain with half-bin less to account for 0,0 start                                             
 std::vector<sbpl_xy_theta_pt_t> intermptV;
 } SBPL_xytheta_mprimitive;
+*/
 
 typedef struct
 {
@@ -117,7 +122,7 @@ typedef struct ENV_XY_CONFIG
   int numGoals;
   int EnvWidth_c;
   int EnvHeight_c;
-  int numThetaDirs;
+  int NumThetaDirs;
   std::vector<pose_disc_t> start;
   std::vector<pose_disc_t> goal;
   std::vector<RobotConfig_t> robotConfigV;
@@ -172,17 +177,21 @@ class Environment_xy: public DiscreteSpaceInformation
 			     double cellsize_m, double time_per_action,
 			     const std::vector<char*> sMotPrimFiles);
 
-  void Environment_xy::InitializeEnvConfig(vector<vector<SBPL_xytheta_mprimitive> >* 
-					   motionprimitiveV);
+  void InitializeAgentConfig(int agentID, std::vector<SBPL_xytheta_mprimitive>* motionprimitiveV);
+
+  bool InitGeneral(std::vector<std::vector<SBPL_xytheta_mprimitive> >*
+				   motionprimitiveV);
 
   void SetConfiguration(int width, int height, const unsigned char* mapdata,
 			std::vector<pose_disc_t> start, std::vector<pose_disc_t> goal,
 			double cellsize_m, double time_per_action,
 			const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV);
 
-  bool ReadMotionPrimitives(FILE* fMotPrims, int agentId);
+  bool ReadMotionPrimitive_agent(FILE* fMotPrims, int agentId);
   bool ReadinMotionPrimitive(SBPL_xytheta_mprimitive* pMotPrim,
 			     FILE* fIn);
+  virtual bool ReadinCell(sbpl_xy_theta_cell_t* cell, FILE* fIn);
+  virtual bool ReadinPose(sbpl_xy_theta_pt_t* pose, FILE* fIn);
   void PrecomputeActionswithCompleteMotionPrimitive(int agent_i,
 						    std::vector<SBPL_xytheta_mprimitive>* motionprimitiveV);
 
@@ -212,9 +221,9 @@ class Environment_xy: public DiscreteSpaceInformation
      */
     virtual int GetGoalHeuristic(int stateID);
 
-    virtual bool IsValidCell(int X, int Y);    
+    virtual bool IsValidCell(int X, int Y) const;    
 
-    virtual bool IsValidConfiguration(std::vector<pose_disc_t> pos);
+    virtual bool IsValidConfiguration(std::vector<pose_disc_t> pos) const;
     /**
      * \brief see comments on the same function in the parent class
      */
@@ -269,13 +278,14 @@ class Environment_xy: public DiscreteSpaceInformation
     virtual bool isStart(int id);
 
     virtual void GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV);
-    virtual void GetSuccsForAgent(int agentID, pose_disc_t pose, std::vector<int>* SuccPoses);
+    virtual void GetSuccsForAgent(int agentID, pose_disc_t pose, std::vector<pose_disc_t>& newPosesV,
+				  std::vector<int>& costV) const;
     virtual void GetPreds(int TargetStateID, std::vector<int>* PredIDV, std::vector<int>* CostV);
     virtual void GetSuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV);
 
     virtual void GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<bool>* isTrueCost);
 
-    virtual void getGoalsVisited(const std::vector<pose_disc_t>& poses, std::vector<int>& goalsVisited);
+    virtual void getGoalsVisited(const std::vector<pose_disc_t>& poses, std::vector<int>& goalsVisited) const;
 
     virtual unsigned int GETHASHBIN(std::vector<pose_disc_t> pose, std::vector<int> goalsVisited, std::vector<bool> activeAgents);
     

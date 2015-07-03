@@ -27,7 +27,8 @@ Environment_xy::Environment_xy()
   
   HashTableSize = 0;
   Coord2StateIDHashTable = NULL;
-  EnvXYCfg.actionwidth = DEFAULTACTIONWIDTH;
+  EnvXYCfg.robotConfigV.reserve(1);
+  EnvXYCfg.robotConfigV[0].actionwidth = DEFAULTACTIONWIDTH;
 }
 
 Environment_xy::~Environment_xy()
@@ -91,8 +92,6 @@ unsigned int Environment_xy::GETHASHBIN(std::vector<pose_disc_t> poses,
 bool Environment_xy::InitializeEnv()
 {
     EnvXYHashEntry_t* HashEntry;
-
-    //int maxsize = EnvMASNAVXYCfg.EnvWidth_c * EnvMASNAVXYCfg.EnvHeight_c * EnvMASNAVXYCfg.NumThetaDirs;
     
     SBPL_INFO("environment stores states in hashtable\n");
     
@@ -130,23 +129,10 @@ bool Environment_xy::InitializeEnv()
 }
 
 
-bool EnvironmentNAVXYTHETALATTICE::InitGeneral(std::vector<std::vector<SBPL_xytheta_mprimitive> >* motionprimitiveV)
-{
-  //Initialize other parameters of the environment                                                  
-  InitializeEnvConfig(motionprimitiveV);
-  //initialize Environment                                                     
-  InitializeEnv();
-
-  //pre-compute heuristics                                         
-  //ComputeHeuristicValues();
-
-  return true;
-}
-
-void Environment_xy::InitializeEnvConfig(vector<vector<SBPL_xytheta_mprimitive> >* 
-					 motionprimitiveV)
+void Environment_xy::InitializeAgentConfig(int agentID, std::vector<SBPL_xytheta_mprimitive>* motionprimitiveV)
 {
   //aditional to configuration file initialization of EnvXYCfg if necessary              
+  /*
   //dXY dirs                                                                               
   EnvXYCfg.dXY[0][0] = -1;
   EnvXYCfg.dXY[0][1] = -1;
@@ -164,7 +150,7 @@ void Environment_xy::InitializeEnvConfig(vector<vector<SBPL_xytheta_mprimitive> 
   EnvXYCfg.dXY[6][1] = 0;
   EnvXYCfg.dXY[7][0] = 1;
   EnvXYCfg.dXY[7][1] = 1;
-
+  */
   sbpl_xy_theta_pt_t temppose;
   temppose.x = 0.0;
   temppose.y = 0.0;
@@ -172,18 +158,14 @@ void Environment_xy::InitializeEnvConfig(vector<vector<SBPL_xytheta_mprimitive> 
   
 #ifdef DEBUG_ENV
   std::vector<sbpl_2Dcell_t> footprint;
-  for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
-    get_2d_footprint_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, 
-			   &footprint, temppose, EnvXYCfg.cellsize_m);
-    
-    for (vector<sbpl_2Dcell_t>::iterator it = footprint.begin(); it != footprint.end(); ++it) {
-      SBPL_INFO("Footprint cell at (%d, %d)\n", it->x, it->y);
-    }
+  get_2d_footprint_cells(EnvXYCfg.robotConfigV[agentID].FootprintPolygon, 
+			 &footprint, temppose, EnvXYCfg.cellsize_m);
+  
+  for (vector<sbpl_2Dcell_t>::iterator it = footprint.begin(); it != footprint.end(); ++it) {
+    SBPL_INFO("Footprint cell at (%d, %d)\n", it->x, it->y);
   }
 #endif
-  for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
-    PrecomputeActionswithCompleteMotionPrimitive(&motionprimitiveV->at(agent_i));
-  }
+  PrecomputeActionswithCompleteMotionPrimitive(agentID, motionprimitiveV);
 }
 
 bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* mapdata,
@@ -204,7 +186,7 @@ bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* m
       start_disc[i].x = CONTXY2DISC(start[i].x, cellsize_m);
       start_disc[i].y = CONTXY2DISC(start[i].y, cellsize_m);
       start_disc[i].z = 0; //todo
-      start_disc[i].theta = CONTTHETA2DISC(start[i].theta, EnvXYCfg.robotConfigV[i].numThetaDirs);
+      start_disc[i].theta = ContTheta2Disc(start[i].theta, EnvXYCfg.NumThetaDirs);
     }
     
     for(int i = 0; i < numgoals; i++){
@@ -217,26 +199,27 @@ bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* m
     SetConfiguration(width, height, mapdata, start_disc, goal_disc,
                      cellsize_m, time_per_action, perimeterptsV);
 
-    for(int i = 0; i < numagents; i++){
-      if(sMotPrimFiles[i] != NULL){
+    for(int agent_i = 0; agent_i < numagents; agent_i++){
+      FILE* fMotPrim = fopen(sMotPrimFiles[agent_i], "r");
+      if(sMotPrimFiles[agent_i] != NULL){
 	if (fMotPrim == NULL) {
-	  SBPL_ERROR("ERROR: unable to open %s\n", sMotPrimFile);
+	  SBPL_ERROR("ERROR: unable to open %s\n", sMotPrimFiles[agent_i]);
 	  throw new SBPL_Exception();
         }
 
-        if (ReadMotionPrimitives(fMotPrim) == false) {
-	  SBPL_ERROR("ERROR: failed to read in motion primitive file\n");
+        if (ReadMotionPrimitive_agent(fMotPrim, agent_i) == false) {
+	  SBPL_ERROR("ERROR: failed to read in motion primitive file for Agent %d\n", agent_i);
 	  throw new SBPL_Exception();
         }
         fclose(fMotPrim);
       }
+      InitializeAgentConfig(agent_i, &EnvXYCfg.robotConfigV[agent_i].mprimV);
     }
-
-    InitGeneral(&motionprimitiveV);
     return true;
 }
 
-bool Environment_xy::ReadMotionPrimitives(FILE* fMotPrims. int agentId)
+
+bool Environment_xy::ReadMotionPrimitive_agent(FILE* fMotPrims, int agentId)
 {
   char sTemp[1024], sExpected[1024];
   float fTemp;
@@ -275,7 +258,7 @@ bool Environment_xy::ReadMotionPrimitives(FILE* fMotPrims. int agentId)
 
     if (Environment_xy::ReadinMotionPrimitive(&motprim, fMotPrims) == false)
       return false;
-    EnvXYCfg.robotConfigV[agent_i].mprimV.push_back(motprim);
+    EnvXYCfg.robotConfigV[agentId].mprimV.push_back(motprim);
   }
   SBPL_INFO("done");
   return true;
@@ -377,6 +360,39 @@ bool Environment_xy::ReadinMotionPrimitive(SBPL_xytheta_mprimitive* pMotPrim,
 		pMotPrim->endcell.theta);
     return false;
   }
+  return true;
+}
+
+bool Environment_xy::ReadinCell(sbpl_xy_theta_cell_t* cell, FILE* fIn)
+{
+  char sTemp[60];
+
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  cell->x = atoi(sTemp);
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  cell->y = atoi(sTemp);
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  cell->theta = atoi(sTemp);
+
+  //normalize the angle                                                
+  cell->theta = NORMALIZEDISCTHETA(cell->theta, EnvXYCfg.NumThetaDirs);
+
+  return true;
+}
+
+bool Environment_xy::ReadinPose(sbpl_xy_theta_pt_t* pose, FILE* fIn)
+{
+  char sTemp[60];
+
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  pose->x = atof(sTemp);
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  pose->y = atof(sTemp);
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  pose->theta = atof(sTemp);
+
+  pose->theta = normalizeAngle(pose->theta);
+
   return true;
 }
 
@@ -547,7 +563,7 @@ bool Environment_xy::PoseContToDisc(double px, double py, double pz, double pth,
       (iz >= 0) && (pth >= -2 * PI_CONST) && (pth <= 2 * PI_CONST);
 }
 
-bool Environment_xy::PoseDiscToCont(int ix, int iy, int iz, int th, 
+bool Environment_xy::PoseDiscToCont(int ix, int iy, int iz, int ith, 
 				    double &px, double &py, double &pz, double &pth) const
 {
   px = DISCXY2CONT(ix, EnvXYCfg.cellsize_m);
@@ -599,7 +615,7 @@ void Environment_xy::SetConfiguration(int width, int height, const unsigned char
     }
 
     // crete vector of robot configuration params
-    robotConfigV.reserve(EnvXYCfg.numAgents);
+    EnvXYCfg.robotConfigV.reserve(EnvXYCfg.numAgents);
     for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
       EnvXYCfg.robotConfigV[agent_i].FootprintPolygon = robot_perimeterV[agent_i];
     }
@@ -989,7 +1005,7 @@ void Environment_xy::GetSuccs(int SourceStateID,
       continue;
     std::vector<pose_disc_t> newPosesV;
     std::vector<int> costV;
-    getSuccsForAgent(agent_i, HashEntry->poses[agent_i],
+    GetSuccsForAgent(agent_i, HashEntry->poses[agent_i],
 		     allnewPoses[activeagent_i], 
 		     allnewCosts[activeagent_i]);
     activeagent_i++;
@@ -1051,22 +1067,24 @@ void Environment_xy::GetSuccs(int SourceStateID,
 #endif
 }
 
-void Environment_xy::getSuccsForAgent(int agentID, pose_disc_t pose, std::vector<pose_disc_t>& newPosesV,
+void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose, 
+				      std::vector<pose_disc_t>& newPosesV,
 				      std::vector<int>& costV) const{
-  RobotConfig_t robotConfig = EnvXYCfg.robotConfigV[agentId];
+  RobotConfig_t robotConfig = EnvXYCfg.robotConfigV[agentID];
   costV.clear();
   costV.reserve(robotConfig.actionwidth + 1);
   newPosesV.clear();
   newPosesV.reserve(robotConfig.actionwidth + 1);
   pose_disc_t newPose = pose;    
+  int cost;
   for(int action_i = 0; action_i < robotConfig.actionwidth; action_i++){
     pose_disc_t newPose;
-    EnvXYAction_t* action = &EnvXYCfg.ActionsV[pose.theta][action_i];
+    EnvXYAction_t* action = &EnvXYCfg.robotConfigV[agentID].ActionsV[pose.theta][action_i];
     newPose.x = pose.x + action->dX;
     newPose.y = pose.y + action->dY;
     newPose.z = pose.z; // assume planar movement
-    newPose.theta = NORMALIZEDISCTHETA(action->endtheta, EnvXYCfg.numThetaDirs);
-    if(!isValidCell(newPose.x, newPose.y))
+    newPose.theta = NORMALIZEDISCTHETA(action->endtheta, EnvXYCfg.NumThetaDirs);
+    if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
       cost = EnvXYCfg.time_per_action;
@@ -1103,26 +1121,28 @@ bool Environment_xy::isGoal(const pose_disc_t pose)
   return false;
 }
 
-bool Environment_xy::IsValidCell(int X, int Y)
+bool Environment_xy::IsValidCell(int X, int Y) const
 {
   return (X >= 0 && X < EnvXYCfg.EnvWidth_c && Y >= 0 && Y < EnvXYCfg.EnvHeight_c &&
 	  EnvXYCfg.Grid2D[X][Y] < EnvXYCfg.obsthresh);
 }
 
 
-bool Environment_xy::IsValidConfiguration(std::vector<pose_disc_t> pos)
+bool Environment_xy::IsValidConfiguration(std::vector<pose_disc_t> pos) const
 {
   // collision check robots. TODO: Use footprint
-  for(unsigned int agent_i = 0; agent_i < pos.size(); agent_i++){
+  for(unsigned int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
     for(unsigned int agent2_i = agent_i+1; agent2_i < pos.size(); agent2_i++){
-      if ((pos[agent_i].x == pos[agent2_i].x) && (pos[agent2_i].y == pos[agent2_i].y) && (pos[agent2_i].z == pos[agent2_i].z))
+      if ((pos[agent_i].x == pos[agent2_i].x) && 
+	  (pos[agent2_i].y == pos[agent2_i].y) && 
+	  (pos[agent2_i].z == pos[agent2_i].z))
 	return false;
     }      
   }
   std::vector<sbpl_2Dcell_t> footprint;
   sbpl_xy_theta_pt_t pose;
 
-  for(unsigned int agent_i=0; agent_i < pose.size(); agent_i++){
+  for(unsigned int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++){
     // compute footprint cells
     get_2d_footprint_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, &footprint, pose, EnvXYCfg.cellsize_m);
     // iterate over all footprint cells
@@ -1132,6 +1152,7 @@ bool Environment_xy::IsValidConfiguration(std::vector<pose_disc_t> pos)
       if(!IsValidCell(x,y))
 	return false;
     }
+  }
   return true;
 }
 
@@ -1237,5 +1258,4 @@ void Environment_xy::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/
     for(int i = 0; i < EnvXYCfg.numGoals; i++){
       SBPL_INFO("%d ", (int) HashEntry->goalsVisited[i]);
     } 
-    
 }

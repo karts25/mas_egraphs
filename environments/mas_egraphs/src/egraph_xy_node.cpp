@@ -7,10 +7,11 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   ros::NodeHandle nh;
   
   private_nh.param("primitive_filename",primitive_filename_,string(""));
-  double nominalvel_mpersecs, timetoturn45degsinplace_secs;
-  private_nh.param("nominalvel_mpersecs", nominalvel_mpersecs, 1.0);
+  double time_per_action, timetoturn45degsinplace_secs;
+  private_nh.param("time_per_action", time_per_action, 1.0);
   private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
-
+  private_nh.param("numagents", numagents_, 1.0);
+  private_nh.param("sMotPrimFiles", sMotPrimFiles_, NULL);
   int lethal_obstacle;
   private_nh.param("lethal_obstacle",lethal_obstacle, 20);
   lethal_obstacle_ = (unsigned char) lethal_obstacle;
@@ -20,37 +21,43 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   costmap_ros_ = costmap_ros;
   costmap_ros_->clearRobotFootprint();
   costmap_ros_->getCostmapCopy(cost_map_);
+  std::vector<geometry_msgs::Point> footprint = costmap_ros_->getRobotFootprint();
+  
   env_ = new EGraphXY();
 
-  /*if(!env_->SetEnvParameter("cost_inscribed_thresh", costMapCostToSBPLCost(costmap_2d::INSCRIBED_INFLATED_OBSTACLE))){
-    ROS_ERROR("Failed to set cost_inscribed_thresh parameter");
-    exit(1);
+  vector<sbpl_2Dpt_t> perimeterptsV;
+  perimeterptsV.reserve(footprint.size());
+  for (size_t ii(0); ii < footprint.size(); ++ii) {
+    sbpl_2Dpt_t pt;
+    pt.x = footprint[ii].x;
+    pt.y = footprint[ii].y;
+    perimeterptsV.push_back(pt);
   }
-  if(!env_->SetEnvParameter("cost_possibly_circumscribed_thresh", costMapCostToSBPLCost(cost_map_.getCircumscribedCost()))){
-    ROS_ERROR("Failed to set cost_possibly_circumscribed_thresh parameter");
-    exit(1);
-    }
-  int obst_cost_thresh = costMapCostToSBPLCost(costmap_2d::LETHAL_OBSTACLE);
-  */
   bool ret;
   try{
-    std::vector<pose_t> start(1);
+    std::vector<pose_cont_t> start(1);
     start[0].x = 0;
     start[0].y = 0;
+    start[0].z = 0;
+    start[0].theta = 0;
 
-    std::vector<pose_t> goal(1);
+    std::vector<pose_cont_t> goal(1);
     goal[0].x = 0;
     goal[0].y = 0;
+    goal[0].z = 0;
+    goal[0].theta = 0;
     
     ret = env_->InitializeEnv(costmap_ros_->getSizeInCellsX(), // width
 			      costmap_ros_->getSizeInCellsY(), // height
 			      0, // mapdata
 			      1, // numAgents
 			      1, // numGoals
-			      start, // start vector of poses (x, y)
-			      goal, // goal vector of poses (x, y)
-			      0, 0, //goal tolerance
-			      costmap_ros_->getResolution(), nominalvel_mpersecs);
+			      start, // start vector of poses (x, y, z, theta)
+			      goal, // goal vector of poses (x, y, z, theta)
+			      0, 0, 0, //goal tolerance
+			      perimeterptsV,
+    			      costmap_ros_->getResolution(), time_per_action,
+			      primitive_filename_.c_str());
   }
   catch(SBPL_Exception e){
     ROS_ERROR("SBPL encountered a fatal exception!");
