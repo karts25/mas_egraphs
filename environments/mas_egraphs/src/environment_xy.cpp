@@ -75,14 +75,15 @@ static unsigned int inthash(unsigned int key)
 }
 
 //TODO: does not use goalsVisited in hash computation
-unsigned int Environment_xy::GETHASHBIN(std::vector<pose_t> poses, 
+unsigned int Environment_xy::GETHASHBIN(std::vector<pose_disc_t> poses, 
 					std::vector<int> goalsVisited, 
 					std::vector<bool> activeAgents)
 {
   unsigned int hashbin = 0;
   for(int i = 0; i < (int) poses.size(); ++i)
     {
-      hashbin += inthash(inthash(poses[i].x) + (inthash(poses[i].y) << 1));
+      hashbin += inthash(inthash(poses[i].x) + (inthash(poses[i].y) << 1) + 
+			 (inthash(poses[i].z) << 2) + (inthash(poses[i].theta << 3)));
     }
   return inthash(hashbin) & (HashTableSize - 1);
 }
@@ -129,49 +130,432 @@ bool Environment_xy::InitializeEnv()
 }
 
 
+bool EnvironmentNAVXYTHETALATTICE::InitGeneral(std::vector<std::vector<SBPL_xytheta_mprimitive> >* motionprimitiveV)
+{
+  //Initialize other parameters of the environment                                                  
+  InitializeEnvConfig(motionprimitiveV);
+  //initialize Environment                                                     
+  InitializeEnv();
+
+  //pre-compute heuristics                                         
+  //ComputeHeuristicValues();
+
+  return true;
+}
+
+void Environment_xy::InitializeEnvConfig(vector<vector<SBPL_xytheta_mprimitive> >* 
+					 motionprimitiveV)
+{
+  //aditional to configuration file initialization of EnvXYCfg if necessary              
+  //dXY dirs                                                                               
+  EnvXYCfg.dXY[0][0] = -1;
+  EnvXYCfg.dXY[0][1] = -1;
+  EnvXYCfg.dXY[1][0] = -1;
+  EnvXYCfg.dXY[1][1] = 0;
+  EnvXYCfg.dXY[2][0] = -1;
+  EnvXYCfg.dXY[2][1] = 1;
+  EnvXYCfg.dXY[3][0] = 0;
+  EnvXYCfg.dXY[3][1] = -1;
+  EnvXYCfg.dXY[4][0] = 0;
+  EnvXYCfg.dXY[4][1] = 1;
+  EnvXYCfg.dXY[5][0] = 1;
+  EnvXYCfg.dXY[5][1] = -1;
+  EnvXYCfg.dXY[6][0] = 1;
+  EnvXYCfg.dXY[6][1] = 0;
+  EnvXYCfg.dXY[7][0] = 1;
+  EnvXYCfg.dXY[7][1] = 1;
+
+  sbpl_xy_theta_pt_t temppose;
+  temppose.x = 0.0;
+  temppose.y = 0.0;
+  temppose.theta = 0.0;
+  
+#ifdef DEBUG_ENV
+  std::vector<sbpl_2Dcell_t> footprint;
+  for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+    get_2d_footprint_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, 
+			   &footprint, temppose, EnvXYCfg.cellsize_m);
+    
+    for (vector<sbpl_2Dcell_t>::iterator it = footprint.begin(); it != footprint.end(); ++it) {
+      SBPL_INFO("Footprint cell at (%d, %d)\n", it->x, it->y);
+    }
+  }
+#endif
+  for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+    PrecomputeActionswithCompleteMotionPrimitive(&motionprimitiveV->at(agent_i));
+  }
+}
+
 bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* mapdata,
 				   int numagents, int numgoals,
-				   std::vector<pose_t> start, std::vector<pose_t> goal,
-				   double goaltol_x, double goaltol_y,
-				   double cellsize_m, double nominalvel_mpersecs)
-						    
-{
+				   std::vector<pose_cont_t> start, std::vector<pose_cont_t> goal,
+				   double goaltol_x, double goaltol_y, double goaltol_theta,
+				   const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
+				   double cellsize_m, double time_per_action,
+				   const std::vector<char*> sMotPrimFiles)			    {
     SBPL_INFO("env: initialize with width=%d height=%d "
-                "cellsize=%.3f nomvel=%.3f\n",
-                width, height, cellsize_m, nominalvel_mpersecs);
+                "cellsize=%.3f timeperaction=%.3f\n",
+                width, height, cellsize_m, time_per_action);
 
     //TODO - need to set the tolerance as well
-    for(int i = 0; i < (int)start.size(); i++){
-      start[i].x = CONTXY2DISC(start[i].x, cellsize_m);
-      start[i].y = CONTXY2DISC(start[i].y, cellsize_m);
+    std::vector<pose_disc_t> start_disc;
+    std::vector<pose_disc_t> goal_disc;
+    for(int i = 0; i < numagents; i++){
+      start_disc[i].x = CONTXY2DISC(start[i].x, cellsize_m);
+      start_disc[i].y = CONTXY2DISC(start[i].y, cellsize_m);
+      start_disc[i].z = 0; //todo
+      start_disc[i].theta = CONTTHETA2DISC(start[i].theta, EnvXYCfg.robotConfigV[i].numThetaDirs);
     }
     
-    for(int i = 0; i < (int)goal.size(); i++){
-      goal[i].x = CONTXY2DISC(goal[i].x, cellsize_m);
-      goal[i].y = CONTXY2DISC(goal[i].y, cellsize_m);
+    for(int i = 0; i < numgoals; i++){
+      goal_disc[i].x = CONTXY2DISC(goal[i].x, cellsize_m);
+      goal_disc[i].y = CONTXY2DISC(goal[i].y, cellsize_m);
+      goal_disc[i].z = 0; //TODO
+      goal_disc[i].theta = 0; // Goal angle doesn't matter
     }
     
-    SetConfiguration(width, height, mapdata, start, goal,
-                     cellsize_m, nominalvel_mpersecs);
+    SetConfiguration(width, height, mapdata, start_disc, goal_disc,
+                     cellsize_m, time_per_action, perimeterptsV);
 
-    InitializeEnv();
+    for(int i = 0; i < numagents; i++){
+      if(sMotPrimFiles[i] != NULL){
+	if (fMotPrim == NULL) {
+	  SBPL_ERROR("ERROR: unable to open %s\n", sMotPrimFile);
+	  throw new SBPL_Exception();
+        }
+
+        if (ReadMotionPrimitives(fMotPrim) == false) {
+	  SBPL_ERROR("ERROR: failed to read in motion primitive file\n");
+	  throw new SBPL_Exception();
+        }
+        fclose(fMotPrim);
+      }
+    }
+
+    InitGeneral(&motionprimitiveV);
     return true;
 }
 
-bool Environment_xy::PoseContToDisc(double px, double py, int &ix, int &iy) const
+bool Environment_xy::ReadMotionPrimitives(FILE* fMotPrims. int agentId)
+{
+  char sTemp[1024], sExpected[1024];
+  float fTemp;
+  int dTemp;
+  int totalNumofActions = 0;
+
+  SBPL_INFO("Reading in motion primitives for agent %d", agentId);
+
+  //read in the resolution                                                                          
+  strcpy(sExpected, "resolution_m:");
+  if (fscanf(fMotPrims, "%s", sTemp) == 0) return false;
+  if (strcmp(sTemp, sExpected) != 0) {
+    SBPL_ERROR("ERROR: expected %s but got %s\n", sExpected, sTemp);
+    return false;
+  }
+  if (fscanf(fMotPrims, "%f", &fTemp) == 0) return false;
+  if (fabs(fTemp - EnvXYCfg.cellsize_m) > ERR_EPS) {
+    SBPL_ERROR("ERROR: invalid resolution %f (instead of %f) in the dynamics file\n", fTemp,
+	       EnvXYCfg.cellsize_m);
+    return false;
+  }
+
+  //read in the total number of actions                                                                                                                    
+  strcpy(sExpected, "totalnumberofprimitives:");
+  if (fscanf(fMotPrims, "%s", sTemp) == 0) return false;
+  if (strcmp(sTemp, sExpected) != 0) {
+    SBPL_ERROR("ERROR: expected %s but got %s\n", sExpected, sTemp);
+    return false;
+  }
+  if (fscanf(fMotPrims, "%d", &totalNumofActions) == 0) {
+    return false;
+  }
+
+  for (int i = 0; i < totalNumofActions; i++) {
+    SBPL_xytheta_mprimitive motprim;
+
+    if (Environment_xy::ReadinMotionPrimitive(&motprim, fMotPrims) == false)
+      return false;
+    EnvXYCfg.robotConfigV[agent_i].mprimV.push_back(motprim);
+  }
+  SBPL_INFO("done");
+  return true;
+}
+
+bool Environment_xy::ReadinMotionPrimitive(SBPL_xytheta_mprimitive* pMotPrim,
+							 FILE* fIn)
+{
+  char sTemp[1024];
+  int dTemp;
+  char sExpected[1024];
+  int numofIntermPoses;
+
+  //read in actionID                                                                                                               
+  strcpy(sExpected, "primID:");
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  if (strcmp(sTemp, sExpected) != 0) {
+    SBPL_ERROR("ERROR: expected %s but got %s\n", sExpected, sTemp);
+    return false;
+  }
+  if (fscanf(fIn, "%d", &pMotPrim->motprimID) != 1) return false;
+
+  //read in start angle                                                                                                                                                                                    
+  strcpy(sExpected, "startangle_c:");
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  if (strcmp(sTemp, sExpected) != 0) {
+    SBPL_ERROR("ERROR: expected %s but got %s\n", sExpected, sTemp);
+    return false;
+  }
+  if (fscanf(fIn, "%d", &dTemp) == 0) {
+    SBPL_ERROR("ERROR reading startangle\n");
+    return false;
+  }
+  pMotPrim->starttheta_c = dTemp;
+
+  //read in end pose                                                                                                                                                                                       
+  strcpy(sExpected, "endpose_c:");
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  if (strcmp(sTemp, sExpected) != 0) {
+    SBPL_ERROR("ERROR: expected %s but got %s\n", sExpected, sTemp);
+    return false;
+  }
+
+  if (ReadinCell(&pMotPrim->endcell, fIn) == false) {
+    SBPL_ERROR("ERROR: failed to read in endsearchpose\n");
+    return false;
+  }
+
+  //read in action cost                                                                            
+  strcpy(sExpected, "additionalactioncostmult:");
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  if (strcmp(sTemp, sExpected) != 0) {
+    SBPL_ERROR("ERROR: expected %s but got %s\n", sExpected, sTemp);
+    return false;
+  }
+  if (fscanf(fIn, "%d", &dTemp) != 1) return false;
+  pMotPrim->additionalactioncostmult = dTemp;
+
+  //read in intermediate poses                                                                                                                                                                             
+  strcpy(sExpected, "intermediateposes:");
+  if (fscanf(fIn, "%s", sTemp) == 0) return false;
+  if (strcmp(sTemp, sExpected) != 0) {
+    SBPL_ERROR("ERROR: expected %s but got %s\n", sExpected, sTemp);
+    return false;
+  }
+  if (fscanf(fIn, "%d", &numofIntermPoses) != 1) return false;
+  //all intermposes should be with respect to 0,0 as starting pose since it will be added later and should be done                                                                                         
+  //after the action is rotated by initial orientation                                                                                                                                                     
+  for (int i = 0; i < numofIntermPoses; i++) {
+    sbpl_xy_theta_pt_t intermpose;
+    if (ReadinPose(&intermpose, fIn) == false) {
+      SBPL_ERROR("ERROR: failed to read in intermediate poses\n");
+      return false;
+    }
+    pMotPrim->intermptV.push_back(intermpose);
+  }
+
+  //check that the last pose corresponds correctly to the last pose                                 
+  sbpl_xy_theta_pt_t sourcepose;
+  sourcepose.x = DISCXY2CONT(0, EnvXYCfg.cellsize_m);
+  sourcepose.y = DISCXY2CONT(0, EnvXYCfg.cellsize_m);
+  sourcepose.theta = DiscTheta2Cont(pMotPrim->starttheta_c, EnvXYCfg.NumThetaDirs);
+  double mp_endx_m = sourcepose.x + pMotPrim->intermptV[pMotPrim->intermptV.size() - 1].x;
+  double mp_endy_m = sourcepose.y + pMotPrim->intermptV[pMotPrim->intermptV.size() - 1].y;
+  double mp_endtheta_rad = pMotPrim->intermptV[pMotPrim->intermptV.size() - 1].theta;
+  int endx_c = CONTXY2DISC(mp_endx_m, EnvXYCfg.cellsize_m);
+  int endy_c = CONTXY2DISC(mp_endy_m, EnvXYCfg.cellsize_m);
+  int endtheta_c = ContTheta2Disc(mp_endtheta_rad, EnvXYCfg.NumThetaDirs);
+ 
+  if (endx_c != pMotPrim->endcell.x || endy_c != pMotPrim->endcell.y ||
+      endtheta_c != pMotPrim->endcell.theta) {
+    SBPL_ERROR( "ERROR: incorrect primitive %d with startangle=%d "
+		"last interm point %f %f %f does not match end pose %d %d %d\n",
+		pMotPrim->motprimID, pMotPrim->starttheta_c,
+		pMotPrim->intermptV[pMotPrim->intermptV.size() - 1].x,
+		pMotPrim->intermptV[pMotPrim->intermptV.size() - 1].y,
+		pMotPrim->intermptV[pMotPrim->intermptV.size() - 1].theta,
+		pMotPrim->endcell.x, pMotPrim->endcell.y,
+		pMotPrim->endcell.theta);
+    return false;
+  }
+  return true;
+}
+
+//here motionprimitivevector contains actions for all angles                                       
+void Environment_xy::PrecomputeActionswithCompleteMotionPrimitive(int agent_i,
+								  std::vector<SBPL_xytheta_mprimitive>* motionprimitiveV)
+{
+  SBPL_PRINTF("Pre-computing action data using motion primitives for every angle...\n");
+  EnvXYCfg.robotConfigV[agent_i].ActionsV = new EnvXYAction_t*[EnvXYCfg.NumThetaDirs];
+  EnvXYCfg.robotConfigV[agent_i].PredActionsV = new vector<EnvXYAction_t*> [EnvXYCfg.NumThetaDirs];
+  vector<sbpl_2Dcell_t> footprint;
+
+  if (motionprimitiveV->size() % EnvXYCfg.NumThetaDirs != 0) {
+    SBPL_ERROR("ERROR: motionprimitives should be uniform across actions\n");
+    throw new SBPL_Exception();
+  }
+
+  EnvXYCfg.robotConfigV[agent_i].actionwidth = ((int)motionprimitiveV->size()) / EnvXYCfg.NumThetaDirs;
+
+  //iterate over source angles                                                                                               
+  int maxnumofactions = 0;
+  for (int tind = 0; tind < EnvXYCfg.NumThetaDirs; tind++) {
+    SBPL_PRINTF("pre-computing for angle %d out of %d angles\n", tind, EnvXYCfg.NumThetaDirs);
+
+    EnvXYCfg.robotConfigV[agent_i].ActionsV[tind] = new EnvXYAction_t[EnvXYCfg.robotConfigV[agent_i].actionwidth];
+
+    //compute sourcepose                                                                                                    
+    sbpl_xy_theta_pt_t sourcepose;
+    sourcepose.x = DISCXY2CONT(0, EnvXYCfg.cellsize_m);
+    sourcepose.y = DISCXY2CONT(0, EnvXYCfg.cellsize_m);
+    sourcepose.theta = DiscTheta2Cont(tind, EnvXYCfg.NumThetaDirs);
+    //iterate over motion primitives                                                               
+    int numofactions = 0;
+    int aind = -1;
+
+    for (int mind = 0; mind < (int)motionprimitiveV->size(); mind++) {
+      //find a motion primitive for this angle                                                                                                                                                         
+      if (motionprimitiveV->at(mind).starttheta_c != tind) continue;
+
+      aind++;
+      numofactions++;
+
+      //action index                                                                                                                                                                                   
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].aind = aind;
+
+      //start angle                                                                                                                                                                                    
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].starttheta = tind;
+
+      //compute dislocation                                                                                                                                                                            
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].endtheta = motionprimitiveV->at(mind).endcell.theta;
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].dX = motionprimitiveV->at(mind).endcell.x;
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].dY = motionprimitiveV->at(mind).endcell.y;
+
+      //compute and store interm points as well as intersecting cells                                                                                                                                  
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intersectingcellsV.clear();
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intermptV.clear();
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].interm3DcellsV.clear();
+
+      sbpl_xy_theta_cell_t previnterm3Dcell;
+      previnterm3Dcell.x = 0;
+      previnterm3Dcell.y = 0;
+
+      // Compute all the intersected cells for this action (intermptV and interm3DcellsV)                                                                                                              
+      for (int pind = 0; pind < (int)motionprimitiveV->at(mind).intermptV.size(); pind++) {
+	sbpl_xy_theta_pt_t intermpt = motionprimitiveV->at(mind).intermptV[pind];
+        EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intermptV.push_back(intermpt);
+
+	// also compute the intermediate discrete cells if not there already                                                                                                                         
+	sbpl_xy_theta_pt_t pose;
+	pose.x = intermpt.x + sourcepose.x;
+	pose.y = intermpt.y + sourcepose.y;
+	pose.theta = intermpt.theta;
+
+	sbpl_xy_theta_cell_t intermediate2dCell;
+	intermediate2dCell.x = CONTXY2DISC(pose.x, EnvXYCfg.cellsize_m);
+	intermediate2dCell.y = CONTXY2DISC(pose.y, EnvXYCfg.cellsize_m);
+
+	// add unique cells to the list                                                                                                                                                              
+	if (EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].interm3DcellsV.size() == 0 || intermediate2dCell.x
+	    != previnterm3Dcell.x || intermediate2dCell.y != previnterm3Dcell.y) {
+	  EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].interm3DcellsV.push_back(intermediate2dCell);
+	}
+
+	previnterm3Dcell = intermediate2dCell;
+      }
+
+      //compute linear and angular time                                                                                                                                                                
+      double linear_distance = 0;
+      for (unsigned int i = 1; i < EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intermptV.size(); i++) {
+	double x0 = EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intermptV[i - 1].x;
+	double y0 = EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intermptV[i - 1].y;
+	double x1 = EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intermptV[i].x;
+	double y1 = EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intermptV[i].y;
+	double dx = x1 - x0;
+	double dy = y1 - y0;
+	linear_distance += sqrt(dx * dx + dy * dy);
+      }
+      /*
+      double linear_time = linear_distance / EnvXYCfg.nominalvel_mpersecs;
+            double angular_distance =
+	      fabs(computeMinUnsignedAngleDiff(DiscTheta2Cont(EnvXYCfg.ActionsV[tind][aind].endtheta,
+							      EnvXYCfg.NumThetaDirs),
+					       DiscTheta2Cont(EnvXYCfg.ActionsV[tind][aind].starttheta,
+							      EnvXYCfg.NumThetaDirs)));
+            double angular_time = angular_distance / ((PI_CONST / 4.0) /
+						      EnvXYCfg.timetoturn45degsinplace_secs);
+            //make the cost the max of the two times                                                                                                                                                         
+            EnvXYCfg.ActionsV[tind][aind].cost =
+	      (int)(ceil(NAVXYTHETALAT_COSTMULT_MTOMM * max(linear_time, angular_time)));
+	      //use any additional cost multiplier                                                                                                                                                             
+            EnvXYCfg.ActionsV[tind][aind].cost *= motionprimitiveV->at(mind).additionalactioncostmult;
+      */
+
+      //now compute the intersecting cells for this motion (including ignoring the source footprint)                                                                                                   
+      get_2d_motion_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, motionprimitiveV->at(mind).intermptV,
+			  &EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intersectingcellsV,
+			  EnvXYCfg.cellsize_m);
+      #if DEBUG
+            SBPL_FPRINTF(fDeb,
+                         "action tind=%2d aind=%2d: dX=%3d dY=%3d endtheta=%3d (%6.2f degs -> %6.2f degs) "
+                         "cost=%4d (mprimID %3d: %3d %3d %3d) numofintermcells = %d numofintercells=%d\n",
+                         tind,
+                         aind,
+                         EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].dX,
+                         EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].dY,
+                         EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].endtheta,
+                         EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intermptV[0].theta * 180 / PI_CONST,
+                         EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intermptV[EnvXYCfg.ActionsV[tind][aind].intermptV.size() - 1].theta * 180 / PI_CONST, EnvXYCfg.ActionsV[tind][aind].\
+			 cost,
+                         motionprimitiveV->at(mind).motprimID, motionprimitiveV->at(mind).endcell.x,
+                         motionprimitiveV->at(mind).endcell.y, motionprimitiveV->at(mind).endcell.theta,
+                         (int)EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].interm3DcellsV.size(),
+                         (int)EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intersectingcellsV.size());
+#endif
+
+            //add to the list of backward actions                                                                                                                                                            
+            int targettheta = EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].endtheta;
+            if (targettheta < 0) targettheta = targettheta + EnvXYCfg.NumThetaDirs;
+            EnvXYCfg.robotConfigV[agent_i].PredActionsV[targettheta].push_back(&(EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind]));
+    }
+
+    if (maxnumofactions < numofactions) maxnumofactions = numofactions;
+  }
+  //at this point we don't allow nonuniform number of actions                                                                                                                                              
+  if (motionprimitiveV->size() != (size_t)(EnvXYCfg.NumThetaDirs * maxnumofactions)) {
+    SBPL_ERROR("ERROR: nonuniform number of actions is not supported "
+	       "(maxnumofactions=%d while motprims=%d thetas=%d\n",
+	       maxnumofactions, (unsigned int)motionprimitiveV->size(), EnvXYCfg.NumThetaDirs);
+    throw new SBPL_Exception();
+  }
+  
+  //now compute replanning data    
+  //ComputeReplanningData();
+  
+  SBPL_PRINTF("done pre-computing action data based on motion primitives\n");
+}
+     
+  
+bool Environment_xy::PoseContToDisc(double px, double py, double pz, double pth,
+				    int &ix, int &iy, int &iz, int &ith) const
 {
     ix = CONTXY2DISC(px, EnvXYCfg.cellsize_m);
     iy = CONTXY2DISC(py, EnvXYCfg.cellsize_m);
+    iz = int(pz); // todo
+    ith = ContTheta2Disc(pth, EnvXYCfg.NumThetaDirs);
     return (ix >= 0) && (ix < EnvXYCfg.EnvWidth_c) &&
-           (iy >= 0) && (iy < EnvXYCfg.EnvHeight_c);
+      (iy >= 0) && (iy < EnvXYCfg.EnvHeight_c) &&
+      (iz >= 0) && (pth >= -2 * PI_CONST) && (pth <= 2 * PI_CONST);
 }
 
-bool Environment_xy::PoseDiscToCont(int ix, int iy, double &px, double &py) const
+bool Environment_xy::PoseDiscToCont(int ix, int iy, int iz, int th, 
+				    double &px, double &py, double &pz, double &pth) const
 {
-    px = DISCXY2CONT(ix, EnvXYCfg.cellsize_m);
-    py = DISCXY2CONT(iy, EnvXYCfg.cellsize_m);
-    return (ix >= 0) && (ix < EnvXYCfg.EnvWidth_c)
-      && (iy >= 0) && (iy < EnvXYCfg.EnvHeight_c);
+  px = DISCXY2CONT(ix, EnvXYCfg.cellsize_m);
+  py = DISCXY2CONT(iy, EnvXYCfg.cellsize_m);
+  pz = iz; // todo
+  pth = normalizeAngle(DiscTheta2Cont(ith, EnvXYCfg.NumThetaDirs));
+  return (ith >= 0) && (ith < EnvXYCfg.NumThetaDirs) && (ix >= 0) &&
+    (ix < EnvXYCfg.EnvWidth_c) && (iy >= 0) && (iy < EnvXYCfg.EnvHeight_c);
 }
 
 unsigned char Environment_xy::GetMapCost(int x, int y)
@@ -180,15 +564,16 @@ unsigned char Environment_xy::GetMapCost(int x, int y)
 }
 
 void Environment_xy::SetConfiguration(int width, int height, const unsigned char* mapdata,
-				      std::vector<pose_t> start, std::vector<pose_t> goal,
-				      double cellsize_m, double nominalvel_mpersecs){
+				      std::vector<pose_disc_t> start, std::vector<pose_disc_t> goal,
+				      double cellsize_m, double time_per_action,
+				      const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV){
     EnvXYCfg.EnvWidth_c = width;
     EnvXYCfg.EnvHeight_c = height;
     EnvXYCfg.start = start;
     EnvXYCfg.goal = goal;
     EnvXYCfg.numAgents = start.size();
     EnvXYCfg.numGoals = goal.size();
-    EnvXYCfg.nominalvel_mpersecs = nominalvel_mpersecs;
+    EnvXYCfg.time_per_action = time_per_action;
     EnvXYCfg.cellsize_m = cellsize_m;
     EnvXYCfg.obsthresh = ENVXY_DEFAULTOBSTHRESH;
     //allocate the 2D environment
@@ -212,6 +597,12 @@ void Environment_xy::SetConfiguration(int width, int height, const unsigned char
             }
         }
     }
+
+    // crete vector of robot configuration params
+    robotConfigV.reserve(EnvXYCfg.numAgents);
+    for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+      EnvXYCfg.robotConfigV[agent_i].FootprintPolygon = robot_perimeterV[agent_i];
+    }
 }
 
 bool Environment_xy::UpdateCost(int x, int y, unsigned char newcost)
@@ -223,7 +614,7 @@ bool Environment_xy::UpdateCost(int x, int y, unsigned char newcost)
 }
 
 
-// -------------- unnecessary functions
+// -------------- unimplemented functions
 
 bool Environment_xy::InitializeEnv(const char* cfgFile)
 {
@@ -241,9 +632,6 @@ void Environment_xy::SetAllActionsandAllOutcomes(CMDPSTATE* state)
 bool Environment_xy::InitializeMDPCfg(MDPConfig *MDPCfg){
   return true;}
 
-void Environment_xy::ReadConfiguration(FILE* fCfg){
-  SBPL_INFO("Undefined");
-};
 
 int Environment_xy::GetGoalHeuristic(int stateID)
 {
@@ -256,7 +644,6 @@ int Environment_xy::GetStartHeuristic(int stateID)
   SBPL_INFO("TODO: GetStartHeuristic not defined");
   return 0;
 }
-
 
 //--------------------- End of unnecessary functions
 
@@ -281,7 +668,7 @@ bool Environment_xy::SetMap(const unsigned char* mapdata)
     return true;
 }
 
-void Environment_xy::GetCoordFromState(int stateID, vector<pose_t>& poses, 
+void Environment_xy::GetCoordFromState(int stateID, vector<pose_disc_t>& poses, 
 				       vector<int>& goalsVisited,
 				       vector<bool>& activeAgents) const
 {
@@ -291,7 +678,7 @@ void Environment_xy::GetCoordFromState(int stateID, vector<pose_t>& poses,
     activeAgents = HashEntry->activeAgents;
 }
 
-int Environment_xy::GetStateFromCoord(vector<pose_t>& poses, vector<int> goalsVisited,
+int Environment_xy::GetStateFromCoord(vector<pose_disc_t>& poses, vector<int> goalsVisited,
 				      std::vector<bool> activeAgents) 
 {
   EnvXYHashEntry_t* OutHashEntry;
@@ -357,7 +744,7 @@ bool Environment_xy::isStart(int id){
 
 int Environment_xy::SetGoal(std::vector<sbpl_xy_theta_pt_t> goal_m)
 {
-  std::vector<pose_t> goal(EnvXYCfg.numGoals);
+  std::vector<pose_disc_t> goal(EnvXYCfg.numGoals);
   for (int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i ++)
     {
       int x = CONTXY2DISC(goal_m[goal_i].x, EnvXYCfg.cellsize_m);
@@ -401,7 +788,7 @@ int Environment_xy::SetGoal(std::vector<sbpl_xy_theta_pt_t> goal_m)
 //returns the stateid if success, and -1 otherwise
 int Environment_xy::SetStart(std::vector<sbpl_xy_theta_pt_t> start_m)
 {
-  std::vector<pose_t> start(EnvXYCfg.numAgents);
+  std::vector<pose_disc_t> start(EnvXYCfg.numAgents);
   std::vector<int> x(EnvXYCfg.numAgents), y(EnvXYCfg.numAgents);
   for (int agent_i = 0; agent_i < EnvXYCfg.numAgents; ++agent_i)
     {
@@ -445,7 +832,7 @@ int Environment_xy::SetStart(std::vector<sbpl_xy_theta_pt_t> start_m)
 }
 
 // Hashing functions
-EnvXYHashEntry_t* Environment_xy::GetHashEntry_hash(std::vector<pose_t>& poses, 
+EnvXYHashEntry_t* Environment_xy::GetHashEntry_hash(std::vector<pose_disc_t>& poses, 
 						    std::vector<int>& goalsVisited,
 						    std::vector<bool> activeAgents)
 {
@@ -480,7 +867,7 @@ EnvXYHashEntry_t* Environment_xy::GetHashEntry_hash(std::vector<pose_t>& poses,
 }
 
 bool Environment_xy::IsEqualHashEntry(EnvXYHashEntry_t* hashentry,
-				      std::vector<pose_t>& poses,
+				      std::vector<pose_disc_t>& poses,
 				      std::vector<int>& goalsVisited, 
 				      std::vector<bool> activeAgents) const
 {
@@ -504,7 +891,7 @@ bool Environment_xy::IsEqualHashEntry(EnvXYHashEntry_t* hashentry,
 }
 
 
-EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_t>& poses,
+EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_disc_t>& poses,
 							  std::vector<int>& goalsVisited,
 							  std::vector<bool> activeAgents)
 {
@@ -590,101 +977,47 @@ void Environment_xy::GetSuccs(int SourceStateID,
   int numActiveAgents = activeAgents_indices.size();
 
   // Make numActiveAgents x numActions structure of poses and costs
-  std::vector<std::vector<pose_t> > allnewPoses(numActiveAgents);
+  std::vector<std::vector<pose_disc_t> > allnewPoses(numActiveAgents);
   std::vector<std::vector<int> > allnewCosts(numActiveAgents);
   int cost;
-  const int numActions = EnvXYCfg.actionwidth;
-  for(int agent_i = 0; agent_i < numActiveAgents; agent_i++){   
-      allnewPoses[agent_i] = std::vector<pose_t> (numActions);
-      allnewCosts[agent_i] = std::vector<int>(numActions);
-    }
 
   //iterate through active agents
+  int numPrimitives = 1;
   int activeagent_i = 0;
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
     if (!HashEntry->activeAgents[agent_i])
       continue;
-    pose_t newPose;    
-    // right
-    newPose.x = HashEntry->poses[agent_i].x + 1;
-    newPose.y = HashEntry->poses[agent_i].y;
-    if(!IsValidCell(newPose.x, newPose.y))
-      cost = INFINITECOST;
-    else
-      cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[activeagent_i][0] = newPose;
-    allnewCosts[activeagent_i][0] = cost;
-    
-    //left
-    newPose.x = HashEntry->poses[agent_i].x - 1;
-    newPose.y = HashEntry->poses[agent_i].y;
-    if(!IsValidCell(newPose.x, newPose.y))
-      cost = INFINITECOST;
-    else
-      cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[activeagent_i][1] = newPose;
-    allnewCosts[activeagent_i][1] = cost;
-
-    // up
-    newPose.x = HashEntry->poses[agent_i].x;
-    newPose.y = HashEntry->poses[agent_i].y + 1;
-    if(!IsValidCell(newPose.x, newPose.y))
-      cost = INFINITECOST;
-    else
-      cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[activeagent_i][2] = newPose;
-    allnewCosts[activeagent_i][2] = cost;
-
-    // down
-    newPose.x = HashEntry->poses[agent_i].x;
-    newPose.y = HashEntry->poses[agent_i].y - 1;
-    if(!IsValidCell(newPose.x, newPose.y))
-      cost = INFINITECOST;
-    else
-      cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[activeagent_i][3] = newPose;
-    allnewCosts[activeagent_i][3] = cost;
-
-    // stop
-    newPose.x = HashEntry->poses[agent_i].x;
-    newPose.y = HashEntry->poses[agent_i].y;
-    cost = 1/EnvXYCfg.nominalvel_mpersecs;
-    allnewPoses[activeagent_i][4] = newPose;
-    allnewCosts[activeagent_i][4] = cost;
-
-    // retire robot only if it is at goal, or if are at start state
-    newPose.x = HashEntry->poses[agent_i].x;
-    newPose.y = HashEntry->poses[agent_i].y;
-    if(isGoal(newPose) || (SourceStateID == EnvXY.startstateid))
-      cost = 0;
-    else
-      cost = INFINITECOST;
-    allnewPoses[activeagent_i][5] = newPose;
-    allnewCosts[activeagent_i][5] = cost;
-    
+    std::vector<pose_disc_t> newPosesV;
+    std::vector<int> costV;
+    getSuccsForAgent(agent_i, HashEntry->poses[agent_i],
+		     allnewPoses[activeagent_i], 
+		     allnewCosts[activeagent_i]);
     activeagent_i++;
+    numPrimitives*= (EnvXYCfg.robotConfigV[agent_i].actionwidth + 1);
   }
 
   EnvXYHashEntry_t* OutHashEntry;
-  std::vector<pose_t> poses(EnvXYCfg.numAgents);
+  std::vector<pose_disc_t> poses(EnvXYCfg.numAgents);
   std::vector<bool> activeAgents(EnvXYCfg.numAgents, false);
 
   // Make successors from all possible combinations of active agents and actions
-  // We have numActions^numagents primitives
-  int numPrimitives = pow(numActions, numActiveAgents);
-  for(int i = 0; i < numPrimitives; i++){
+  // We have [agent1.actionwidth*agent2.actionwidth ....]  primitives
+  
+  for(int primitive_i = 0; primitive_i < numPrimitives; primitive_i++){
     poses = HashEntry->poses;
     activeAgents = HashEntry->activeAgents;
-    // action index is i in base numActions
-    int index = i;
+    // action index is primitive_i written in base agent_ctr.actionwidth
+    int index = primitive_i;
     cost = 0;
     for(int agent_ctr = 0; agent_ctr < numActiveAgents; agent_ctr++){
+      int numActions = EnvXYCfg.robotConfigV[agent_ctr].actionwidth;
       int action_i = index % numActions;
       index = (int) index/numActions;	
       cost = cost + allnewCosts[agent_ctr][action_i]; 
       int agent_index = activeAgents_indices[agent_ctr];
       poses[agent_index] = allnewPoses[agent_ctr][action_i];
-      if (action_i == 5) // retire agent
+
+      if (action_i == numActions) // last action is always to retire agent
 	activeAgents[agent_index] = 0;
     }
     if (cost >= INFINITECOST){
@@ -708,6 +1041,7 @@ void Environment_xy::GetSuccs(int SourceStateID,
     
     SuccIDV->push_back(OutHashEntry->stateID);
     CostV->push_back(cost);
+
 #ifdef DEBUG_ENV
     PrintState(OutHashEntry->stateID, true);
 #endif
@@ -717,9 +1051,36 @@ void Environment_xy::GetSuccs(int SourceStateID,
 #endif
 }
 
+void Environment_xy::getSuccsForAgent(int agentID, pose_disc_t pose, std::vector<pose_disc_t>& newPosesV,
+				      std::vector<int>& costV) const{
+  RobotConfig_t robotConfig = EnvXYCfg.robotConfigV[agentId];
+  costV.clear();
+  costV.reserve(robotConfig.actionwidth + 1);
+  newPosesV.clear();
+  newPosesV.reserve(robotConfig.actionwidth + 1);
+  pose_disc_t newPose = pose;    
+  for(int action_i = 0; action_i < robotConfig.actionwidth; action_i++){
+    pose_disc_t newPose;
+    EnvXYAction_t* action = &EnvXYCfg.ActionsV[pose.theta][action_i];
+    newPose.x = pose.x + action->dX;
+    newPose.y = pose.y + action->dY;
+    newPose.z = pose.z; // assume planar movement
+    newPose.theta = NORMALIZEDISCTHETA(action->endtheta, EnvXYCfg.numThetaDirs);
+    if(!isValidCell(newPose.x, newPose.y))
+      cost = INFINITECOST;
+    else
+      cost = EnvXYCfg.time_per_action;
+    
+    newPosesV[action_i] = newPose;
+    costV[action_i] = cost;
+  }
+  // allow agent to retire as an action with 0 cost
+  newPosesV[robotConfig.actionwidth] = pose;
+  costV[robotConfig.actionwidth] = 0;
+}
 
-void Environment_xy::getGoalsVisited(const std::vector<pose_t>& poses,
-				     std::vector<int>& goalsVisited)
+void Environment_xy::getGoalsVisited(const std::vector<pose_disc_t>& poses,
+				     std::vector<int>& goalsVisited) const
 {
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
     int x = poses[agent_i].x;
@@ -732,7 +1093,7 @@ void Environment_xy::getGoalsVisited(const std::vector<pose_t>& poses,
   }
 }
 
-bool Environment_xy::isGoal(const pose_t pose)
+bool Environment_xy::isGoal(const pose_disc_t pose)
 {
   for(int j = 0; j < EnvXYCfg.numGoals; j++)
     {
@@ -749,21 +1110,28 @@ bool Environment_xy::IsValidCell(int X, int Y)
 }
 
 
-bool Environment_xy::IsValidConfiguration(std::vector<pose_t> pos)
+bool Environment_xy::IsValidConfiguration(std::vector<pose_disc_t> pos)
 {
-  // collision check robots
+  // collision check robots. TODO: Use footprint
   for(unsigned int agent_i = 0; agent_i < pos.size(); agent_i++){
     for(unsigned int agent2_i = agent_i+1; agent2_i < pos.size(); agent2_i++){
-      if ((pos[agent_i].x == pos[agent2_i].x) && (pos[agent2_i].y == pos[agent2_i].y))
+      if ((pos[agent_i].x == pos[agent2_i].x) && (pos[agent2_i].y == pos[agent2_i].y) && (pos[agent2_i].z == pos[agent2_i].z))
 	return false;
     }      
   }
+  std::vector<sbpl_2Dcell_t> footprint;
+  sbpl_xy_theta_pt_t pose;
 
-  for(int i = 0; i < (int) pos.size(); i++){
-    if (!IsValidCell(pos[i].x, pos[i].y)){
+  for(unsigned int agent_i=0; agent_i < pose.size(); agent_i++){
+    // compute footprint cells
+    get_2d_footprint_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, &footprint, pose, EnvXYCfg.cellsize_m);
+    // iterate over all footprint cells
+    for(int find =0; find < (int)footprint.size(); find++){
+      int x = footprint.at(find).x;
+      int y = footprint.at(find).y;
+      if(!IsValidCell(x,y))
 	return false;
     }
-  }
   return true;
 }
 

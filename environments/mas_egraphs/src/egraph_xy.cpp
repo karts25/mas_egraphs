@@ -12,12 +12,14 @@ bool EGraphXY::InitializeEnv(int width, int height,
 			     int numagents, int numgoals,
 			     std::vector<pose_t> start,
 			     std::vector<pose_t> goal,				  
-			     double goaltol_x, double goaltol_y,
-			     double cellsize_m, double nominalvel_mpersecs){
+			     double goaltol_x, double goaltol_y, double goaltol_theta,
+			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
+			     double cellsize_m, double time_per_action,
+			     const std::vector<char*> sMotPrimFiles){
 
   bool ret = Environment_xy::InitializeEnv(width, height, mapdata, numagents, numgoals,  start,
-			   goal, goaltol_x, goaltol_y,
-			   cellsize_m, nominalvel_mpersecs);
+					   goal, goaltol_x, goaltol_y, goaltol_theta, perimeterptsV,
+					   cellsize_m, time_per_action, sMotPrimFiles);
   return ret;
   
 }
@@ -33,7 +35,7 @@ int EGraphXY::GetNumAgents() const
 }
 
 
-bool EGraphXY::collisionCheckPose(int x, int y, int& cost){
+bool EGraphXY::collisionCheckPose(int x, int y, int z, int theta, int& cost){
   if(!IsValidCell(x, y))
     return false;
 
@@ -53,20 +55,24 @@ bool EGraphXY::snap(const vector<double>& from, const vector<double>& to, int& i
 //requires a getCoord function which takes a state id (the ids the environment uses) and returns a vector with the coordinate so we can look for shortcuts in the e-graph
 //-we will never call getCoord on the goal (because it is possible we don't know what the goal state looks like)
 
-// getCoord now looks like [agent1.x agent1.y agent1.theta ........ goal1 goal2.... activeagent1 activeagent2...]
+// getCoord now looks like [agent1.x agent1.y agent1.theta ........ goal1 goal2]
 bool EGraphXY::getCoord(int id, vector<double>& coord){
   coord.clear();
   EnvXYHashEntry_t* hashEntry = StateID2CoordTable[id];
-  vector<int> d_coord_agent(2,0);
-  vector<double> coord_agent(2,0);
-  coord.resize(EnvXYCfg.numAgents*2 + EnvXYCfg.numGoals);
+  vector<int> d_coord_agent(4,0);
+  vector<double> coord_agent(4,0);
+  coord.resize(EnvXYCfg.numAgents*4 + EnvXYCfg.numGoals);
   int i = 0;
-  for(int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++, i+=2){
+  for(int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++, i+=4){
     d_coord_agent[0] = hashEntry->poses[agent_i].x;
     d_coord_agent[1] = hashEntry->poses[agent_i].y;
+    d_coord_agent[2] = hashEntry->poses[agent_i].z;
+    d_coord_agent[3] = hashEntry->poses[agent_i].theta;
     discToCont(d_coord_agent, coord_agent);
     coord[i] = coord_agent[0];
     coord[i+1] = coord_agent[1];
+    coord[i+2] = coord_agent[2];
+    coord[i+3] = coord_agent[3];
   }
 
   for(int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i++, i++){
@@ -85,10 +91,12 @@ int EGraphXY::getStateID(const vector<double>& coord){
   std::vector<bool> activeAgents;
   int i =0;
   int ctr = 0;
-  for(; i < EnvXYCfg.numAgents; i+=2){
+  for(; i < EnvXYCfg.numAgents; i+=4){
       pose_t pose;
       pose.x = d_coord[i];
       pose.y = d_coord[i+1];
+      pose.z = d_coord[i+2];
+      pose.theta = d_coord[i+3];
       poses[ctr] = pose;
     }
 
@@ -111,7 +119,7 @@ bool EGraphXY::isGoal(int id){
 
 void EGraphXY::projectToHeuristicSpace(const vector<double>& coord, vector<int>& dp) const{
   dp.clear();
-  for(int i = 0; i < (int) coord.size(); i+=2){
+  for(int i = 0; i < (int) coord.size(); i+=4){
     //SBPL_INFO("projecting (%f, %f)", coord[i], coord[i+1]);
     int x = CONTXY2DISC(coord[i], EnvXYCfg.cellsize_m);
     int y = CONTXY2DISC(coord[i+1], EnvXYCfg.cellsize_m);
@@ -142,14 +150,12 @@ void EGraphXY::projectGoalToHeuristicSpace(vector<int>& dp) const{
     dp.push_back(1);
 }
 
-// Hack: assume there are n poses, and a vector of goals visited. At some point, 
-// need to convert this to pose_t and bool vector instead of a vector<int>
 void EGraphXY::contToDisc(const vector<double>& c, vector<int>& d){
   d.resize(c.size());
   int i;
   //SBPL_INFO("in conttodisc with (%f %f)", c[0],c[1]) ;
-  for(i = 0; i < (int) c.size(); i +=2){
-    PoseContToDisc(c[i], c[i+1], d[i], d[i+1]);
+  for(i = 0; i < (int) c.size(); i +=4){
+    PoseContToDisc(c[i], c[i+1], c[i+2], c[i+3], d[i], d[i+1], d[i+2], d[i+3]);
   }
 }
 
@@ -157,8 +163,8 @@ void EGraphXY::discToCont(const vector<int>& d, vector<double>& c){
   c.resize(d.size());
   int i;
   //SBPL_INFO("in disctocont with (%d %d)", d[0],d[1]) ;
-  for(i =0; i < (int) d.size(); i+=2){
-    PoseDiscToCont(d[i], d[i+1], c[i], c[i+1]);
+  for(i =0; i < (int) d.size(); i+=4){
+    PoseDiscToCont(d[i], d[i+1], d[i+2], d[i+3], c[i], c[i+1], c[i+2], c[i+3]);
   }
 }
 

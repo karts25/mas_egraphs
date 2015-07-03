@@ -40,7 +40,6 @@
 #include <sbpl/utils/utils.h>
 
 #define ENVXY_DEFAULTOBSTHRESH 20	//see explanation of the value below
-#define DEFAULTACTIONWIDTH 6
 
 class SBPL2DGridSearch;
 
@@ -48,14 +47,23 @@ typedef struct
 {
   int x;
   int y;
-} pose_t;
+  int z;
+  char theta;
+} pose_disc_t;
 
 typedef struct
 {
+  double x;
+  double y;
+  double z;
+  double theta;
+} pose_cont_t;
+typedef struct
+{
   int stateID;
+  std::vector<pose_disc_t> poses;
   std::vector<int> goalsVisited; // -1 if unvisited, index of agent that first visits each goal
   std::vector<bool> activeAgents; // true if active, false otherwise
-  std::vector<pose_t> poses;
   int iteration;
 } EnvXYHashEntry_t;
 
@@ -68,6 +76,40 @@ typedef struct
     //any additional variables
 } Environment_xy_t;
 
+typedef struct
+{
+  unsigned char aind; //index of the action (unique for given starttheta)                                                                                                                                  
+  char starttheta;
+  char dX;
+  char dY;
+  char endtheta;
+  unsigned int cost;
+  std::vector<sbpl_2Dcell_t> intersectingcellsV;
+  //start at 0,0,starttheta and end at endcell in continuous domain 
+  //with half-bin less to account for 0,0 start
+  std::vector<sbpl_xy_theta_pt_t> intermptV;
+  //start at 0,0,starttheta and end at endcell in discrete domain
+  std::vector<sbpl_xy_theta_cell_t> interm3DcellsV;
+} EnvXYAction_t;
+
+typedef struct
+{
+int motprimID;
+unsigned char starttheta_c;
+sbpl_xy_theta_cell_t endcell;
+//intermptV start at 0,0,starttheta and end at endcell in continuous      
+//domain with half-bin less to account for 0,0 start                                             
+std::vector<sbpl_xy_theta_pt_t> intermptV;
+} SBPL_xytheta_mprimitive;
+
+typedef struct
+{
+  int actionwidth;  
+  std::vector<sbpl_2Dpt_t> FootprintPolygon;
+  std::vector<SBPL_xytheta_mprimitive> mprimV;
+  EnvXYAction_t** ActionsV;
+  std::vector<EnvXYAction_t*>* PredActionsV;
+}RobotConfig_t;
 
 typedef struct ENV_XY_CONFIG
 {
@@ -75,13 +117,14 @@ typedef struct ENV_XY_CONFIG
   int numGoals;
   int EnvWidth_c;
   int EnvHeight_c;
-  int actionwidth;
-  std::vector<pose_t> start;
-  std::vector<pose_t> goal;
+  int numThetaDirs;
+  std::vector<pose_disc_t> start;
+  std::vector<pose_disc_t> goal;
+  std::vector<RobotConfig_t> robotConfigV;
   unsigned char** Grid2D;
   unsigned char obsthresh;
   double cellsize_m;
-  double nominalvel_mpersecs;
+  double time_per_action; 
 }EnvXYConfig_t;
 
 class EnvXY_InitParms
@@ -89,8 +132,8 @@ class EnvXY_InitParms
 public:
   unsigned int numAgents;
   const unsigned char* mapdata;
-  std::vector<pose_t> start;
-  std::vector<pose_t> goal;
+  std::vector<pose_disc_t> start;
+  std::vector<pose_disc_t> goal;
   double goaltol_x;
   double goaltol_y;
   double goaltol_theta;
@@ -121,17 +164,27 @@ class Environment_xy: public DiscreteSpaceInformation
   
   virtual bool InitializeEnv(const char* sEnvFile);
 
-  virtual bool InitializeEnv(int width, int height, const unsigned char* mapdata, int numagents, 
-			     int numgoals,
-			     std::vector<pose_t> start, std::vector<pose_t> goal,
-			     double goaltol_x, double goaltol_y,
-			     double cellsize_m, double nominalvel_mpersecs);
-  
-  void SetConfiguration(int width, int height, const unsigned char* mapdata,
-			std::vector<pose_t> start, std::vector<pose_t> goal,
-			double cellsize_m, double nominalvel_mpersecs);
+  virtual bool InitializeEnv(int width, int height, const unsigned char* mapdata, 
+			     int numagents, int numgoals,
+			     std::vector<pose_cont_t> start, std::vector<pose_cont_t> goal,
+			     double goaltol_x, double goaltol_y, double goaltol_theta,
+			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
+			     double cellsize_m, double time_per_action,
+			     const std::vector<char*> sMotPrimFiles);
 
-  void ReadConfiguration(FILE* fCfg);
+  void Environment_xy::InitializeEnvConfig(vector<vector<SBPL_xytheta_mprimitive> >* 
+					   motionprimitiveV);
+
+  void SetConfiguration(int width, int height, const unsigned char* mapdata,
+			std::vector<pose_disc_t> start, std::vector<pose_disc_t> goal,
+			double cellsize_m, double time_per_action,
+			const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV);
+
+  bool ReadMotionPrimitives(FILE* fMotPrims, int agentId);
+  bool ReadinMotionPrimitive(SBPL_xytheta_mprimitive* pMotPrim,
+			     FILE* fIn);
+  void PrecomputeActionswithCompleteMotionPrimitive(int agent_i,
+						    std::vector<SBPL_xytheta_mprimitive>* motionprimitiveV);
 
   void SetAllActionsandAllOutcomes(CMDPSTATE* state);
   /**
@@ -161,7 +214,7 @@ class Environment_xy: public DiscreteSpaceInformation
 
     virtual bool IsValidCell(int X, int Y);    
 
-    virtual bool IsValidConfiguration(std::vector<pose_t> pos);
+    virtual bool IsValidConfiguration(std::vector<pose_disc_t> pos);
     /**
      * \brief see comments on the same function in the parent class
      */
@@ -182,9 +235,9 @@ class Environment_xy: public DiscreteSpaceInformation
     
     virtual void PrintEnv_Config(FILE* fOut){};
 
-    void GetCoordFromState(int stateID, std::vector<pose_t>& poses, std::vector<int>& goalsVisited, std::vector<bool>& activeAgents) const;
+    void GetCoordFromState(int stateID, std::vector<pose_disc_t>& poses, std::vector<int>& goalsVisited, std::vector<bool>& activeAgents) const;
 
-    virtual int GetStateFromCoord(std::vector<pose_t>& poses, std::vector<int> goalsVisited,
+    virtual int GetStateFromCoord(std::vector<pose_disc_t>& poses, std::vector<int> goalsVisited,
 				  std::vector<bool> activeAgents);
     /**
      * \brief sets start in meters/radians
@@ -211,19 +264,20 @@ class Environment_xy: public DiscreteSpaceInformation
     virtual int GetNumAgents() const;
 
     virtual bool isGoal(int id);
-    virtual bool isGoal(const pose_t pose);
+    virtual bool isGoal(const pose_disc_t pose);
     
     virtual bool isStart(int id);
 
     virtual void GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV);
+    virtual void GetSuccsForAgent(int agentID, pose_disc_t pose, std::vector<int>* SuccPoses);
     virtual void GetPreds(int TargetStateID, std::vector<int>* PredIDV, std::vector<int>* CostV);
     virtual void GetSuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV);
 
     virtual void GetLazySuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV, std::vector<bool>* isTrueCost);
 
-    virtual void getGoalsVisited(const std::vector<pose_t>& poses, std::vector<int>& goalsVisited);
+    virtual void getGoalsVisited(const std::vector<pose_disc_t>& poses, std::vector<int>& goalsVisited);
 
-    virtual unsigned int GETHASHBIN(std::vector<pose_t> pose, std::vector<int> goalsVisited, std::vector<bool> activeAgents);
+    virtual unsigned int GETHASHBIN(std::vector<pose_disc_t> pose, std::vector<int> goalsVisited, std::vector<bool> activeAgents);
     
     virtual void PrintState(int stateID, bool bVerbose, FILE* fOut = NULL);
 
@@ -246,7 +300,8 @@ class Environment_xy: public DiscreteSpaceInformation
      * \return true if the resulting indices lie within the grid bounds
      *         and the angle was valid.
      */
-    virtual bool PoseContToDisc(double px, double py, int &ix, int &iy) const;
+    virtual bool PoseContToDisc(double px, double py, double pz, double pth, 
+				int &ix, int &iy, int &iz, int &ith) const;
 
     /** \brief Transform grid indices into a continuous pose. The computed
      *         angle lies within 0<=pth<2pi.
@@ -257,7 +312,8 @@ class Environment_xy: public DiscreteSpaceInformation
      *
      * \return true if all the indices are within grid bounds.
      */
-    virtual bool PoseDiscToCont(int ix, int iy, double &px, double &py) const;
+    virtual bool PoseDiscToCont(int ix, int iy, int iz, int ith, 
+				double &px, double &py, double &pz, double &pth) const;
     virtual int SizeofCreatedEnv();
 
  protected:
@@ -281,22 +337,22 @@ class Environment_xy: public DiscreteSpaceInformation
     std::vector<EnvXYHashEntry_t*> StateID2CoordTable;
 
 
-    virtual EnvXYHashEntry_t* GetHashEntry_hash(std::vector<pose_t>& pose, 
+    virtual EnvXYHashEntry_t* GetHashEntry_hash(std::vector<pose_disc_t>& pose, 
 						std::vector<int>& goalsVisited, 
 						std::vector<bool> activeAgents);
-    virtual EnvXYHashEntry_t* CreateNewHashEntry_hash(std::vector<pose_t>& pose, 
+    virtual EnvXYHashEntry_t* CreateNewHashEntry_hash(std::vector<pose_disc_t>& pose, 
 						      std::vector<int>& goalsVisited, 
 						      std::vector<bool> activeAgents);
     virtual bool IsEqualHashEntry(EnvXYHashEntry_t* hashentry, 
-				  std::vector<pose_t>& poses, 
+				  std::vector<pose_disc_t>& poses, 
 				  std::vector<int>& GoalsVisited, 
 				  std::vector<bool> activeAgents) const;
     
     //pointers to functions
-    EnvXYHashEntry_t* (Environment_xy::*GetHashEntry)(std::vector<pose_t>& pose, 
+    EnvXYHashEntry_t* (Environment_xy::*GetHashEntry)(std::vector<pose_disc_t>& pose, 
 						      std::vector<int>& goalsVisited, 
 						      std::vector<bool> activeAgents);
-    EnvXYHashEntry_t* (Environment_xy::*CreateNewHashEntry)(std::vector<pose_t>& pose,
+    EnvXYHashEntry_t* (Environment_xy::*CreateNewHashEntry)(std::vector<pose_disc_t>& pose,
 							    std::vector<int>& goalsVisited,
 							    std::vector<bool> activeAgents);
     
