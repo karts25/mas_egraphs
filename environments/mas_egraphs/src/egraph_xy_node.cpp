@@ -6,12 +6,17 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   ros::NodeHandle private_nh("~");
   ros::NodeHandle nh;
   
-  private_nh.param("primitive_filename",primitive_filename_,string(""));
+  private_nh.param("num_agents", numagents_, 1);
+  primitive_filenames_.reserve(numagents_);
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    std::string prim_fname_agent("primitive_filename_");
+    prim_fname_agent += std::to_string(agent_i);
+    private_nh.param(prim_fname_agent, primitive_filenames_[agent_i], string(""));
+  }
   double time_per_action, timetoturn45degsinplace_secs;
   private_nh.param("time_per_action", time_per_action, 1.0);
   private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
-  private_nh.param("numagents", numagents_, 1.0);
-  private_nh.param("sMotPrimFiles", sMotPrimFiles_, NULL);
+  //private_nh.param("sMotPrimFiles", sMotPrimFiles_, NULL);
   int lethal_obstacle;
   private_nh.param("lethal_obstacle",lethal_obstacle, 20);
   lethal_obstacle_ = (unsigned char) lethal_obstacle;
@@ -25,16 +30,20 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   
   env_ = new EGraphXY();
 
-  vector<sbpl_2Dpt_t> perimeterptsV;
-  perimeterptsV.reserve(footprint.size());
-  for (size_t ii(0); ii < footprint.size(); ++ii) {
-    sbpl_2Dpt_t pt;
-    pt.x = footprint[ii].x;
-    pt.y = footprint[ii].y;
-    perimeterptsV.push_back(pt);
+  vector<vector<sbpl_2Dpt_t> > perimeterptsV;
+  perimeterptsV.reserve(numagents_);
+  for(int agent_i=0; agent_i < numagents_; agent_i++){
+    perimeterptsV[agent_i].reserve(footprint.size());
+    for (size_t ii(0); ii < footprint.size(); ++ii) {
+      sbpl_2Dpt_t pt;
+      pt.x = footprint[ii].x;
+      pt.y = footprint[ii].y;
+      perimeterptsV[agent_i].push_back(pt);
+    }
   }
   bool ret;
   try{
+    /*
     std::vector<pose_cont_t> start(1);
     start[0].x = 0;
     start[0].y = 0;
@@ -46,18 +55,18 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
     goal[0].y = 0;
     goal[0].z = 0;
     goal[0].theta = 0;
-    
+    */
     ret = env_->InitializeEnv(costmap_ros_->getSizeInCellsX(), // width
 			      costmap_ros_->getSizeInCellsY(), // height
 			      0, // mapdata
 			      1, // numAgents
-			      1, // numGoals
-			      start, // start vector of poses (x, y, z, theta)
-			      goal, // goal vector of poses (x, y, z, theta)
+			      //1, // numGoals
+			      //start, // start vector of poses (x, y, z, theta)
+			      //goal, // goal vector of poses (x, y, z, theta)
 			      0, 0, 0, //goal tolerance
 			      perimeterptsV,
     			      costmap_ros_->getResolution(), time_per_action,
-			      primitive_filename_.c_str());
+			      primitive_filenames_);
   }
   catch(SBPL_Exception e){
     ROS_ERROR("SBPL encountered a fatal exception!");
@@ -100,17 +109,19 @@ unsigned char EGraphXYNode::costMapCostToSBPLCost(unsigned char newcost){
   
 }
 
-bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egraphs::GetXYThetaPlan::Response& res){
+bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, 
+			    mas_egraphs::GetXYThetaPlan::Response& res){
   ROS_DEBUG("[sbpl_lattice_planner] getting fresh copy of costmap");
   costmap_ros_->clearRobotFootprint();
   ROS_DEBUG("[sbpl_lattice_planner] robot footprint cleared");
 
   costmap_ros_->getCostmapCopy(cost_map_);
-  SBPL_INFO("Received request with numAgents = %d",req.num_agents);
+  SBPL_INFO("Received request with numAgents = %d",numagents_);
   SBPL_ERROR("Checking error message"); 
   
+  /*
   try{
-    bool ret = env_->SetNumAgents(req.num_agents);
+    bool ret = env_->SetNumAgents(numagents_);
     if (!ret)
       {
 	SBPL_PRINTF("Invalid number of agents");
@@ -121,7 +132,8 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
     ROS_ERROR("SBPL encountered a fatal exception while setting the number of agents");
     return false;
   }
-  numagents_ = req.num_agents;
+  numagents_ = numagents_;
+  */
   try{
   bool ret = env_->SetNumGoals(req.num_goals);
   if (!ret)
@@ -136,8 +148,8 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   }
   numgoals_ = req.num_goals;
 
-  heurs_.resize(req.num_agents);
-  for(int agent_i=0; agent_i < req.num_agents; agent_i++){
+  heurs_.resize(numagents_);
+  for(int agent_i=0; agent_i < numagents_; agent_i++){
     heurs_[agent_i].resize(req.num_goals);
     for(int goal_i=0; goal_i < req.num_goals; goal_i ++){
       heurs_[agent_i][goal_i] = new EGraphMAS2dGridHeuristic(*env_, costmap_ros_->getSizeInCellsX(), costmap_ros_->getSizeInCellsY(), 1);
@@ -152,11 +164,11 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   else
     egraph_ = new EGraph(env_,egraph_filename);
   */
-  egraphs_.resize(req.num_agents);
-  for(int agent_i = 0; agent_i < req.num_agents; agent_i++)
+  egraphs_.resize(numagents_);
+  for(int agent_i = 0; agent_i < numagents_; agent_i++)
     egraphs_[agent_i] = new EGraph(env_, 2, 0);
   
-  egraph_mgr_ = new EGraphManager<vector<int> > (egraphs_, env_, heurs_, req.num_goals, req.num_agents); //TODO
+  egraph_mgr_ = new EGraphManager<vector<int> > (egraphs_, env_, heurs_, req.num_goals, numagents_); //TODO
   planner_ = new LazyAEGPlanner<vector<int> >(env_, true, egraph_mgr_);
 
   try{
@@ -179,10 +191,10 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, mas_egrap
   }
   
 
-  std::vector<sbpl_xy_theta_pt_t> start_shifted(req.num_agents);
+  std::vector<sbpl_xy_theta_pt_t> start_shifted(numagents_);
   int startstateID;
   try{
-    for(int agent_i = 0; agent_i < req.num_agents; agent_i++)
+    for(int agent_i = 0; agent_i < numagents_; agent_i++)
       {
 	start_shifted[agent_i].x = req.start_x[agent_i] - cost_map_.getOriginX();
 	start_shifted[agent_i].y = req.start_y[agent_i] - cost_map_.getOriginY();

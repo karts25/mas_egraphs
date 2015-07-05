@@ -25,7 +25,7 @@ class EGraphXYNode{
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
   
   std::string cost_map_topic_; /** what topic is being used for the costmap topic */
-  std::string primitive_filename_; /** where to find the motion primitives for the current robot */
+  std::vector<std::string> primitive_filenames_; /** where to find the motion primitives for the current robots */
   unsigned char lethal_obstacle_;
   unsigned char inscribed_inflated_obstacle_;
   unsigned char sbpl_cost_multiplier_;

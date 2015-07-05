@@ -39,6 +39,7 @@
 #include <sbpl/headers.h>
 //#include <sbpl/discrete_space_information/environment.h>
 #include <sbpl/utils/utils.h>
+#include <string>
 
 #define ENVXY_DEFAULTOBSTHRESH 20	//see explanation of the value below
 #define DEFAULTACTIONWIDTH 8
@@ -170,12 +171,12 @@ class Environment_xy: public DiscreteSpaceInformation
   virtual bool InitializeEnv(const char* sEnvFile);
 
   virtual bool InitializeEnv(int width, int height, const unsigned char* mapdata, 
-			     int numagents, int numgoals,
-			     std::vector<pose_cont_t> start, std::vector<pose_cont_t> goal,
+			     int numagents, //int numgoals,
+			     //std::vector<pose_cont_t> start, std::vector<pose_cont_t> goal,
 			     double goaltol_x, double goaltol_y, double goaltol_theta,
 			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 			     double cellsize_m, double time_per_action,
-			     const std::vector<char*> sMotPrimFiles);
+			     const std::vector<std::string> sMotPrimFiles);
 
   void InitializeAgentConfig(int agentID, std::vector<SBPL_xytheta_mprimitive>* motionprimitiveV);
 
@@ -183,7 +184,8 @@ class Environment_xy: public DiscreteSpaceInformation
 				   motionprimitiveV);
 
   void SetConfiguration(int width, int height, const unsigned char* mapdata,
-			std::vector<pose_disc_t> start, std::vector<pose_disc_t> goal,
+			//std::vector<pose_disc_t> start, std::vector<pose_disc_t> goal,
+			int numagents,
 			double cellsize_m, double time_per_action,
 			const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV);
 

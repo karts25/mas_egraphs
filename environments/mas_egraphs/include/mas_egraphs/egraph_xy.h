@@ -22,8 +22,8 @@ class EGraphXY:public Environment_xy, public EGraphable<std::vector<int> >, publ
     virtual bool getCoord(int id, std::vector<double>& coord);
     virtual int getStateID(const std::vector<double>& coord);
     virtual bool isGoal(int id);
-    virtual int GetNumGoals() const;
-    virtual int GetNumAgents() const;
+    //virtual int GetNumGoals() const;
+    //virtual int GetNumAgents() const;
     void projectToHeuristicSpace(const std::vector<double>& coord, std::vector<int>& dp) const; 
     void projectGoalToHeuristicSpace(std::vector<int>& dp) const; 
     void contToDisc (const std::vector<double>& c, std::vector<int>& d);
@@ -34,13 +34,13 @@ class EGraphXY:public Environment_xy, public EGraphable<std::vector<int> >, publ
 
     bool InitializeEnv(int width, int height,
 		       const unsigned char* mapdata,
-		       int numagents, int numgoals,
-		       std::vector<pose_cont_t> start,
-		       std::vector<pose_cont_t> goal,
+		       int numagents, //int numgoals,
+		       //std::vector<pose_cont_t> start,
+		       //std::vector<pose_cont_t> goal,
 		       double goaltol_x, double goaltol_y, double goaltol_theta,
 		       const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 		       double cellsize_m, double time_per_action,
-		       const std::vector<char*> sMotPrimFiles);
+		       const std::vector<std::string> sMotPrimFiles);
 
     visualization_msgs::MarkerArray stateToVisualizationMarker(std::vector<double> coord);
     visualization_msgs::MarkerArray stateToDetailedVisualizationMarker(std::vector<double> coord);

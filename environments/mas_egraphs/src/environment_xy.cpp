@@ -129,7 +129,8 @@ bool Environment_xy::InitializeEnv()
 }
 
 
-void Environment_xy::InitializeAgentConfig(int agentID, std::vector<SBPL_xytheta_mprimitive>* motionprimitiveV)
+void Environment_xy::InitializeAgentConfig(int agentID, 
+					   std::vector<SBPL_xytheta_mprimitive>* motionprimitiveV)
 {
   //aditional to configuration file initialization of EnvXYCfg if necessary              
   /*
@@ -169,17 +170,18 @@ void Environment_xy::InitializeAgentConfig(int agentID, std::vector<SBPL_xytheta
 }
 
 bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* mapdata,
-				   int numagents, int numgoals,
-				   std::vector<pose_cont_t> start, std::vector<pose_cont_t> goal,
+				   int numagents,// int numgoals,
+				   //std::vector<pose_cont_t> start, std::vector<pose_cont_t> goal,
 				   double goaltol_x, double goaltol_y, double goaltol_theta,
 				   const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 				   double cellsize_m, double time_per_action,
-				   const std::vector<char*> sMotPrimFiles)			    {
+				   const std::vector<std::string> sMotPrimFiles)			    {
     SBPL_INFO("env: initialize with width=%d height=%d "
                 "cellsize=%.3f timeperaction=%.3f\n",
                 width, height, cellsize_m, time_per_action);
 
     //TODO - need to set the tolerance as well
+    /*
     std::vector<pose_disc_t> start_disc;
     std::vector<pose_disc_t> goal_disc;
     for(int i = 0; i < numagents; i++){
@@ -195,24 +197,23 @@ bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* m
       goal_disc[i].z = 0; //TODO
       goal_disc[i].theta = 0; // Goal angle doesn't matter
     }
-    
-    SetConfiguration(width, height, mapdata, start_disc, goal_disc,
+    */
+
+    SetConfiguration(width, height, mapdata, numagents, //start_disc, goal_disc,
                      cellsize_m, time_per_action, perimeterptsV);
 
-    for(int agent_i = 0; agent_i < numagents; agent_i++){
-      FILE* fMotPrim = fopen(sMotPrimFiles[agent_i], "r");
-      if(sMotPrimFiles[agent_i] != NULL){
-	if (fMotPrim == NULL) {
-	  SBPL_ERROR("ERROR: unable to open %s\n", sMotPrimFiles[agent_i]);
-	  throw new SBPL_Exception();
-        }
-
-        if (ReadMotionPrimitive_agent(fMotPrim, agent_i) == false) {
-	  SBPL_ERROR("ERROR: failed to read in motion primitive file for Agent %d\n", agent_i);
-	  throw new SBPL_Exception();
-        }
-        fclose(fMotPrim);
+    for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+      FILE* fMotPrim = fopen(sMotPrimFiles[agent_i].c_str(), "r");
+      if (fMotPrim == NULL) {
+	SBPL_ERROR("ERROR: unable to open %s\n", sMotPrimFiles[agent_i].c_str());
+	throw new SBPL_Exception();
       }
+      
+      if (ReadMotionPrimitive_agent(fMotPrim, agent_i) == false) {
+	SBPL_ERROR("ERROR: failed to read in motion primitive file for Agent %d\n", agent_i);
+	throw new SBPL_Exception();
+      }
+      fclose(fMotPrim);    
       InitializeAgentConfig(agent_i, &EnvXYCfg.robotConfigV[agent_i].mprimV);
     }
     return true;
@@ -580,15 +581,17 @@ unsigned char Environment_xy::GetMapCost(int x, int y)
 }
 
 void Environment_xy::SetConfiguration(int width, int height, const unsigned char* mapdata,
-				      std::vector<pose_disc_t> start, std::vector<pose_disc_t> goal,
+				      //std::vector<pose_disc_t> start, std::vector<pose_disc_t> goal,
+				      int numagents,
 				      double cellsize_m, double time_per_action,
 				      const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV){
     EnvXYCfg.EnvWidth_c = width;
     EnvXYCfg.EnvHeight_c = height;
-    EnvXYCfg.start = start;
+    EnvXYCfg.numAgents = numagents;
+    /*EnvXYCfg.start = start;
     EnvXYCfg.goal = goal;
     EnvXYCfg.numAgents = start.size();
-    EnvXYCfg.numGoals = goal.size();
+    EnvXYCfg.numGoals = goal.size();*/
     EnvXYCfg.time_per_action = time_per_action;
     EnvXYCfg.cellsize_m = cellsize_m;
     EnvXYCfg.obsthresh = ENVXY_DEFAULTOBSTHRESH;
@@ -1131,8 +1134,8 @@ bool Environment_xy::IsValidCell(int X, int Y) const
 bool Environment_xy::IsValidConfiguration(std::vector<pose_disc_t> pos) const
 {
   // collision check robots. TODO: Use footprint
-  for(unsigned int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
-    for(unsigned int agent2_i = agent_i+1; agent2_i < pos.size(); agent2_i++){
+  for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+    for(int agent2_i = agent_i+1; agent2_i < pos.size(); agent2_i++){
       if ((pos[agent_i].x == pos[agent2_i].x) && 
 	  (pos[agent2_i].y == pos[agent2_i].y) && 
 	  (pos[agent2_i].z == pos[agent2_i].z))

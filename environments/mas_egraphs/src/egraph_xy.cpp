@@ -9,21 +9,22 @@ EGraphXY::EGraphXY(){
 
 bool EGraphXY::InitializeEnv(int width, int height,
 			     const unsigned char* mapdata,
-			     int numagents, int numgoals,
-			     std::vector<pose_cont_t> start,
-			     std::vector<pose_cont_t> goal,				  
+			     int numagents, //int numgoals,
+			     //std::vector<pose_cont_t> start,
+			     //std::vector<pose_cont_t> goal,				  
 			     double goaltol_x, double goaltol_y, double goaltol_theta,
 			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 			     double cellsize_m, double time_per_action,
-			     const std::vector<char*> sMotPrimFiles){
+			     const std::vector<std::string> sMotPrimFiles){
 
-  bool ret = Environment_xy::InitializeEnv(width, height, mapdata, numagents, numgoals,  start,
-					   goal, goaltol_x, goaltol_y, goaltol_theta, perimeterptsV,
+  bool ret = Environment_xy::InitializeEnv(width, height, mapdata, numagents, 
+					   //numgoals,  start, goal,
+					   goaltol_x, goaltol_y, goaltol_theta, perimeterptsV,
 					   cellsize_m, time_per_action, sMotPrimFiles);
   return ret;
   
 }
-
+/*
 int EGraphXY::GetNumGoals() const
 {
   return EnvXYCfg.numGoals;
@@ -33,7 +34,7 @@ int EGraphXY::GetNumAgents() const
 {
   return EnvXYCfg.numAgents;
 }
-
+*/
 
 bool EGraphXY::collisionCheckPose(int x, int y, int z, int theta, int& cost){
   if(!IsValidCell(x, y))
