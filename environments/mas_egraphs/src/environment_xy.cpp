@@ -242,8 +242,22 @@ bool Environment_xy::ReadMotionPrimitive_agent(FILE* fMotPrims, int agentId)
 	       EnvXYCfg.cellsize_m);
     return false;
   }
-
-  //read in the total number of actions                                                                                                                    
+  
+  //read in the angular resolution                                                                                                                                                                         
+  strcpy(sExpected, "numberofangles:");
+  if (fscanf(fMotPrims, "%s", sTemp) == 0) return false;
+  if (strcmp(sTemp, sExpected) != 0) {
+    SBPL_ERROR("ERROR: expected %s but got %s\n", sExpected, sTemp);
+    return false;
+  }
+  if (fscanf(fMotPrims, "%d", &dTemp) == 0) return false;
+  /* if (dTemp != EnvXYCfg.NumThetaDirs) {
+     SBPL_ERROR("ERROR: invalid angular resolution %d angles (instead of %d angles) in the motion primitives file\n",
+     dTemp, EnvXYCfg.NumThetaDirs);
+  return false;
+  }*/
+  EnvXYCfg.NumThetaDirs = dTemp;
+   //read in the total number of actions                                                                                                                    
   strcpy(sExpected, "totalnumberofprimitives:");
   if (fscanf(fMotPrims, "%s", sTemp) == 0) return false;
   if (strcmp(sTemp, sExpected) != 0) {
@@ -318,7 +332,7 @@ bool Environment_xy::ReadinMotionPrimitive(SBPL_xytheta_mprimitive* pMotPrim,
   if (fscanf(fIn, "%d", &dTemp) != 1) return false;
   pMotPrim->additionalactioncostmult = dTemp;
 
-  //read in intermediate poses                                                                                                                                                                             
+  //read in intermediate poses                                                                                                                                                                          
   strcpy(sExpected, "intermediateposes:");
   if (fscanf(fIn, "%s", sTemp) == 0) return false;
   if (strcmp(sTemp, sExpected) != 0) {
@@ -618,7 +632,7 @@ void Environment_xy::SetConfiguration(int width, int height, const unsigned char
     }
 
     // crete vector of robot configuration params
-    EnvXYCfg.robotConfigV.reserve(EnvXYCfg.numAgents);
+    EnvXYCfg.robotConfigV.resize(EnvXYCfg.numAgents);
     for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
       EnvXYCfg.robotConfigV[agent_i].FootprintPolygon = robot_perimeterV[agent_i];
     }
@@ -1159,6 +1173,8 @@ bool Environment_xy::IsValidConfiguration(std::vector<pose_disc_t> pos) const
   return true;
 }
 
+//void Environment_xy:GetRobotFootprint(int agentId, )
+
 int Environment_xy::SizeofCreatedEnv()
 {
     return (int)StateID2CoordTable.size();
@@ -1166,7 +1182,7 @@ int Environment_xy::SizeofCreatedEnv()
 
 int Environment_xy::GetFromToHeuristic(int FromStateID, int ToStateID)
 {
-  SBPL_INFO("TODO: GetStartHeuristic not define");
+  SBPL_INFO("TODO: GetStartHeuristic not defined");
   return 0;
 }
 

@@ -10,8 +10,11 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   primitive_filenames_.reserve(numagents_);
   for(int agent_i = 0; agent_i < numagents_; agent_i++){
     std::string prim_fname_agent("primitive_filename_");
-    prim_fname_agent += std::to_string(agent_i);
-    private_nh.param(prim_fname_agent, primitive_filenames_[agent_i], string(""));
+    prim_fname_agent += std::to_string(agent_i+1);
+    //SBPL_INFO("reading motion primitives from %s", prim_fname_agent.c_str());
+    std::string temp;
+    private_nh.param(prim_fname_agent, temp, std::string(""));
+    primitive_filenames_.push_back(temp);
   }
   double time_per_action, timetoturn45degsinplace_secs;
   private_nh.param("time_per_action", time_per_action, 1.0);
@@ -30,10 +33,9 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   
   env_ = new EGraphXY();
 
-  vector<vector<sbpl_2Dpt_t> > perimeterptsV;
-  perimeterptsV.reserve(numagents_);
+  std::vector<std::vector<sbpl_2Dpt_t> > perimeterptsV(numagents_);
   for(int agent_i=0; agent_i < numagents_; agent_i++){
-    perimeterptsV[agent_i].reserve(footprint.size());
+    perimeterptsV[agent_i].reserve(footprint.size());    
     for (size_t ii(0); ii < footprint.size(); ++ii) {
       sbpl_2Dpt_t pt;
       pt.x = footprint[ii].x;
@@ -43,23 +45,10 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   }
   bool ret;
   try{
-    /*
-    std::vector<pose_cont_t> start(1);
-    start[0].x = 0;
-    start[0].y = 0;
-    start[0].z = 0;
-    start[0].theta = 0;
-
-    std::vector<pose_cont_t> goal(1);
-    goal[0].x = 0;
-    goal[0].y = 0;
-    goal[0].z = 0;
-    goal[0].theta = 0;
-    */
     ret = env_->InitializeEnv(costmap_ros_->getSizeInCellsX(), // width
 			      costmap_ros_->getSizeInCellsY(), // height
 			      0, // mapdata
-			      1, // numAgents
+			      numagents_, // numAgents
 			      //1, // numGoals
 			      //start, // start vector of poses (x, y, z, theta)
 			      //goal, // goal vector of poses (x, y, z, theta)
@@ -156,7 +145,54 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
     }
   }
 
-  string egraph_filename;
+  // publish start
+  ros::Time req_time = ros::Time::now();
+  visualization_msgs::MarkerArray starts;
+  int id = 0;
+  
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    visualization_msgs::Marker marker;
+    marker.id = id; 
+    id++;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0;
+    marker.color.r = 1;
+    marker.color.a = 1;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.header.stamp = req_time;
+    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+    marker.pose.position.x = req.start_x[agent_i];
+    marker.pose.position.y = req.start_y[agent_i];
+    marker.pose.position.z = 0;
+    starts.markers.push_back(marker);
+  }
+  SBPL_INFO("Publishing starts");
+  plan_pub_.publish(starts);
+
+  //publish goals
+  visualization_msgs::MarkerArray goals;
+  
+  for(int goal_i = 0; goal_i < req.num_goals; goal_i++){
+    visualization_msgs::Marker marker;
+    marker.id = id; 
+    id++;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0;
+    marker.color.g = 1;
+    marker.color.a = 1;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.header.stamp = req_time;
+    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+    marker.pose.position.x = req.goal_x[goal_i];
+    marker.pose.position.y = req.goal_y[goal_i];
+    marker.pose.position.z = 0;
+    goals.markers.push_back(marker);
+  }
+   SBPL_INFO("Publishing goals");
+   plan_pub_.publish(goals);
+  
   /*
   private_nh.param<string>("egraph_filename", egraph_filename, "");
   if(egraph_filename.empty())
@@ -211,32 +247,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
     ROS_ERROR("SBPL encountered a fatal exception while setting the start state");
     return false;
   }
-
-
-  //publish goals
-  ros::Time req_time = ros::Time::now();
-  visualization_msgs::MarkerArray goals;
-  int id = 0;
-  
-   for(int goal_i = 0; goal_i < req.num_goals; goal_i++){
-    visualization_msgs::Marker marker;
-	marker.id = id; 
-	id++;
-	marker.scale.x = 0.5;
-	marker.scale.y = 0.5;
-	marker.scale.z = 0;
-	marker.color.g = 1;
-	marker.color.a = 1;
-	marker.type = visualization_msgs::Marker::SPHERE;
-	marker.header.stamp = req_time;
-	marker.header.frame_id = costmap_ros_->getGlobalFrameID();
-	marker.pose.position.x = req.goal_x[goal_i];
-	marker.pose.position.y = req.goal_y[goal_i];
-	marker.pose.position.z = 0;
-	goals.markers.push_back(marker);
-   }
-   plan_pub_.publish(goals);
-   
+ 
   EGraphReplanParams params(100.0);
   params.initial_eps = req.initial_eps;
   params.dec_eps = req.dec_eps;
