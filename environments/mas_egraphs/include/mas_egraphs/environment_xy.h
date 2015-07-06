@@ -40,6 +40,7 @@
 //#include <sbpl/discrete_space_information/environment.h>
 #include <sbpl/utils/utils.h>
 #include <string>
+#include <geometry_msgs/PolygonStamped.h>
 
 #define ENVXY_DEFAULTOBSTHRESH 20	//see explanation of the value below
 #define DEFAULTACTIONWIDTH 8
@@ -213,6 +214,9 @@ class Environment_xy: public DiscreteSpaceInformation
     
     virtual bool UpdateCost(int x, int y, unsigned char newcost);
     
+    void GetRobotFootprint(int agentId, pose_cont_t pose, 
+			   std::vector<sbpl_2Dpt_t>& FootprintPolygon) const;
+
     /**
      * \brief see comments on the same function in the parent class
      */

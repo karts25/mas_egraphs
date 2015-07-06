@@ -44,10 +44,12 @@ class EGraphXYNode{
   EGraphVisualizer* egraph_vis_;
   
   ros::Publisher plan_pub_;
+  ros::Publisher footprint_pub_;
   ros::ServiceServer plan_service_;
   
   ros::Subscriber interrupt_sub_;
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
+  void publishfootprints(std::vector<pose_cont_t> poses) const;
   bool simulate(std::vector<double> start_x, std::vector<double> start_y, 
 		EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res, int maxtime);
   void publishPath(std::vector<int>& solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res);

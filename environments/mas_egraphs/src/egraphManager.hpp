@@ -88,16 +88,17 @@ std::vector<int> EGraphManager<HeuristicType>::getHeuristic(int state_id){
 
 #ifdef DEBUG_HEUR  
   for(int i = 0; i < numagents_; i++)
-    SBPL_INFO("cont_state: (%f %f)", cont_state[2*i], cont_state[2*i+1]);
+    SBPL_INFO("egraphManager: cont_state: (%f %f %f %d)", 
+	      cont_state[4*i], cont_state[4*i+1],
+	      cont_state[4*i+2], cont_state[4*i+3]);
 #endif  
-
   HeuristicType heur_coord;
   HeuristicType heur_coord_agent(2,0);
   egraph_env_->projectToHeuristicSpace(cont_state, heur_coord);
 
 #ifdef DEBUG_HEUR  
   for(int i = 0; i < numagents_; i++)
-    SBPL_INFO("heur_coord: (%d %d)", heur_coord[2*i], heur_coord[2*i+1]);
+    SBPL_INFO("egraphManager: heur_coord: (%d %d)", heur_coord[2*i], heur_coord[2*i+1]);
 #endif
     
   // look at all possible assignments of goals to agents
@@ -112,14 +113,14 @@ std::vector<int> EGraphManager<HeuristicType>::getHeuristic(int state_id){
     for(int goal_i = 0; goal_i < numgoals_; goal_i++){
       int agentindex = index % numagents_;
       // if goal is already visited at this state, don't assign to agent
-      if(cont_state[2*numagents_ + goal_i] >= 0)
+      if(cont_state[4*numagents_ + goal_i] >= 0)
 	assignment[goal_i] = -1;
       else
 	assignment[goal_i] = agentindex;
       index = (int) index/numagents_;
     }
 #ifdef DEBUG_HEUR    
-    SBPL_INFO("Assignment is");
+    SBPL_INFO("egraphManager: Assignment is");
     for(int j = 0; j < (int)assignment.size(); j ++)
       SBPL_INFO("%d", assignment[j]);
 #endif
@@ -933,7 +934,7 @@ void EGraphManager<HeuristicType>::initEGraph(bool set_goal){
 	  coord_goal[0] = coord[2*goal_i];
 	  coord_goal[1] = coord[2*goal_i + 1];
 #ifdef DEBUG_HEUR
-	  SBPL_INFO("initEgraph: setting goal to (%d, %d)", coord_goal[0], coord_goal[1]);
+	  SBPL_INFO("egraphManager: setting goal to (%d, %d)", coord_goal[0], coord_goal[1]);
 	  cin.get();
 #endif
 	  egraph_heurs_[agent_i][goal_i]->initialize(egraphperagent_[agent_i]);

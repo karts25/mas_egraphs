@@ -56,7 +56,7 @@ bool EGraphXY::snap(const vector<double>& from, const vector<double>& to, int& i
 //requires a getCoord function which takes a state id (the ids the environment uses) and returns a vector with the coordinate so we can look for shortcuts in the e-graph
 //-we will never call getCoord on the goal (because it is possible we don't know what the goal state looks like)
 
-// getCoord now looks like [agent1.x agent1.y agent1.theta ........ goal1 goal2]
+// Coord now looks like [agent1.x agent1.y agent1.z agent1.theta ........ goal1 goal2]
 bool EGraphXY::getCoord(int id, vector<double>& coord){
   coord.clear();
   EnvXYHashEntry_t* hashEntry = StateID2CoordTable[id];

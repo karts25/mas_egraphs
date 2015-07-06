@@ -335,7 +335,7 @@ void LazyAEGPlanner<HeuristicType>::putStateInHeap(LazyAEGState* state){
       printf("put state in open with f %lu\n", key.key[0]);
     //if the state is already in the heap, just update its priority
     if(state->heapindex != 0){
-      SBPL_INFO("updating heap");
+      //SBPL_INFO("updating heap");
       heap.updateheap(state,key);
     }
     else //otherwise add it to the heap

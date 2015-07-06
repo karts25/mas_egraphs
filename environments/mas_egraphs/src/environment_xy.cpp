@@ -27,7 +27,7 @@ Environment_xy::Environment_xy()
   
   HashTableSize = 0;
   Coord2StateIDHashTable = NULL;
-  EnvXYCfg.robotConfigV.reserve(1);
+  EnvXYCfg.robotConfigV.resize(1);
   EnvXYCfg.robotConfigV[0].actionwidth = DEFAULTACTIONWIDTH;
 }
 
@@ -103,26 +103,6 @@ bool Environment_xy::InitializeEnv()
     
     //initialize the map from StateID to Coord
     StateID2CoordTable.clear();
-
-    //create start state
-    std::vector<int> goalsVisited(EnvXYCfg.numGoals, -1);
-    getGoalsVisited(EnvXYCfg.start, goalsVisited);
-    std::vector<bool> activeAgents(EnvXYCfg.numAgents, true);
-    if ((HashEntry = (this->*GetHashEntry)(EnvXYCfg.start, goalsVisited, activeAgents)) == NULL) {
-      //have to create a new entry
-      HashEntry = (this->*CreateNewHashEntry)(EnvXYCfg.start, goalsVisited, activeAgents);
-    }
-    EnvXY.startstateid = HashEntry->stateID;
-
-    //create goal state
-    if ((HashEntry = (this->*GetHashEntry)(EnvXYCfg.start, goalsVisited, activeAgents))==NULL) {
-        //have to create a new entry
-        HashEntry = (this->*CreateNewHashEntry)(EnvXYCfg.start,
-						goalsVisited,
-						activeAgents);
-    }
-    EnvXY.goalstateid = HashEntry->stateID;
-
     //initialized
     EnvXY.bInitialized = true;
     return true;
@@ -180,25 +160,6 @@ bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* m
                 "cellsize=%.3f timeperaction=%.3f\n",
                 width, height, cellsize_m, time_per_action);
 
-    //TODO - need to set the tolerance as well
-    /*
-    std::vector<pose_disc_t> start_disc;
-    std::vector<pose_disc_t> goal_disc;
-    for(int i = 0; i < numagents; i++){
-      start_disc[i].x = CONTXY2DISC(start[i].x, cellsize_m);
-      start_disc[i].y = CONTXY2DISC(start[i].y, cellsize_m);
-      start_disc[i].z = 0; //todo
-      start_disc[i].theta = ContTheta2Disc(start[i].theta, EnvXYCfg.NumThetaDirs);
-    }
-    
-    for(int i = 0; i < numgoals; i++){
-      goal_disc[i].x = CONTXY2DISC(goal[i].x, cellsize_m);
-      goal_disc[i].y = CONTXY2DISC(goal[i].y, cellsize_m);
-      goal_disc[i].z = 0; //TODO
-      goal_disc[i].theta = 0; // Goal angle doesn't matter
-    }
-    */
-
     SetConfiguration(width, height, mapdata, numagents, //start_disc, goal_disc,
                      cellsize_m, time_per_action, perimeterptsV);
 
@@ -216,6 +177,7 @@ bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* m
       fclose(fMotPrim);    
       InitializeAgentConfig(agent_i, &EnvXYCfg.robotConfigV[agent_i].mprimV);
     }
+    InitializeEnv();
     return true;
 }
 
@@ -522,7 +484,8 @@ void Environment_xy::PrecomputeActionswithCompleteMotionPrimitive(int agent_i,
       */
 
       //now compute the intersecting cells for this motion (including ignoring the source footprint)                                                                                                   
-      get_2d_motion_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, motionprimitiveV->at(mind).intermptV,
+      get_2d_motion_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, 
+			  motionprimitiveV->at(mind).intermptV,
 			  &EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intersectingcellsV,
 			  EnvXYCfg.cellsize_m);
       #if DEBUG
@@ -794,7 +757,7 @@ int Environment_xy::SetGoal(std::vector<sbpl_xy_theta_pt_t> goal_m)
     }
       
     if (!IsValidConfiguration(goal)) {
-        SBPL_INFO("WARNING: goal configuration is invalid\n");
+        SBPL_ERROR("ERROR: goal configuration is invalid\n");
     }
     
     EnvXYHashEntry_t* OutHashEntry;
@@ -839,7 +802,7 @@ int Environment_xy::SetStart(std::vector<sbpl_xy_theta_pt_t> start_m)
     }  
   
   if (!IsValidConfiguration(start)) {
-    SBPL_INFO("WARNING: start configuration is invalid\n");
+    SBPL_ERROR("ERROR: start configuration is invalid\n");
   }
 	   
     EnvXYHashEntry_t* OutHashEntry; 
@@ -1092,10 +1055,9 @@ void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose,
   costV.reserve(robotConfig.actionwidth + 1);
   newPosesV.clear();
   newPosesV.reserve(robotConfig.actionwidth + 1);
-  pose_disc_t newPose = pose;    
   int cost;
   for(int action_i = 0; action_i < robotConfig.actionwidth; action_i++){
-    pose_disc_t newPose;
+    pose_disc_t newPose = pose;    
     EnvXYAction_t* action = &EnvXYCfg.robotConfigV[agentID].ActionsV[pose.theta][action_i];
     newPose.x = pose.x + action->dX;
     newPose.y = pose.y + action->dY;
@@ -1106,12 +1068,12 @@ void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose,
     else
       cost = EnvXYCfg.time_per_action;
     
-    newPosesV[action_i] = newPose;
-    costV[action_i] = cost;
+    newPosesV.push_back(newPose);
+    costV.push_back(cost);
   }
   // allow agent to retire as an action with 0 cost
-  newPosesV[robotConfig.actionwidth] = pose;
-  costV[robotConfig.actionwidth] = 0;
+  newPosesV.push_back(pose);
+  costV.push_back(robotConfig.actionwidth);
 }
 
 void Environment_xy::getGoalsVisited(const std::vector<pose_disc_t>& poses,
@@ -1152,28 +1114,48 @@ bool Environment_xy::IsValidConfiguration(std::vector<pose_disc_t> pos) const
     for(int agent2_i = agent_i+1; agent2_i < pos.size(); agent2_i++){
       if ((pos[agent_i].x == pos[agent2_i].x) && 
 	  (pos[agent2_i].y == pos[agent2_i].y) && 
-	  (pos[agent2_i].z == pos[agent2_i].z))
+	  (pos[agent2_i].z == pos[agent2_i].z)){
+	SBPL_WARN("Robots are in collision");
 	return false;
+      }
     }      
   }
   std::vector<sbpl_2Dcell_t> footprint;
   sbpl_xy_theta_pt_t pose;
-
   for(unsigned int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++){
+    //compute continuous pose                                                        
+    pose.x = DISCXY2CONT(pos[agent_i].x, EnvXYCfg.cellsize_m);
+    pose.y = DISCXY2CONT(pos[agent_i].y, EnvXYCfg.cellsize_m);
+    pose.theta = DiscTheta2Cont(pos[agent_i].theta, EnvXYCfg.NumThetaDirs);
+
     // compute footprint cells
-    get_2d_footprint_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, &footprint, pose, EnvXYCfg.cellsize_m);
+    get_2d_footprint_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, &footprint, 
+			   pose, EnvXYCfg.cellsize_m);
     // iterate over all footprint cells
     for(int find =0; find < (int)footprint.size(); find++){
       int x = footprint.at(find).x;
       int y = footprint.at(find).y;
-      if(!IsValidCell(x,y))
+      if(!IsValidCell(x,y)){
+	SBPL_WARN("Cell not valid: (%d, %d)",x,y);
 	return false;
+      }
     }
   }
   return true;
 }
 
-//void Environment_xy:GetRobotFootprint(int agentId, )
+void Environment_xy::GetRobotFootprint(int agentId, pose_cont_t pose,
+				      std::vector<sbpl_2Dpt_t>& FootprintPolygon) const{
+  FootprintPolygon = EnvXYCfg.robotConfigV[agentId].FootprintPolygon;
+  for(unsigned int i =0; i < FootprintPolygon.size(); i++){
+    // rotate points around pose.theta
+    FootprintPolygon[i].x = FootprintPolygon[i].x*cos(pose.theta) - FootprintPolygon[i].y*sin(pose.theta);
+    FootprintPolygon[i].y = FootprintPolygon[i].x*sin(pose.theta) + FootprintPolygon[i].y*cos(pose.theta);
+    // add offset
+    FootprintPolygon[i].x += pose.x;
+    FootprintPolygon[i].y += pose.y;
+  }
+}
 
 int Environment_xy::SizeofCreatedEnv()
 {
@@ -1241,7 +1223,7 @@ bool Environment_xy::GetFakePlan(int startstateID, std::vector<int>& solutionsta
     solutionstateIDs.push_back(id);
     GetLazySuccsWithUniqueIds(id, &SuccIDV, &CostV, &isTrueCost);
     int newsucc_i = rand() % SuccIDV.size(); 
-    for(int j = 0; j < SuccIDV.size(); j++){
+    for(unsigned int j = 0; j < SuccIDV.size(); j++){
 	SBPL_INFO("Successor %d cost %d\n", j, CostV[j]);
 	PrintState(SuccIDV[j],true);
 	solutionstateIDs.push_back(SuccIDV[j]);
