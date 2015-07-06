@@ -1136,7 +1136,7 @@ bool Environment_xy::IsValidConfiguration(std::vector<pose_disc_t> pos) const
       int x = footprint.at(find).x;
       int y = footprint.at(find).y;
       if(!IsValidCell(x,y)){
-	SBPL_WARN("Cell not valid: (%d, %d)",x,y);
+	SBPL_WARN("Cell not valid: (%d, %d)", x, y);
 	return false;
       }
     }

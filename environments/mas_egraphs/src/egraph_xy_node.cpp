@@ -76,7 +76,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
 
   egraphs_.reserve(numagents_);
   for(int agent_i = 0; agent_i < numagents_; agent_i++)
-    egraphs_.push_back(new EGraph(env_, 2, 0));
+    egraphs_.push_back(new EGraph(env_, 4, 0));
   
 
   interrupt_sub_ = nh.subscribe("/sbpl_planning/interrupt", 1, &EGraphXYNode::interruptPlannerCallback,this);
@@ -111,21 +111,6 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
   ROS_DEBUG("[sbpl_lattice_planner] robot footprint cleared");
 
   costmap_ros_->getCostmapCopy(cost_map_);
-  /*
-  try{
-    bool ret = env_->SetNumAgents(numagents_);
-    if (!ret)
-      {
-	SBPL_PRINTF("Invalid number of agents");
-	return false;
-      }
-  }
-  catch(SBPL_Exception e){
-    ROS_ERROR("SBPL encountered a fatal exception while setting the number of agents");
-    return false;
-  }
-  numagents_ = numagents_;
-  */
   try{
   bool ret = env_->SetNumGoals(req.num_goals);
   if (!ret)
@@ -258,12 +243,13 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
   params.use_egraph = req.use_egraph;
   params.feedback_path = req.feedback_path;
 
-  bool ret = simulate(req.start_x, req.start_y, params, res, 4);
+  bool ret = simulate(req.start_x, req.start_y, params, res, 1);
   return ret;  
 }
 
 
-void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res){
+void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs, 
+			       mas_egraphs::GetXYThetaPlan::Response& res){
   visualization_msgs::MarkerArray gui_path;
   vector<double> coord;
   res.path.clear();
@@ -282,16 +268,16 @@ void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs, mas_egraphs:
 	visualization_msgs::Marker marker;
 	marker.id = id; 
 	id++;
-	marker.scale.x = 0.02;
-	marker.scale.y = 0.02;
+	marker.scale.x = 0.1;
+	marker.scale.y = 0.1;
 	marker.scale.z = 0;
 	marker.color.b = 1;
 	marker.color.a = 1;
 	marker.type = visualization_msgs::Marker::SPHERE;
 	marker.header.stamp = plan_time;
 	marker.header.frame_id = costmap_ros_->getGlobalFrameID();
-	marker.pose.position.x = coord[2*agent_i] + cost_map_.getOriginX();
-	marker.pose.position.y = coord[2*agent_i+1] + cost_map_.getOriginY();
+	marker.pose.position.x = coord[4*agent_i] + cost_map_.getOriginX();
+	marker.pose.position.y = coord[4*agent_i+1] + cost_map_.getOriginY();
 	marker.pose.position.z = 0;
 
 	tf::Quaternion temp;
@@ -409,6 +395,7 @@ do{
       r1[i].push_back(coord[1]);
       start_shifted[0].x = coord[0];
       start_shifted[0].y = coord[1];
+      start_shifted[0].theta = coord[3];
       env_->getCoord(solution_stateIDs[r2id], coord);
       r2[i].push_back(coord[2]);
       r2[i].push_back(coord[3]);

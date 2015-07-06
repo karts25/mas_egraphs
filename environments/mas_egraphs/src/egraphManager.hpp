@@ -746,8 +746,10 @@ void EGraphManager<HeuristicType>::storeLastPath(const std::vector<int>& path,
     //printVector(coord);
     for(int agent_i = 0; agent_i < numagents_; agent_i++){
       ContState coord_agent;
-      coord_agent.push_back(coord[2*agent_i]);
-      coord_agent.push_back(coord[2*agent_i + 1]);
+      coord_agent.push_back(coord[4*agent_i]);
+      coord_agent.push_back(coord[4*agent_i + 1]);
+      coord_agent.push_back(coord[4*agent_i + 2]);
+      coord_agent.push_back(coord[4*agent_i + 3]);
       full_path_allagents[agent_i].push_back(coord_agent);
     }
   }
