@@ -17,7 +17,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
     primitive_filenames_.push_back(temp);
   }
   double time_per_action, timetoturn45degsinplace_secs;
-  private_nh.param("time_per_action", time_per_action, 1.0);
+  private_nh.param("time_per_action", time_per_action, 10.0);
   private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
   //private_nh.param("sMotPrimFiles", sMotPrimFiles_, NULL);
   int lethal_obstacle;
@@ -159,9 +159,14 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
    plan_pub_.publish(goals);
  
   // publish start
-  visualization_msgs::MarkerArray starts;  
-  for(int agent_i = 0; agent_i < numagents_; agent_i++){
-    visualization_msgs::Marker marker;
+   if ((req.start_x.size() != numagents_) || (req.start_y.size() != numagents_)){
+     SBPL_ERROR("Incorrect number of start locations");
+     return false;
+   }
+   
+   visualization_msgs::MarkerArray starts;  
+   for(int agent_i = 0; agent_i < numagents_; agent_i++){
+     visualization_msgs::Marker marker;
     marker.id = id; 
     id++;
     marker.scale.x = 0.5;
@@ -181,7 +186,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
   plan_pub_.publish(starts);
  
   std::vector<pose_cont_t> poses_start(numagents_);
-  for(int agent_i=0; agent_i<numagents_; agent_i++){
+  for(int agent_i=0; agent_i < numagents_; agent_i++){
     poses_start[agent_i].x = req.start_x[agent_i] - cost_map_.getOriginX();
     poses_start[agent_i].y = req.start_y[agent_i] - cost_map_.getOriginY();
     poses_start[agent_i].theta = req.start_theta[agent_i];
@@ -316,6 +321,7 @@ bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> sta
   std::vector<int> assignments;
   float r1percents[] = {0.2, 0.4, 0.8, 0.9};
   float r2percents[] = {0, 0.1, 0.1, 0.1};
+
   // set start state
   start_shifted[0].x = start_x[0] - cost_map_.getOriginX();
   start_shifted[0].y = start_y[0] - cost_map_.getOriginY();

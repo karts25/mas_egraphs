@@ -1,9 +1,11 @@
 Immediate goals:
-1) Each agent is a separate class with a separate motion primitive file
+1) Each agent is a separate class with a separate motion primitive file 
 2) Change getSuccs to reflect 1)
 3) Clean up getcoord, egraph stuff
 4) Upgrade to x,y,z,theta, use pr2 motion primitive files
 5) Collision checking and footprint
+
+-- collision checking a bit sketchy, eveything else done up to heuristic calibration/ new motion primitives
 
 Future goals:
 1) Generate motion primitives

@@ -757,7 +757,8 @@ void EGraphManager<HeuristicType>::storeLastPath(const std::vector<int>& path,
   update_eg_thread_data_.costs.resize(numagents_);
   for(int agent_i = 0; agent_i < numagents_; agent_i++){
     update_eg_thread_data_.path_to_feedback[agent_i] = full_path_allagents[agent_i];
-    update_eg_thread_data_.costs[agent_i] = costs; //todo: this will become cost per agent/ we just recompute
+    update_eg_thread_data_.costs[agent_i] = costs;
+    //todo: this will become cost per agent/ we just recompute
   }
 }
 

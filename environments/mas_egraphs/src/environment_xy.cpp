@@ -469,20 +469,22 @@ void Environment_xy::PrecomputeActionswithCompleteMotionPrimitive(int agent_i,
       }
       /*
       double linear_time = linear_distance / EnvXYCfg.nominalvel_mpersecs;
-            double angular_distance =
-	      fabs(computeMinUnsignedAngleDiff(DiscTheta2Cont(EnvXYCfg.ActionsV[tind][aind].endtheta,
-							      EnvXYCfg.NumThetaDirs),
-					       DiscTheta2Cont(EnvXYCfg.ActionsV[tind][aind].starttheta,
-							      EnvXYCfg.NumThetaDirs)));
-            double angular_time = angular_distance / ((PI_CONST / 4.0) /
-						      EnvXYCfg.timetoturn45degsinplace_secs);
-            //make the cost the max of the two times                                                                                                                                                         
-            EnvXYCfg.ActionsV[tind][aind].cost =
-	      (int)(ceil(NAVXYTHETALAT_COSTMULT_MTOMM * max(linear_time, angular_time)));
-	      //use any additional cost multiplier                                                                                                                                                             
-            EnvXYCfg.ActionsV[tind][aind].cost *= motionprimitiveV->at(mind).additionalactioncostmult;
-      */
-
+      double angular_distance =
+      fabs(computeMinUnsignedAngleDiff(DiscTheta2Cont(EnvXYCfg.ActionsV[tind][aind].endtheta,
+      EnvXYCfg.NumThetaDirs),
+      DiscTheta2Cont(EnvXYCfg.ActionsV[tind][aind].starttheta,
+      EnvXYCfg.NumThetaDirs)));
+      double angular_time = angular_distance / ((PI_CONST / 4.0) /
+      EnvXYCfg.timetoturn45degsinplace_secs);
+      
+      //make the cost the max of the two times                                                                                                                                                         
+      EnvXYCfg.ActionsV[tind][aind].cost =
+      (int)(ceil(NAVXYTHETALAT_COSTMULT_MTOMM * max(linear_time, angular_time)));
+      
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].cost = linear_time;
+      */                                                                                                           
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].cost = EnvXYCfg.time_per_action; //motionprimitiveV->at(mind).additionalactioncostmult;
+      
       //now compute the intersecting cells for this motion (including ignoring the source footprint)                                                                                                   
       get_2d_motion_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, 
 			  motionprimitiveV->at(mind).intermptV,
@@ -506,9 +508,10 @@ void Environment_xy::PrecomputeActionswithCompleteMotionPrimitive(int agent_i,
                          (int)EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].intersectingcellsV.size());
 #endif
 
-            //add to the list of backward actions                                                                                                                                                            
+            //add to the list of backward actions                                                        
             int targettheta = EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].endtheta;
-            if (targettheta < 0) targettheta = targettheta + EnvXYCfg.NumThetaDirs;
+            if (targettheta < 0) 
+	      targettheta = targettheta + EnvXYCfg.NumThetaDirs;
             EnvXYCfg.robotConfigV[agent_i].PredActionsV[targettheta].push_back(&(EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind]));
     }
 
@@ -1066,7 +1069,7 @@ void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose,
     if(!IsValidCell(newPose.x, newPose.y))
       cost = INFINITECOST;
     else
-      cost = EnvXYCfg.time_per_action;
+      cost = action->cost;
     
     newPosesV.push_back(newPose);
     costV.push_back(cost);
