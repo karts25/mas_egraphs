@@ -19,7 +19,7 @@ int main(int argc, char** argv){
   req.dec_egraph_eps = 100.0;
   req.initial_eps = 1.2;
   req.final_eps = 1.2;
-  req.dec_eps = 0;
+  req.dec_eps = 0.4;
   req.feedback_path = true;
   req.save_egraph = false;
   req.use_egraph = true;

@@ -44,6 +44,7 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <ros/ros.h>
+#include <stdlib.h>
 
 #define ENVXY_DEFAULTOBSTHRESH 20	//see explanation of the value below
 #define DEFAULTACTIONWIDTH 8
@@ -119,7 +120,6 @@ typedef struct
   std::vector<SBPL_xytheta_mprimitive> mprimV;
   EnvXYAction_t** ActionsV;
   std::vector<EnvXYAction_t*>* PredActionsV;
-
 }RobotConfig_t;
 
 typedef struct ENV_XY_CONFIG
@@ -132,11 +132,13 @@ typedef struct ENV_XY_CONFIG
   std::vector<pose_disc_t> start;
   std::vector<pose_disc_t> goal;
   std::vector<RobotConfig_t> robotConfigV;
-  unsigned char** Grid2D;
-  
+  unsigned char** Grid2D;  
   unsigned char obsthresh;
   double cellsize_m;
-  double time_per_action; 
+  double time_per_action;
+  int goaltol_x;
+  int goaltol_y;
+  char goaltol_theta; // currently unused
 }EnvXYConfig_t;
 
 typedef struct VIZ_CONFIG
@@ -145,6 +147,7 @@ double costmap_originX;
 double costmap_originY;
 }VizConfig_t;
 
+/*
 class EnvXY_InitParms
 {
 public:
@@ -155,7 +158,7 @@ public:
   double goaltol_x;
   double goaltol_y;
   double goaltol_theta;
-};
+};*/
 
 
 class Environment_xy: public DiscreteSpaceInformation
@@ -200,7 +203,8 @@ class Environment_xy: public DiscreteSpaceInformation
 			//std::vector<pose_disc_t> start, std::vector<pose_disc_t> goal,
 			int numagents,
 			double cellsize_m, double time_per_action,
-			const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV);
+			const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV,
+			double goaltol_x, double goaltol_y, double goaltol_theta);
 
   bool ReadMotionPrimitive_agent(FILE* fMotPrims, int agentId);
   bool ReadinMotionPrimitive(SBPL_xytheta_mprimitive* pMotPrim,
@@ -291,7 +295,7 @@ class Environment_xy: public DiscreteSpaceInformation
     virtual int GetNumAgents() const;
 
     virtual bool isGoal(int id) const;
-    virtual bool isGoal(const pose_disc_t& pose) const;
+    virtual bool isAGoal(const pose_disc_t& pose) const;
     
     virtual bool isStart(int id);
 

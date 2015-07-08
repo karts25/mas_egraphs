@@ -52,7 +52,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
 			      //1, // numGoals
 			      //start, // start vector of poses (x, y, z, theta)
 			      //goal, // goal vector of poses (x, y, z, theta)
-			      0, 0, 0, //goal tolerance
+			      0.2, 0.2, 0, //goal tolerance of 10 cm
 			      perimeterptsV,
     			      costmap_ros_->getResolution(), time_per_action,
 			      primitive_filenames_,

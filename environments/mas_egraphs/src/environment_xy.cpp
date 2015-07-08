@@ -169,7 +169,8 @@ bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* m
     VizCfg.costmap_originX = costmapOriginX;
     VizCfg.costmap_originY = costmapOriginY;
     SetConfiguration(width, height, mapdata, numagents, //start_disc, goal_disc,
-                     cellsize_m, time_per_action, perimeterptsV);
+                     cellsize_m, time_per_action, perimeterptsV,
+		     goaltol_x, goaltol_y, goaltol_theta);
 
     for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
       FILE* fMotPrim = fopen(sMotPrimFiles[agent_i].c_str(), "r");
@@ -491,7 +492,7 @@ void Environment_xy::PrecomputeActionswithCompleteMotionPrimitive(int agent_i,
       
       EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].cost = linear_time;
       */                                                                                                           
-      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].cost = EnvXYCfg.time_per_action; //motionprimitiveV->at(mind).additionalactioncostmult;
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].cost = EnvXYCfg.time_per_action * motionprimitiveV->at(mind).additionalactioncostmult;
       
       //now compute the intersecting cells for this motion (including ignoring the source footprint)                                                                                                   
       get_2d_motion_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, 
@@ -568,18 +569,14 @@ unsigned char Environment_xy::GetMapCost(int x, int y)
     return EnvXYCfg.Grid2D[x][y];
 }
 
-void Environment_xy::SetConfiguration(int width, int height, const unsigned char* mapdata,
-				      //std::vector<pose_disc_t> start, std::vector<pose_disc_t> goal,
+void Environment_xy::SetConfiguration(int width, int height, const unsigned char* mapdata,	    
 				      int numagents,
 				      double cellsize_m, double time_per_action,
-				      const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV){
+				    const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV,
+				      double goaltol_x, double goaltol_y, double goaltol_theta){
     EnvXYCfg.EnvWidth_c = width;
     EnvXYCfg.EnvHeight_c = height;
     EnvXYCfg.numAgents = numagents;
-    /*EnvXYCfg.start = start;
-    EnvXYCfg.goal = goal;
-    EnvXYCfg.numAgents = start.size();
-    EnvXYCfg.numGoals = goal.size();*/
     EnvXYCfg.time_per_action = time_per_action;
     EnvXYCfg.cellsize_m = cellsize_m;
     EnvXYCfg.obsthresh = ENVXY_DEFAULTOBSTHRESH;
@@ -610,6 +607,11 @@ void Environment_xy::SetConfiguration(int width, int height, const unsigned char
     for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
       EnvXYCfg.robotConfigV[agent_i].FootprintPolygon = robot_perimeterV[agent_i];
     }
+
+    // set goal tolerances
+   EnvXYCfg.goaltol_x = CONTXY2DISC(goaltol_x, EnvXYCfg.cellsize_m);
+   EnvXYCfg.goaltol_y = CONTXY2DISC(goaltol_y, EnvXYCfg.cellsize_m);
+
 }
 
 bool Environment_xy::UpdateCost(int x, int y, unsigned char newcost)
@@ -1088,7 +1090,7 @@ void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose,
     costV.push_back(cost);
   }
   // allow agent to retire as an action with 0 cost
-  if(isGoal(pose))
+  if(isAGoal(pose))
     cost = 0;
   else
     cost = INFINITECOST;
@@ -1104,18 +1106,19 @@ void Environment_xy::getGoalsVisited(const std::vector<pose_disc_t>& poses,
     int y = poses[agent_i].y;
     for(int j = 0; j < EnvXYCfg.numGoals; j++){
 	// if goal is unvisited so far, and a robot is at the goal, record its index
-      if((goalsVisited[j] == -1) && (x == EnvXYCfg.goal[j].x) && (y == EnvXYCfg.goal[j].y))
+      if((goalsVisited[j] == -1) && (abs(x - EnvXYCfg.goal[j].x) < EnvXYCfg.goaltol_x)
+	 && (abs(y - EnvXYCfg.goal[j].y) < EnvXYCfg.goaltol_y))
 	  goalsVisited[j] = agent_i;
       }
   }
 }
 
-bool Environment_xy::isGoal(const pose_disc_t &pose) const
+bool Environment_xy::isAGoal(const pose_disc_t &pose) const
 {
-  for(int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i++)
-    {
-      if((pose.x == EnvXYCfg.goal[goal_i].x) && (pose.y == EnvXYCfg.goal[goal_i].y))
-	return true;
+  for(int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i++){
+    if((abs(pose.x - EnvXYCfg.goal[goal_i].x) < EnvXYCfg.goaltol_x) && 
+       (abs(pose.y - EnvXYCfg.goal[goal_i].y) < EnvXYCfg.goaltol_y))
+      return true;
     }
   return false;
 }
