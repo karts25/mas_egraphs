@@ -17,7 +17,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
     primitive_filenames_.push_back(temp);
   }
   double time_per_action, timetoturn45degsinplace_secs;
-  private_nh.param("time_per_action", time_per_action, 10.0);
+  private_nh.param("time_per_action", time_per_action, 1000.0);
   private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
   //private_nh.param("sMotPrimFiles", sMotPrimFiles_, NULL);
   int lethal_obstacle;
@@ -55,7 +55,8 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
 			      0, 0, 0, //goal tolerance
 			      perimeterptsV,
     			      costmap_ros_->getResolution(), time_per_action,
-			      primitive_filenames_);
+			      primitive_filenames_,
+			      cost_map_.getOriginX(), cost_map_.getOriginY());
   }
   catch(SBPL_Exception e){
     ROS_ERROR("SBPL encountered a fatal exception!");
@@ -80,7 +81,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   
 
   interrupt_sub_ = nh.subscribe("/sbpl_planning/interrupt", 1, &EGraphXYNode::interruptPlannerCallback,this);
-  plan_pub_ = nh.advertise<visualization_msgs::MarkerArray>("plan", 1);
+  plan_pub_ = nh.advertise<visualization_msgs::MarkerArray>("mas_plan", 1);
   plan_service_ = nh.advertiseService("/sbpl_planning/plan_path",&EGraphXYNode::makePlan,this);
   footprint_pub_ = nh.advertise<geometry_msgs::PolygonStamped>("footprint", 10);
 }
@@ -130,7 +131,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
     heurs_[agent_i].resize(req.num_goals);
     for(int goal_i=0; goal_i < req.num_goals; goal_i ++){
       heurs_[agent_i][goal_i] = new EGraphMAS2dGridHeuristic(*env_, costmap_ros_->getSizeInCellsX(),
-							     costmap_ros_->getSizeInCellsY(), 1);
+							     costmap_ros_->getSizeInCellsY(), 100);
     }
   }
 
@@ -159,7 +160,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
    plan_pub_.publish(goals);
  
   // publish start
-   if ((req.start_x.size() != numagents_) || (req.start_y.size() != numagents_)){
+   if (((int)req.start_x.size() != numagents_) || ((int)req.start_y.size() != numagents_)){
      SBPL_ERROR("Incorrect number of start locations");
      return false;
    }
@@ -237,7 +238,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
     return false;
   }
  
-  EGraphReplanParams params(100.0);
+  EGraphReplanParams params(10.0);
   params.initial_eps = req.initial_eps;
   params.dec_eps = req.dec_eps;
   params.final_eps = req.final_eps;
@@ -275,7 +276,7 @@ void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs,
 	id++;
 	marker.scale.x = 0.1;
 	marker.scale.y = 0.1;
-	marker.scale.z = 0;
+	marker.scale.z = 0.5;
 	marker.color.b = 1;
 	marker.color.a = 1;
 	marker.type = visualization_msgs::Marker::SPHERE;
@@ -325,9 +326,10 @@ bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> sta
   // set start state
   start_shifted[0].x = start_x[0] - cost_map_.getOriginX();
   start_shifted[0].y = start_y[0] - cost_map_.getOriginY();
-  start_shifted[1].x = start_x[1] - cost_map_.getOriginX();
-  start_shifted[1].y = start_y[1] - cost_map_.getOriginY();
-
+  if(numagents_ == 2){
+    start_shifted[1].x = start_x[1] - cost_map_.getOriginX();
+    start_shifted[1].y = start_y[1] - cost_map_.getOriginY();
+  }
 int timestep = 0;
 do{
   int retid = env_->SetStart(start_shifted);
@@ -402,18 +404,21 @@ do{
       start_shifted[0].x = coord[0];
       start_shifted[0].y = coord[1];
       start_shifted[0].theta = coord[3];
-      env_->getCoord(solution_stateIDs[r2id], coord);
-      r2[i].push_back(coord[2]);
-      r2[i].push_back(coord[3]);
+      if(numagents_ == 2){
+	env_->getCoord(solution_stateIDs[r2id], coord);
+	r2[i].push_back(coord[2]);
+	r2[i].push_back(coord[3]);
+      }
     }
   }
 
   // reset start states
   start_shifted[0].x = r1[timestep][0] - cost_map_.getOriginX();
   start_shifted[0].y = r1[timestep][1] - cost_map_.getOriginY();
-  start_shifted[1].x = r2[timestep][0] - cost_map_.getOriginX();
-  start_shifted[1].y = r2[timestep][1] - cost_map_.getOriginY();
-  
+  if(numagents_== 2){
+    start_shifted[1].x = r2[timestep][0] - cost_map_.getOriginX();
+    start_shifted[1].y = r2[timestep][1] - cost_map_.getOriginY();
+  }
   SBPL_INFO("Hit any key to forward simulate");
   std::cin.get();
   timestep++;

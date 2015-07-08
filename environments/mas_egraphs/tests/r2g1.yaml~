@@ -1,8 +1,0 @@
-experiments:
-
-  - test: test_1
-    num_agents: 2
-    num_goals: 1
-    start: 6 0.77 0
-    start: 3.6 0.77 0 
-    goal: 6 2.7 0  

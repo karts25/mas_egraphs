@@ -1,0 +1,7 @@
+experiments:
+
+  - test: test_0
+    num_agents: 1
+    num_goals: 1
+    start: 4 7.77 0
+    goal: 15 1.77 0

@@ -12,7 +12,6 @@ using namespace std;
 #define DEBUG_ENV
 #endif
 */
-
 Environment_xy::Environment_xy()
 {
   EnvXYCfg.numAgents = 1;
@@ -92,7 +91,7 @@ unsigned int Environment_xy::GETHASHBIN(std::vector<pose_disc_t> poses,
 bool Environment_xy::InitializeEnv()
 {
     EnvXYHashEntry_t* HashEntry;
-    
+    ros::NodeHandle nh;
     SBPL_INFO("environment stores states in hashtable\n");
     
     //initialize the map from Coord to StateID
@@ -103,8 +102,12 @@ bool Environment_xy::InitializeEnv()
     
     //initialize the map from StateID to Coord
     StateID2CoordTable.clear();
+    
+    //initialize publisher to visualize states
+    state_pub_ = nh.advertise<visualization_msgs::MarkerArray>("expandedstates", 1);
     //initialized
     EnvXY.bInitialized = true;
+    
     return true;
 }
 
@@ -136,7 +139,8 @@ void Environment_xy::InitializeAgentConfig(int agentID,
   temppose.x = 0.0;
   temppose.y = 0.0;
   temppose.theta = 0.0;
-  
+
+  /*  
 #ifdef DEBUG_ENV
   std::vector<sbpl_2Dcell_t> footprint;
   get_2d_footprint_cells(EnvXYCfg.robotConfigV[agentID].FootprintPolygon, 
@@ -146,6 +150,7 @@ void Environment_xy::InitializeAgentConfig(int agentID,
     SBPL_INFO("Footprint cell at (%d, %d)\n", it->x, it->y);
   }
 #endif
+  */
   PrecomputeActionswithCompleteMotionPrimitive(agentID, motionprimitiveV);
 }
 
@@ -155,11 +160,14 @@ bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* m
 				   double goaltol_x, double goaltol_y, double goaltol_theta,
 				   const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 				   double cellsize_m, double time_per_action,
-				   const std::vector<std::string> sMotPrimFiles)			    {
+				   const std::vector<std::string> sMotPrimFiles,
+				   double costmapOriginX, double costmapOriginY){
     SBPL_INFO("env: initialize with width=%d height=%d "
                 "cellsize=%.3f timeperaction=%.3f\n",
                 width, height, cellsize_m, time_per_action);
-
+    
+    VizCfg.costmap_originX = costmapOriginX;
+    VizCfg.costmap_originY = costmapOriginY;
     SetConfiguration(width, height, mapdata, numagents, //start_disc, goal_disc,
                      cellsize_m, time_per_action, perimeterptsV);
 
@@ -721,7 +729,7 @@ bool Environment_xy::SetNumAgents(int numagents)
   return true;
 }
 
-bool Environment_xy::isGoal(int id){
+bool Environment_xy::isGoal(int id) const {
   // any state with all goals visited is a goal state
   EnvXYHashEntry_t* HashEntry = StateID2CoordTable[id];
   for(int i = 0; i < EnvXYCfg.numGoals; i++){
@@ -955,6 +963,9 @@ void Environment_xy::GetSuccs(int SourceStateID,
 			      std::vector<int>* SuccIDV,
 			      std::vector<int>* CostV)
 {
+#ifdef DEBUG_ENV
+  SBPL_INFO("[Environment]: In GetSuccs");
+#endif
   //clear the successor array
   SuccIDV->clear();
   CostV->clear();
@@ -966,6 +977,8 @@ void Environment_xy::GetSuccs(int SourceStateID,
 		  HashEntry->goalsVisited.end(), 
 		  [](int i){return i >= 0;}))
     return;
+  
+  VisualizeState(SourceStateID);
   
   // find number and indices of active agents
   std::vector<int> activeAgents_indices;
@@ -1009,21 +1022,21 @@ void Environment_xy::GetSuccs(int SourceStateID,
     int index = primitive_i;
     cost = 0;
     for(int agent_ctr = 0; agent_ctr < numActiveAgents; agent_ctr++){
-      int numActions = EnvXYCfg.robotConfigV[agent_ctr].actionwidth;
+      int numActions = EnvXYCfg.robotConfigV[agent_ctr].actionwidth+1;
       int action_i = index % numActions;
       index = (int) index/numActions;	
       cost = cost + allnewCosts[agent_ctr][action_i]; 
       int agent_index = activeAgents_indices[agent_ctr];
       poses[agent_index] = allnewPoses[agent_ctr][action_i];
-
-      if (action_i == numActions) // last action is always to retire agent
-	activeAgents[agent_index] = 0;
+      if (action_i == numActions-1){ // last action is always to retire agent
+	  activeAgents[agent_index] = 0;
+	}
     }
     if (cost >= INFINITECOST){
       continue;
     }
     // don't want all robots retired as an action
-    if (cost == 0)
+    if (std::all_of(activeAgents.begin(), activeAgents.end(), [](bool v){return !v;})) 
       continue;
     
     std::vector<int> goalsVisited = HashEntry->goalsVisited;
@@ -1045,7 +1058,7 @@ void Environment_xy::GetSuccs(int SourceStateID,
     PrintState(OutHashEntry->stateID, true);
 #endif
   }
-#ifdef DEBUG_ENV_ENV
+#ifdef DEBUG_ENV
   std::cin.get();
 #endif
 }
@@ -1075,8 +1088,12 @@ void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose,
     costV.push_back(cost);
   }
   // allow agent to retire as an action with 0 cost
+  if(isGoal(pose))
+    cost = 0;
+  else
+    cost = INFINITECOST;
   newPosesV.push_back(pose);
-  costV.push_back(robotConfig.actionwidth);
+  costV.push_back(cost);
 }
 
 void Environment_xy::getGoalsVisited(const std::vector<pose_disc_t>& poses,
@@ -1093,11 +1110,11 @@ void Environment_xy::getGoalsVisited(const std::vector<pose_disc_t>& poses,
   }
 }
 
-bool Environment_xy::isGoal(const pose_disc_t pose)
+bool Environment_xy::isGoal(const pose_disc_t &pose) const
 {
-  for(int j = 0; j < EnvXYCfg.numGoals; j++)
+  for(int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i++)
     {
-      if((pose.x == EnvXYCfg.goal[j].x) && (pose.y == EnvXYCfg.goal[j].y))
+      if((pose.x == EnvXYCfg.goal[goal_i].x) && (pose.y == EnvXYCfg.goal[goal_i].y))
 	return true;
     }
   return false;
@@ -1236,6 +1253,32 @@ bool Environment_xy::GetFakePlan(int startstateID, std::vector<int>& solutionsta
   return true;
 }
 
+void Environment_xy::VisualizeState(int stateID) const{
+  EnvXYHashEntry_t* HashEntry = StateID2CoordTable[stateID];
+  visualization_msgs::MarkerArray agentmarkers;
+  for(int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++){
+    visualization_msgs::Marker marker;
+    pose_disc_t pose = HashEntry->poses[agent_i];
+    marker.id = stateID*EnvXYCfg.numAgents + agent_i; 
+    marker.scale.x = 0.05;
+    marker.scale.y = 0.05;
+    marker.scale.z = 0;
+    marker.color.g = 1;
+    marker.color.b = 1;
+    marker.color.a = 1;
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.header.stamp = ros::Time::now();
+    marker.header.frame_id = "/map";//costmap_ros_->getGlobalFrameID();
+    double x,y,z,theta;
+    PoseDiscToCont(pose.x, pose.y, pose.z, pose.theta, x, y, z, theta);
+    marker.pose.position.x = x - VizCfg.costmap_originX;
+    marker.pose.position.y = y - VizCfg.costmap_originY;
+    marker.pose.position.z = 0;
+    agentmarkers.markers.push_back(marker);
+  }
+  state_pub_.publish(agentmarkers);
+}
+
 void Environment_xy::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/)
 {
 #if DEBUG
@@ -1255,7 +1298,10 @@ void Environment_xy::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/
     }
 
     for(int i = 0; i < EnvXYCfg.numAgents; i++){
-      SBPL_INFO("Agent %d (X=%d Y=%d) isActive: %d", i, HashEntry->poses[i].x, HashEntry->poses[i].y, (int) HashEntry->activeAgents[i]);
+      SBPL_INFO("Agent %d (X=%d Y=%d Z=%d Theta=%d) isActive: %d", i, 
+		(int) HashEntry->poses[i].x, (int) HashEntry->poses[i].y, 
+		(int) HashEntry->poses[i].z,
+		(int) HashEntry->poses[i].theta, (int) HashEntry->activeAgents[i]);
     }
 
     SBPL_INFO("Goals Visited:");

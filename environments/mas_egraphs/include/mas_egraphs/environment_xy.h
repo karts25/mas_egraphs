@@ -41,6 +41,9 @@
 #include <sbpl/utils/utils.h>
 #include <string>
 #include <geometry_msgs/PolygonStamped.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <ros/ros.h>
 
 #define ENVXY_DEFAULTOBSTHRESH 20	//see explanation of the value below
 #define DEFAULTACTIONWIDTH 8
@@ -116,6 +119,7 @@ typedef struct
   std::vector<SBPL_xytheta_mprimitive> mprimV;
   EnvXYAction_t** ActionsV;
   std::vector<EnvXYAction_t*>* PredActionsV;
+
 }RobotConfig_t;
 
 typedef struct ENV_XY_CONFIG
@@ -129,10 +133,17 @@ typedef struct ENV_XY_CONFIG
   std::vector<pose_disc_t> goal;
   std::vector<RobotConfig_t> robotConfigV;
   unsigned char** Grid2D;
+  
   unsigned char obsthresh;
   double cellsize_m;
   double time_per_action; 
 }EnvXYConfig_t;
+
+typedef struct VIZ_CONFIG
+{
+double costmap_originX;
+double costmap_originY;
+}VizConfig_t;
 
 class EnvXY_InitParms
 {
@@ -177,7 +188,8 @@ class Environment_xy: public DiscreteSpaceInformation
 			     double goaltol_x, double goaltol_y, double goaltol_theta,
 			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 			     double cellsize_m, double time_per_action,
-			     const std::vector<std::string> sMotPrimFiles);
+			     const std::vector<std::string> sMotPrimFiles,
+			     double costmapOriginX, double costmapOriginY);
 
   void InitializeAgentConfig(int agentID, std::vector<SBPL_xytheta_mprimitive>* motionprimitiveV);
 
@@ -278,8 +290,8 @@ class Environment_xy: public DiscreteSpaceInformation
      */
     virtual int GetNumAgents() const;
 
-    virtual bool isGoal(int id);
-    virtual bool isGoal(const pose_disc_t pose);
+    virtual bool isGoal(int id) const;
+    virtual bool isGoal(const pose_disc_t& pose) const;
     
     virtual bool isStart(int id);
 
@@ -296,7 +308,7 @@ class Environment_xy: public DiscreteSpaceInformation
     virtual unsigned int GETHASHBIN(std::vector<pose_disc_t> pose, std::vector<int> goalsVisited, std::vector<bool> activeAgents);
     
     virtual void PrintState(int stateID, bool bVerbose, FILE* fOut = NULL);
-
+    void VisualizeState(int stateID) const;
     /**
      * \brief returns the cost corresponding to the cell <x,y>
      */
@@ -333,9 +345,11 @@ class Environment_xy: public DiscreteSpaceInformation
     virtual int SizeofCreatedEnv();
 
  protected:
+    ros::Publisher state_pub_;
     // member data
     EnvXYConfig_t EnvXYCfg;
     Environment_xy_t EnvXY;
+    VizConfig_t VizCfg; 
     std::vector<sbpl_xy_theta_cell_t> affectedsuccstatesV; //arrays of states whose outgoing actions cross cell 0,0
     std::vector<sbpl_xy_theta_cell_t> affectedpredstatesV; //arrays of states whose incoming actions cross cell 0,0
     int iteration;

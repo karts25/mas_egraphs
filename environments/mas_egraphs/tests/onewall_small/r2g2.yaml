@@ -4,6 +4,6 @@ experiments:
     num_agents: 2
     num_goals: 2
     start: 5.5 0.37 0
-    start: 4.0 0.37 0 
+    start: 3 0.37 0 
     goal: 5.5 3.0 0  
-    goal: 4.0 3.0 0
+    goal: 3 3.0 0

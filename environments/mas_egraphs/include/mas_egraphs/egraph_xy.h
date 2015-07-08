@@ -40,7 +40,8 @@ class EGraphXY:public Environment_xy, public EGraphable<std::vector<int> >, publ
 		       double goaltol_x, double goaltol_y, double goaltol_theta,
 		       const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 		       double cellsize_m, double time_per_action,
-		       const std::vector<std::string> sMotPrimFiles);
+		       const std::vector<std::string> sMotPrimFiles,
+		       double costmapOriginX, double costmapOriginY);
 
     visualization_msgs::MarkerArray stateToVisualizationMarker(std::vector<double> coord);
     visualization_msgs::MarkerArray stateToDetailedVisualizationMarker(std::vector<double> coord);

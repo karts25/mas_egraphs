@@ -15,12 +15,14 @@ bool EGraphXY::InitializeEnv(int width, int height,
 			     double goaltol_x, double goaltol_y, double goaltol_theta,
 			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 			     double cellsize_m, double time_per_action,
-			     const std::vector<std::string> sMotPrimFiles){
+			     const std::vector<std::string> sMotPrimFiles,
+			     double costmapOriginX, double costmapOriginY){
 
   bool ret = Environment_xy::InitializeEnv(width, height, mapdata, numagents, 
 					   //numgoals,  start, goal,
 					   goaltol_x, goaltol_y, goaltol_theta, perimeterptsV,
-					   cellsize_m, time_per_action, sMotPrimFiles);
+					   cellsize_m, time_per_action, sMotPrimFiles,
+					   costmapOriginX, costmapOriginY);
   return ret;
   
 }
@@ -56,13 +58,13 @@ bool EGraphXY::snap(const vector<double>& from, const vector<double>& to, int& i
 //requires a getCoord function which takes a state id (the ids the environment uses) and returns a vector with the coordinate so we can look for shortcuts in the e-graph
 //-we will never call getCoord on the goal (because it is possible we don't know what the goal state looks like)
 
-// Coord now looks like [agent1.x agent1.y agent1.z agent1.theta ........ goal1 goal2]
+// Coord now looks like [agent1.x agent1.y agent1.z agent1.theta ........ goal1 goal2.. isactive1 isactive2....]
 bool EGraphXY::getCoord(int id, vector<double>& coord){
   coord.clear();
   EnvXYHashEntry_t* hashEntry = StateID2CoordTable[id];
   vector<int> d_coord_agent(4,0);
   vector<double> coord_agent(4,0);
-  coord.resize(EnvXYCfg.numAgents*4 + EnvXYCfg.numGoals);
+  coord.resize(EnvXYCfg.numAgents*4 + EnvXYCfg.numGoals + EnvXYCfg.numAgents);
   int i = 0;
   for(int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++, i+=4){
     d_coord_agent[0] = hashEntry->poses[agent_i].x;
@@ -80,6 +82,9 @@ bool EGraphXY::getCoord(int id, vector<double>& coord){
     coord[i] = hashEntry->goalsVisited[goal_i];
   }
   
+  for(int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++, i++){
+    coord[i] = hashEntry->activeAgents[agent_i];
+  }
   return true;
 }
 

@@ -39,8 +39,9 @@
 using namespace std;
 
 template <typename HeuristicType>
-LazyAEGPlanner<HeuristicType>::LazyAEGPlanner(DiscreteSpaceInformation* environment, bool bSearchForward,
-                               EGraphManagerPtr egraph_mgr) :
+LazyAEGPlanner<HeuristicType>::LazyAEGPlanner(DiscreteSpaceInformation* environment, 
+					      bool bSearchForward,
+					      EGraphManagerPtr egraph_mgr) :
   params(0.0), egraph_mgr_(egraph_mgr){ //, goal_state(NULL) {
   //bforwardsearch = bSearchForward;
   if(!bSearchForward)
@@ -175,7 +176,7 @@ void LazyAEGPlanner<HeuristicType>::ExpandState(LazyAEGState* parent){
   for(int i=0; i<(int)children.size(); i++){
     //printf("  succ %d\n",children[i]);
     LazyAEGState* child = GetState(children[i]);
-    insertLazyList(child, parent, costs[i], isTrueCost[i], edgeTypes[i], snap_midpoints[i]);
+    insertLazyList(child, parent, costs[i], isTrueCost[i], edgeTypes[i], snap_midpoints[i]); // todo: should be costs[i]
   } 
 }
 
@@ -325,7 +326,6 @@ void LazyAEGPlanner<HeuristicType>::putStateInHeap(LazyAEGState* state){
     CKey key;
     key.key[0] = state->g + int(eps * state->h);
     key.key[1] = state->h;
-   
     /*
     for(unsigned int agent_i = 0; agent_i < state->h_peragent.size(); agent_i ++){
       key.key[2+agent_i] = state->h_peragent[agent_i];
@@ -381,7 +381,7 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
     LazyAEGState* state = (LazyAEGState*)heap.deleteminheap();
 
 #ifdef DEBUG_PLANNER    
-    SBPL_INFO("\n\nExpanding:");
+    SBPL_INFO("[Egraph_planner]: \n\nExpanding:");
     environment_->PrintState(state->id, true);
     SBPL_INFO("g = %d h = %d", state->g, state->h);
     for(int i = 0; i < (int) state->h_peragent.size(); i++)
@@ -478,7 +478,6 @@ bool LazyAEGPlanner<HeuristicType>::reconstructSuccs(LazyAEGState* state,
 
 template <typename HeuristicType>
 vector<int> LazyAEGPlanner<HeuristicType>::GetSearchPath(int& solcost){
-  SBPL_INFO("egraph_planner: in getsearchpath");
     clock_t reconstruct_t0 = clock();
 
     bool print = false;
@@ -567,7 +566,6 @@ vector<int> LazyAEGPlanner<HeuristicType>::GetSearchPath(int& solcost){
         egraph_mgr_->feedbackLastPath();
     }
     */
-    SBPL_INFO("egraph_planner: storing path");
     clock_t feedback_t0 = clock();
     if (params.feedback_path){
         egraph_mgr_->storeLastPath(wholePathIds, costs);
@@ -576,7 +574,6 @@ vector<int> LazyAEGPlanner<HeuristicType>::GetSearchPath(int& solcost){
     clock_t feedback_t1 = clock();
     feedbackPathTime = double(feedback_t1-feedback_t0)/CLOCKS_PER_SEC;
     //egraph_mgr_->printVector(wholePathIds);
-    printf("returning from getsearchpath\n");
     return wholePathIds;
 }
 
@@ -730,7 +727,6 @@ bool LazyAEGPlanner<HeuristicType>::Search(vector<int>& pathIds, int& PathCost){
 
   printf("solution found\n");
   pathIds = GetSearchPath(PathCost);
-  printf("returning true\n");
   return true;
 }
 
