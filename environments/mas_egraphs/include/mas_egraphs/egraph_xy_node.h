@@ -51,6 +51,7 @@ class EGraphXYNode{
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
   void publishfootprints(std::vector<pose_cont_t> poses) const;
   bool simulate(std::vector<double> start_x, std::vector<double> start_y, 
+		std::vector<double> start_z, std::vector<double> start_theta,
 		EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res, int maxtime);
   void publishPath(std::vector<int>& solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res);
 };

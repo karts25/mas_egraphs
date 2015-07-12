@@ -49,9 +49,6 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
 			      costmap_ros_->getSizeInCellsY(), // height
 			      0, // mapdata
 			      numagents_, // numAgents
-			      //1, // numGoals
-			      //start, // start vector of poses (x, y, z, theta)
-			      //goal, // goal vector of poses (x, y, z, theta)
 			      0.2, 0.2, 0, //goal tolerance of 10 cm
 			      perimeterptsV,
     			      costmap_ros_->getResolution(), time_per_action,
@@ -70,10 +67,6 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   for (ssize_t ix(0); ix < costmap_ros_->getSizeInCellsX(); ++ix)
     for (ssize_t iy(0); iy < costmap_ros_->getSizeInCellsY(); ++iy)
       env_->UpdateCost(ix, iy, costMapCostToSBPLCost(cost_map_.getCost(ix,iy)));
-
-  //egraph_vis_ = new EGraphVisualizer(egraph_, env_);
-  // egraph_vis_->visualize();
-   
 
   egraphs_.reserve(numagents_);
   for(int agent_i = 0; agent_i < numagents_; agent_i++)
@@ -190,6 +183,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
   for(int agent_i=0; agent_i < numagents_; agent_i++){
     poses_start[agent_i].x = req.start_x[agent_i] - cost_map_.getOriginX();
     poses_start[agent_i].y = req.start_y[agent_i] - cost_map_.getOriginY();
+    poses_start[agent_i].z = req.start_z[agent_i];
     poses_start[agent_i].theta = req.start_theta[agent_i];
   }
   publishfootprints(poses_start);
@@ -198,11 +192,12 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
   planner_ = new LazyAEGPlanner<vector<int> >(env_, true, egraph_mgr_);
 
   try{
-    std::vector<sbpl_xy_theta_pt_t> goal_shifted(req.num_goals);
+    std::vector<pose_cont_t> goal_shifted(req.num_goals);
     for(int goal_i = 0; goal_i < req.num_goals; goal_i++)
       {
 	goal_shifted[goal_i].x = req.goal_x[goal_i] - cost_map_.getOriginX();
         goal_shifted[goal_i].y = req.goal_y[goal_i] - cost_map_.getOriginY();
+	goal_shifted[goal_i].z = req.goal_z[goal_i];
 	goal_shifted[goal_i].theta = req.goal_theta[goal_i];
       }
     int ret = env_->SetGoal(goal_shifted);
@@ -216,14 +211,15 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
     return false;
   }
   
-
-  std::vector<sbpl_xy_theta_pt_t> start_shifted(numagents_);
+  /*
+  std::vector<pose_cont_t> start_shifted(numagents_);
   int startstateID;
   try{
     for(int agent_i = 0; agent_i < numagents_; agent_i++)
       {
 	start_shifted[agent_i].x = req.start_x[agent_i] - cost_map_.getOriginX();
 	start_shifted[agent_i].y = req.start_y[agent_i] - cost_map_.getOriginY();
+	start_shifted[agent_i].z = req.start_z[agent_i];
 	start_shifted[agent_i].theta = req.start_theta[agent_i];
       }
     int ret = env_->SetStart(start_shifted);
@@ -237,7 +233,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
     ROS_ERROR("SBPL encountered a fatal exception while setting the start state");
     return false;
   }
- 
+*/ 
   EGraphReplanParams params(10.0);
   params.initial_eps = req.initial_eps;
   params.dec_eps = req.dec_eps;
@@ -249,7 +245,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
   params.use_egraph = req.use_egraph;
   params.feedback_path = req.feedback_path;
 
-  bool ret = simulate(req.start_x, req.start_y, params, res, 1);
+  bool ret = simulate(req.start_x, req.start_y, req.start_z, req.start_theta, params, res, 1);
   return ret;  
 }
 
@@ -266,28 +262,26 @@ void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs,
     {
       for(unsigned int i=0; i < solution_stateIDs.size(); i++){    
 	coord.clear();
-       	env_->getCoord(solution_stateIDs[i], coord);
-	
-	//env_->GetFakePath(i, coord); 
-	//SBPL_INFO("id %d (x,y) = (%f,%f)", solution_stateIDs[i], coord[0], coord[1]);
+       	env_->getCoord(solution_stateIDs[i], coord);       
 
 	visualization_msgs::Marker marker;
 	marker.id = id; 
 	id++;
 	marker.scale.x = 0.1;
 	marker.scale.y = 0.1;
-	marker.scale.z = 0.5;
+	marker.scale.z = 0;
 	marker.color.b = 1;
 	marker.color.a = 1;
-	marker.type = visualization_msgs::Marker::SPHERE;
+	marker.type = visualization_msgs::Marker::ARROW;
 	marker.header.stamp = plan_time;
 	marker.header.frame_id = costmap_ros_->getGlobalFrameID();
 	marker.pose.position.x = coord[4*agent_i] + cost_map_.getOriginX();
 	marker.pose.position.y = coord[4*agent_i+1] + cost_map_.getOriginY();
-	marker.pose.position.z = 0;
-
+	marker.pose.position.z = coord[4*agent_i+2];
+	//SBPL_INFO("Coord is (%f %f %f %f)", coord[4*agent_i], coord[4*agent_i+1],
+	//coord[4*agent_i+2], coord[4*agent_i+3]);
 	tf::Quaternion temp;
-	temp.setEulerZYX(0,0,0);
+	temp.setEulerZYX(coord[4*agent_i+3],0,0);
 	marker.pose.orientation.x = temp.getX();
 	marker.pose.orientation.y = temp.getY();
 	marker.pose.orientation.z = temp.getZ();
@@ -310,14 +304,15 @@ void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs,
   plan_pub_.publish(gui_path);
 }
 
-bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> start_y, 
+bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> start_y, std::vector<double> start_z, 
+			    std::vector<double> start_theta,
 			    EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res,
 			    int maxtime){
   std::vector<int> solution_stateIDs;
   // right now, robots follow original plan at different rates
   std::vector<std::vector<double> > r1(maxtime);
   std::vector<std::vector<double> > r2(maxtime);
-  std::vector<sbpl_xy_theta_pt_t> start_shifted(numagents_);
+  std::vector<pose_cont_t> start_shifted(numagents_);
   std::vector<double> coord;
   std::vector<int> assignments;
   float r1percents[] = {0.2, 0.4, 0.8, 0.9};
@@ -326,9 +321,13 @@ bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> sta
   // set start state
   start_shifted[0].x = start_x[0] - cost_map_.getOriginX();
   start_shifted[0].y = start_y[0] - cost_map_.getOriginY();
+  start_shifted[0].z = start_z[0];
+  start_shifted[0].theta = start_theta[0];
   if(numagents_ == 2){
     start_shifted[1].x = start_x[1] - cost_map_.getOriginX();
     start_shifted[1].y = start_y[1] - cost_map_.getOriginY();
+    start_shifted[1].z = start_z[1];
+    start_shifted[1].theta = start_theta[1];
   }
 int timestep = 0;
 do{
@@ -356,7 +355,7 @@ do{
     marker.header.frame_id = costmap_ros_->getGlobalFrameID();
     marker.pose.position.x = start_shifted[agent_i].x + cost_map_.getOriginX();
     marker.pose.position.y = start_shifted[agent_i].y + cost_map_.getOriginY();
-    marker.pose.position.z = 0;
+    marker.pose.position.z = start_shifted[agent_i].z;
     startmarkers.markers.push_back(marker);
   }
   plan_pub_.publish(startmarkers);
@@ -385,7 +384,7 @@ do{
   if (!ret)
     return false;
   publishPath(solution_stateIDs, res);    
-  
+  /*
   // extract locations from first plan to "simulate" robots
   if(timestep == 0){
     unsigned int planlength = solution_stateIDs.size();
@@ -396,13 +395,11 @@ do{
       int r2id = (int) (r2percents[i] * (float) planlength);
 //    SBPL_INFO("r1id = %d, r2id = %d", r1id, r2id);
       env_->getCoord(solution_stateIDs[r1id], coord);
-      /*std::vector<pose_t> poses;
-      std::vector<bool> goalsVisited;
-      env_->GetCoordFromState(solution_stateIDs[r1id], poses, goalsVisited)*/
-      r1[i].push_back(coord[0]);
+       r1[i].push_back(coord[0]);
       r1[i].push_back(coord[1]);
       start_shifted[0].x = coord[0];
       start_shifted[0].y = coord[1];
+      start_shifted[0].z = coord[2];
       start_shifted[0].theta = coord[3];
       if(numagents_ == 2){
 	env_->getCoord(solution_stateIDs[r2id], coord);
@@ -419,6 +416,7 @@ do{
     start_shifted[1].x = r2[timestep][0] - cost_map_.getOriginX();
     start_shifted[1].y = r2[timestep][1] - cost_map_.getOriginY();
   }
+*/
   SBPL_INFO("Hit any key to forward simulate");
   std::cin.get();
   timestep++;
@@ -431,10 +429,10 @@ do{
 void EGraphXYNode::publishfootprints(std::vector<pose_cont_t> poses) const{
   std::vector<sbpl_2Dpt_t> footprint;
   geometry_msgs::PolygonStamped PolygonStamped;
-  ros::Time req_time;
+  ros::Time req_time = ros::Time::now();
   PolygonStamped.header.frame_id = costmap_ros_->getGlobalFrameID();
   for(int agent_i = 0; agent_i < numagents_; agent_i++){
-    PolygonStamped.header.stamp =  ros::Time::now();
+    PolygonStamped.header.stamp =  req_time;
     PolygonStamped.header.seq = agent_i;
     footprint.clear();
     PolygonStamped.polygon.points.clear();
@@ -443,7 +441,7 @@ void EGraphXYNode::publishfootprints(std::vector<pose_cont_t> poses) const{
       geometry_msgs::Point32 point;
       point.x = footprint[i].x - cost_map_.getOriginX();
       point.y = footprint[i].y - cost_map_.getOriginY();
-      point.z = 0; //todo
+      point.z = poses[agent_i].z; 
       PolygonStamped.polygon.points.push_back(point);
     }
     footprint_pub_.publish(PolygonStamped);

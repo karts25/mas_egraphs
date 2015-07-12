@@ -326,11 +326,11 @@ void LazyAEGPlanner<HeuristicType>::putStateInHeap(LazyAEGState* state){
     CKey key;
     key.key[0] = state->g + int(eps * state->h);
     key.key[1] = state->h;
-    /*
-    for(unsigned int agent_i = 0; agent_i < state->h_peragent.size(); agent_i ++){
+    
+    for(unsigned int agent_i = 0; agent_i < state->h_peragent.size(); agent_i++){
       key.key[2+agent_i] = state->h_peragent[agent_i];
     }
-    */
+    
     if(print)
       printf("put state in open with f %lu\n", key.key[0]);
     //if the state is already in the heap, just update its priority

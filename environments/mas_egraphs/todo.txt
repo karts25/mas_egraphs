@@ -1,9 +1,9 @@
 Immediate goals:
 1) Each agent is a separate class with a separate motion primitive file 
-2) Change getSuccs to reflect 1)
+2) Change getSuccs to reflect 1)                          -- done
 3) Clean up getcoord, egraph stuff
-4) Upgrade to x,y,z,theta, use pr2 motion primitive files
-5) Collision checking and footprint
+4) Upgrade to x,y,z,theta, use pr2 motion primitive files -- done
+5) Collision checking and footprint                       -- done
 
 -- collision checking a bit sketchy, eveything else done up to heuristic calibration/ new motion primitives
 
@@ -30,3 +30,31 @@ architecture
 x,y,theta planner with hexacopter on separate level? - state space is x,y,z,theta or just x,y,z?
 generating motion primitives 
 Solving TSPs
+
+
+July 8 status:
+
+Need to add aerial vehicle:
+   - z in costmap and planner
+   - multiple motion primitive files and footprints
+
+Heuristic computation is way too slow. 
+   eg: 2 robots, 10 goals - 
+       2^10 = 1024 possible assignments
+       Each assignment solves at least 2 TSPs, worst case 10! evaluations
+
+GetSuccs can be faster:
+  - precompute combinatorial actions
+
+Adding goals to map
+
+Plan:
+
+July 8: Speed up getsuccs [for fun]
+        Add aerial vehicle
+
+July 9: Swap out with MST based assignment heuristic
+        
+
+July 10: Start working with andrew on simulator
+     

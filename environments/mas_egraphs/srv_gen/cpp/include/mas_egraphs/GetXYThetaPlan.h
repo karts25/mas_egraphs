@@ -31,9 +31,11 @@ struct GetXYThetaPlanRequest_ {
   , num_goals(0)
   , start_x()
   , start_y()
+  , start_z()
   , start_theta()
   , goal_x()
   , goal_y()
+  , goal_z()
   , goal_theta()
   , egraph_eps(0.0)
   , final_egraph_eps(0.0)
@@ -52,9 +54,11 @@ struct GetXYThetaPlanRequest_ {
   , num_goals(0)
   , start_x(_alloc)
   , start_y(_alloc)
+  , start_z(_alloc)
   , start_theta(_alloc)
   , goal_x(_alloc)
   , goal_y(_alloc)
+  , goal_z(_alloc)
   , goal_theta(_alloc)
   , egraph_eps(0.0)
   , final_egraph_eps(0.0)
@@ -80,6 +84,9 @@ struct GetXYThetaPlanRequest_ {
   typedef std::vector<double, typename ContainerAllocator::template rebind<double>::other >  _start_y_type;
   std::vector<double, typename ContainerAllocator::template rebind<double>::other >  start_y;
 
+  typedef std::vector<double, typename ContainerAllocator::template rebind<double>::other >  _start_z_type;
+  std::vector<double, typename ContainerAllocator::template rebind<double>::other >  start_z;
+
   typedef std::vector<double, typename ContainerAllocator::template rebind<double>::other >  _start_theta_type;
   std::vector<double, typename ContainerAllocator::template rebind<double>::other >  start_theta;
 
@@ -88,6 +95,9 @@ struct GetXYThetaPlanRequest_ {
 
   typedef std::vector<double, typename ContainerAllocator::template rebind<double>::other >  _goal_y_type;
   std::vector<double, typename ContainerAllocator::template rebind<double>::other >  goal_y;
+
+  typedef std::vector<double, typename ContainerAllocator::template rebind<double>::other >  _goal_z_type;
+  std::vector<double, typename ContainerAllocator::template rebind<double>::other >  goal_z;
 
   typedef std::vector<double, typename ContainerAllocator::template rebind<double>::other >  _goal_theta_type;
   std::vector<double, typename ContainerAllocator::template rebind<double>::other >  goal_theta;
@@ -192,12 +202,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::mas_egraphs::GetXYThetaPlanRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "f68f7b9412341a5cc7550b3f654b9768";
+    return "27aa1da6e9941d3c85e32253d30d7e1c";
   }
 
   static const char* value(const  ::mas_egraphs::GetXYThetaPlanRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0xf68f7b9412341a5cULL;
-  static const uint64_t static_value2 = 0xc7550b3f654b9768ULL;
+  static const uint64_t static_value1 = 0x27aa1da6e9941d3cULL;
+  static const uint64_t static_value2 = 0x85e32253d30d7e1cULL;
 };
 
 template<class ContainerAllocator>
@@ -219,10 +229,12 @@ int32 num_goals\n\
 \n\
 float64[] start_x\n\
 float64[] start_y\n\
+float64[] start_z\n\
 float64[] start_theta\n\
 \n\
 float64[] goal_x\n\
 float64[] goal_y\n\
+float64[] goal_z\n\
 float64[] goal_theta\n\
 \n\
 float64 egraph_eps\n\
@@ -354,9 +366,11 @@ template<class ContainerAllocator> struct Serializer< ::mas_egraphs::GetXYThetaP
     stream.next(m.num_goals);
     stream.next(m.start_x);
     stream.next(m.start_y);
+    stream.next(m.start_z);
     stream.next(m.start_theta);
     stream.next(m.goal_x);
     stream.next(m.goal_y);
+    stream.next(m.goal_z);
     stream.next(m.goal_theta);
     stream.next(m.egraph_eps);
     stream.next(m.final_egraph_eps);
@@ -402,7 +416,7 @@ template<>
 struct MD5Sum<mas_egraphs::GetXYThetaPlan> {
   static const char* value() 
   {
-    return "252d652725870e31adceacfe7733498e";
+    return "10e411f2442519b560bc7b0b14d9cf7e";
   }
 
   static const char* value(const mas_egraphs::GetXYThetaPlan&) { return value(); } 
@@ -422,7 +436,7 @@ template<class ContainerAllocator>
 struct MD5Sum<mas_egraphs::GetXYThetaPlanRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "252d652725870e31adceacfe7733498e";
+    return "10e411f2442519b560bc7b0b14d9cf7e";
   }
 
   static const char* value(const mas_egraphs::GetXYThetaPlanRequest_<ContainerAllocator> &) { return value(); } 
@@ -442,7 +456,7 @@ template<class ContainerAllocator>
 struct MD5Sum<mas_egraphs::GetXYThetaPlanResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "252d652725870e31adceacfe7733498e";
+    return "10e411f2442519b560bc7b0b14d9cf7e";
   }
 
   static const char* value(const mas_egraphs::GetXYThetaPlanResponse_<ContainerAllocator> &) { return value(); } 

@@ -17,8 +17,8 @@ int main(int argc, char** argv){
   int maxiters = 4;
   double egraph_eps_values[] = {1, 2, 10, 500};
   req.dec_egraph_eps = 100.0;
-  req.initial_eps = 1.2;
-  req.final_eps = 1.2;
+  req.initial_eps = 2;
+  req.final_eps = 2;
   req.dec_eps = 0.4;
   req.feedback_path = true;
   req.save_egraph = false;
@@ -36,7 +36,7 @@ int main(int argc, char** argv){
   fscanf(fin,"experiments:\n\n");
 
   bool first = true;
-  double start_x, start_y, start_theta, goal_x, goal_y, goal_theta;
+  double start_x, start_y, start_z, start_theta, goal_x, goal_y, goal_z, goal_theta;
   while(1){
     req.start_x.clear();
     req.start_y.clear();
@@ -53,19 +53,22 @@ int main(int argc, char** argv){
       break;
     
     printf("num_agents %d num_goals %d\n", req.num_agents, req.num_goals);
-    for(int agent_i = 0; agent_i < req.num_agents; agent_i++)
-      {
-	if(fscanf(fin,"    start: %lf %lf %lf\n", &start_x, &start_y, &start_theta) <= 0)
-	  break;
+    for(int agent_i = 0; agent_i < req.num_agents; agent_i++){
+      if(fscanf(fin,"    start: %lf %lf %lf %lf\n", 
+		&start_x, &start_y, &start_z, &start_theta) <= 0)
+	break;
 	req.start_x.push_back(start_x);
 	req.start_y.push_back(start_y);
+	req.start_z.push_back(start_z);
 	req.start_theta.push_back(start_theta);
       }
     for(int i = 0; i < req.num_goals; i++){
-      if(fscanf(fin,"    goal: %lf %lf %lf\n", &goal_x, &goal_y, &goal_theta) <= 0)
+      if(fscanf(fin,"    goal: %lf %lf %lf %lf\n",
+		&goal_x, &goal_y, &goal_z, &goal_theta) <= 0)
 	break;
       req.goal_x.push_back(goal_x);
       req.goal_y.push_back(goal_y);
+      req.goal_z.push_back(goal_z);
       req.goal_theta.push_back(goal_theta);
     }
     for(int iteration = 0; iteration < maxiters; iteration++){ 

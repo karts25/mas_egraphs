@@ -12,6 +12,13 @@ using namespace std;
 #define DEBUG_ENV
 #endif
 */
+
+
+#ifndef VIZ_EXPANSIONS
+#define VIZ_EXPANSIONS
+#endif
+
+
 Environment_xy::Environment_xy()
 {
   EnvXYCfg.numAgents = 1;
@@ -80,17 +87,17 @@ unsigned int Environment_xy::GETHASHBIN(std::vector<pose_disc_t> poses,
 					std::vector<bool> activeAgents)
 {
   unsigned int hashbin = 0;
-  for(int i = 0; i < (int) poses.size(); ++i)
-    {
+  for(int i = 0; i < EnvXYCfg.numAgents; ++i)
       hashbin += inthash(inthash(poses[i].x) + (inthash(poses[i].y) << 1) + 
 			 (inthash(poses[i].z) << 2) + (inthash(poses[i].theta << 3)));
-    }
+    
+  for(int j = 0; j < EnvXYCfg.numGoals; j++)
+    hashbin += inthash(goalsVisited[j]);
   return inthash(hashbin) & (HashTableSize - 1);
 }
 
 bool Environment_xy::InitializeEnv()
 {
-    EnvXYHashEntry_t* HashEntry;
     ros::NodeHandle nh;
     SBPL_INFO("environment stores states in hashtable\n");
     
@@ -546,7 +553,7 @@ bool Environment_xy::PoseContToDisc(double px, double py, double pz, double pth,
 {
     ix = CONTXY2DISC(px, EnvXYCfg.cellsize_m);
     iy = CONTXY2DISC(py, EnvXYCfg.cellsize_m);
-    iz = int(pz); // todo
+    iz = CONTXY2DISC(pz, EnvXYCfg.cellsize_m);; // todo
     ith = ContTheta2Disc(pth, EnvXYCfg.NumThetaDirs);
     return (ix >= 0) && (ix < EnvXYCfg.EnvWidth_c) &&
       (iy >= 0) && (iy < EnvXYCfg.EnvHeight_c) &&
@@ -558,10 +565,10 @@ bool Environment_xy::PoseDiscToCont(int ix, int iy, int iz, int ith,
 {
   px = DISCXY2CONT(ix, EnvXYCfg.cellsize_m);
   py = DISCXY2CONT(iy, EnvXYCfg.cellsize_m);
-  pz = iz; // todo
+  pz = DISCXY2CONT(iz, EnvXYCfg.cellsize_m); // todo
   pth = normalizeAngle(DiscTheta2Cont(ith, EnvXYCfg.NumThetaDirs));
   return (ith >= 0) && (ith < EnvXYCfg.NumThetaDirs) && (ix >= 0) &&
-    (ix < EnvXYCfg.EnvWidth_c) && (iy >= 0) && (iy < EnvXYCfg.EnvHeight_c);
+    (ix < EnvXYCfg.EnvWidth_c) && (iy >= 0) && (iy < EnvXYCfg.EnvHeight_c) && (iz > 0);
 }
 
 unsigned char Environment_xy::GetMapCost(int x, int y)
@@ -751,15 +758,14 @@ bool Environment_xy::isStart(int id){
   return true;
 }
 
-int Environment_xy::SetGoal(std::vector<sbpl_xy_theta_pt_t> goal_m)
+int Environment_xy::SetGoal(std::vector<pose_cont_t> goal_m)
 {
   std::vector<pose_disc_t> goal(EnvXYCfg.numGoals);
+  int x,y,z,theta;
   for (int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i ++)
     {
-      int x = CONTXY2DISC(goal_m[goal_i].x, EnvXYCfg.cellsize_m);
-      int y = CONTXY2DISC(goal_m[goal_i].y, EnvXYCfg.cellsize_m);
-
-      SBPL_INFO("env: setting goal to %.3f %.3f (%d %d)", goal_m[goal_i].x, goal_m[goal_i].y, x, y);
+      PoseContToDisc(goal_m[goal_i].x, goal_m[goal_i].y, goal_m[goal_i].z, goal_m[goal_i].theta,  x, y, z, theta);
+      SBPL_INFO("env: setting goal to %.3f %.3f %0.3f %0.3f (%d %d %d %d)", goal_m[goal_i].x, goal_m[goal_i].y, goal_m[goal_i].z, goal_m[goal_i].theta, x, y, z, theta);
 
       if (!IsWithinMapCell(x, y)) {
         SBPL_ERROR("ERROR: trying to set a goal cell %d %d that is outside of map\n", x, y);
@@ -767,6 +773,8 @@ int Environment_xy::SetGoal(std::vector<sbpl_xy_theta_pt_t> goal_m)
       }
       goal[goal_i].x = x;
       goal[goal_i].y = y;
+      goal[goal_i].z = z;
+      goal[goal_i].theta = theta;
     }
       
     if (!IsValidConfiguration(goal)) {
@@ -795,23 +803,29 @@ int Environment_xy::SetGoal(std::vector<sbpl_xy_theta_pt_t> goal_m)
 }
 
 //returns the stateid if success, and -1 otherwise
-int Environment_xy::SetStart(std::vector<sbpl_xy_theta_pt_t> start_m)
+int Environment_xy::SetStart(std::vector<pose_cont_t> start_m)
 {
   std::vector<pose_disc_t> start(EnvXYCfg.numAgents);
   std::vector<int> x(EnvXYCfg.numAgents), y(EnvXYCfg.numAgents);
-  for (int agent_i = 0; agent_i < EnvXYCfg.numAgents; ++agent_i)
-    {
-      int x_agent = CONTXY2DISC(start_m[agent_i].x, EnvXYCfg.cellsize_m);
-      int y_agent = CONTXY2DISC(start_m[agent_i].y, EnvXYCfg.cellsize_m);
-      
+  int x_agent, y_agent, z_agent, theta_agent;
+  for (int agent_i = 0; agent_i < EnvXYCfg.numAgents; ++agent_i){
+    PoseContToDisc(start_m[agent_i].x, start_m[agent_i].y, start_m[agent_i].z, 
+		   start_m[agent_i].theta,
+		   x_agent, y_agent, z_agent, theta_agent);
+    
       if (!IsWithinMapCell(x_agent, y_agent)) {
 	SBPL_ERROR("ERROR: trying to set a start cell %d %d that is outside of map\n", x_agent, y_agent);
 	return -1;
       }
       
-      SBPL_INFO("env: setting start of Agent %d to %.3f %.3f (%d %d)\n", (agent_i+1), start_m[agent_i].x, start_m[agent_i].y, x_agent, y_agent);
+      SBPL_INFO("env: setting start of Agent %d to %.3f %.3f %.3f %.3f (%d %d %d %d)\n",
+		(agent_i+1), start_m[agent_i].x, start_m[agent_i].y, start_m[agent_i].z,
+		start_m[agent_i].theta,
+		x_agent, y_agent, z_agent, theta_agent);
       start[agent_i].x = x_agent;
       start[agent_i].y = y_agent;
+      start[agent_i].z = z_agent;
+      start[agent_i].theta = theta_agent;
     }  
   
   if (!IsValidConfiguration(start)) {
@@ -853,8 +867,7 @@ EnvXYHashEntry_t* Environment_xy::GetHashEntry_hash(std::vector<pose_disc_t>& po
     int binid = GETHASHBIN(poses, goalsVisited, activeAgents);
 
 #if DEBUG
-    if ((int)Coord2StateIDHashTable[binid].size() > 5)
-    {
+    if ((int)Coord2StateIDHashTable[binid].size() > 5){
       SBPL_INFO(fDeb, "WARNING: Hash table has a bin %d of size %d\n",
 		binid, (int)Coord2StateIDHashTable[binid].size());
       //PrintHashTableHist(fDeb);
@@ -980,8 +993,10 @@ void Environment_xy::GetSuccs(int SourceStateID,
 		  [](int i){return i >= 0;}))
     return;
   
+#ifdef VIZ_EXPANSIONS
   VisualizeState(SourceStateID);
-  
+#endif
+
   // find number and indices of active agents
   std::vector<int> activeAgents_indices;
   for(int i = 0; i < EnvXYCfg.numAgents; i++)
@@ -1136,8 +1151,8 @@ bool Environment_xy::IsValidConfiguration(std::vector<pose_disc_t> pos) const
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
     for(int agent2_i = agent_i+1; agent2_i < pos.size(); agent2_i++){
       if ((pos[agent_i].x == pos[agent2_i].x) && 
-	  (pos[agent2_i].y == pos[agent2_i].y) && 
-	  (pos[agent2_i].z == pos[agent2_i].z)){
+	  (pos[agent_i].y == pos[agent2_i].y) && 
+	  (pos[agent_i].z == pos[agent2_i].z)){
 	SBPL_WARN("Robots are in collision");
 	return false;
       }
@@ -1268,15 +1283,27 @@ void Environment_xy::VisualizeState(int stateID) const{
     marker.scale.z = 0;
     marker.color.g = 1;
     marker.color.b = 1;
+    if(!HashEntry->activeAgents[agent_i])
+      marker.color.r = 1;
     marker.color.a = 1;
-    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.type = visualization_msgs::Marker::ARROW;
     marker.header.stamp = ros::Time::now();
     marker.header.frame_id = "/map";//costmap_ros_->getGlobalFrameID();
     double x,y,z,theta;
     PoseDiscToCont(pose.x, pose.y, pose.z, pose.theta, x, y, z, theta);
     marker.pose.position.x = x - VizCfg.costmap_originX;
     marker.pose.position.y = y - VizCfg.costmap_originY;
-    marker.pose.position.z = 0;
+    marker.pose.position.z = z;
+    /*SBPL_INFO("expanding (%d, %d, %d, %d), (%f, %f, %f, %f) ",
+	      pose.x, pose.y, pose.z, pose.theta,
+	      x,y,z,theta);
+    */
+    tf::Quaternion temp;
+    temp.setEulerZYX(theta, 0, 0);
+    marker.pose.orientation.x = temp.getX();
+    marker.pose.orientation.y = temp.getY();
+    marker.pose.orientation.z = temp.getZ();
+    marker.pose.orientation.w = temp.getW();
     agentmarkers.markers.push_back(marker);
   }
   state_pub_.publish(agentmarkers);

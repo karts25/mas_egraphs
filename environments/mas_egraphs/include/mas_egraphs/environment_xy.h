@@ -43,6 +43,7 @@
 #include <geometry_msgs/PolygonStamped.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <tf/transform_broadcaster.h>
 #include <ros/ros.h>
 #include <stdlib.h>
 
@@ -273,14 +274,14 @@ class Environment_xy: public DiscreteSpaceInformation
     /**
      * \brief sets start in meters/radians
      */
-    virtual int SetStart(std::vector<sbpl_xy_theta_pt_t> start);
+    virtual int SetStart(std::vector<pose_cont_t> start);
 
     bool SetMap(const unsigned char* mapdata);
 
     /**
      * \brief sets goal in meters/radians
      */
-    virtual int SetGoal(std::vector<sbpl_xy_theta_pt_t> goal);
+    virtual int SetGoal(std::vector<pose_cont_t> goal);
     
     virtual bool GetFakePlan(int startstateID, std::vector<int>& solutionstateIDs);
    
@@ -369,7 +370,6 @@ class Environment_xy: public DiscreteSpaceInformation
     std::vector<EnvXYHashEntry_t*>* Coord2StateIDHashTable;
     //vector that maps from stateID to coords
     std::vector<EnvXYHashEntry_t*> StateID2CoordTable;
-
 
     virtual EnvXYHashEntry_t* GetHashEntry_hash(std::vector<pose_disc_t>& pose, 
 						std::vector<int>& goalsVisited, 

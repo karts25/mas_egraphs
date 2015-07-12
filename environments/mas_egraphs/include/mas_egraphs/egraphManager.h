@@ -11,6 +11,7 @@
 #include <egraphs/egraph_heuristic.h>
 #include <boost/thread/condition_variable.hpp>
 #include <vector>
+#include <bitset>
 #include <map>
 #include <memory>
 #include <string>
@@ -70,8 +71,10 @@ class EGraphManager {
  public:
         typedef EGraphable<HeuristicType>* EGraphablePtr;
         typedef EGraphMAS2dGridHeuristic* EGraphHeuristicPtr; //TODO: this should really be of base class type to support multiple heuristics
-	typedef std::vector<std::vector<int>> Matrix;
-	EGraphManager(std::vector<EGraphPtr> egraphs, EGraphablePtr egraph_env, std::vector<std::vector<EGraphHeuristicPtr> > egraph_heur, int numgoals, int numagents);
+	typedef std::vector<std::vector<int> > Matrix;
+	EGraphManager(std::vector<EGraphPtr> egraphs, EGraphablePtr egraph_env, 
+		      std::vector<std::vector<EGraphHeuristicPtr> > egraph_heur, 
+		      int numgoals, int numagents);
 	void setEpsE(double epsE);
 	bool setGoal();
 	void updateManager();
@@ -121,13 +124,17 @@ class EGraphManager {
         void initEGraph(bool set_goal=true);	
 	EGraphablePtr egraph_env_;
        
- private:
-	int numgoals_;
-	int numagents_;
+ private:      
+	const int numgoals_;
+	const int numagents_;
 	std::vector<int> allgoals_coord_;
 	//vector of distance matrices between "cities" for TSP
 	std::vector<Matrix> TSPEdgecosts_; // vector of 2d distance matrices, one per agent
 	std::vector<EGraphPtr> egraphperagent_;
+	// for each agent, keep track of (2^numgoals) x numgoals matrix,
+	// where each row contains an assignment of goals to robots, each column 
+	// contains the optimal open loop tour starting at that goal	
+	std::vector<Matrix> TSP_allagents_;  
 	// this is specifically for combosnaps. because a snap combo edge is
         //      source->[snap]->snap_id->[shortcut]->successor, 
         // this cache holds:
@@ -146,13 +153,26 @@ class EGraphManager {
 
 	// helper function that returns the coords of goal # i
 	void getGoalCoord(int i, std::vector<int>& coord);
-	// call TSP solver
-	int solveTSP(int agent_i, std::vector<int>& goalindices);
-	void computeGoalDistances(int agent_i);
+	void computeDistanceBetweenGoals(int agent_i, std::vector<std::vector<int> > & goalDistances);
 	void segmentEGraph();
-	int getHeuristicPerAgent(int state_id, int agent_i, std::vector<int>& heur_coord_agent,
-				 std::vector<int>& assignment);
 
+	void primAllocationHeuristic(std::vector<double>& cont_state,
+				     std::vector<int>& activeAgents_indices,
+				     std::vector<int>& heurs);
+
+	// Functions for Brute force TSP heuristic
+	void bruteforceHeuristic(std::vector<double>& cont_state, 
+				 std::vector<int>& activeAgents_indices,
+				 std::vector<int>& heurs);
+	int bruteforceHeuristicPerAgent(int agent_i, std::vector<int>& heur_coord_agent,
+					const std::vector<int>& assignment,
+					const std::vector<int>& distance_to_goalV) const;
+	void precomputeTSPcosts();
+	/* Given a full graph, and a set of vertices to consider,
+	   solve the open-loop TSP starting at every vertex */
+	void solveTSP(const Matrix & edgeCosts, const std::vector<int>& vertex_indices, 
+		     std::vector<int>& costV) const;
+	int solveTSP(int agent_i, std::vector<int>& goalindices);
 	void errorCheckEGraphVertex(EGraph::EGraphVertex* vertex);
         std::vector<int> getDirectShortcutStateIDs(int start_id, int end_id,
 						   std::vector<int>* costs);
