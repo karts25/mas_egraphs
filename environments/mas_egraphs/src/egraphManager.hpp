@@ -1,17 +1,15 @@
-//#include<mas_egraphs/egraphManager.h>
-using namespace std;
 /*
 #ifndef DEBUG_HEUR
 #define DEBUG_HEUR
 #endif
 */
+#ifdef EGRAPH_MANAGER_H
 template <typename HeuristicType>
 EGraphManager<HeuristicType>::EGraphManager(std::vector<EGraphPtr> egraphs,
 					    EGraphablePtr egraph_env,
 					    std::vector<std::vector<EGraphHeuristicPtr> > egraph_heurs,
 					    int numgoals, int numagents):
   egraph_env_(egraph_env), numgoals_(numgoals), numagents_(numagents){
-  
   //numgoals_  = numgoals; 
   //  numagents_ = numagents; 
   
@@ -75,7 +73,7 @@ void EGraphManager<HeuristicType>::updateManager(){
 }
 
 template <typename HeuristicType>
-void EgraphManager<HeuristicType>::precomputeTSPcosts(){
+void EGraphManager<HeuristicType>::precomputeTSPcosts(){
   unsigned int num_TSPs = pow(2, numgoals_); // power set of set of goals
   // For each agent,
   // compute distances between goals for each agent,
@@ -83,17 +81,18 @@ void EgraphManager<HeuristicType>::precomputeTSPcosts(){
   for(int agent_i = 0; agent_i < numagents_; agent_i++){
     Matrix goalDistances;
     computeDistanceBetweenGoals(agent_i, goalDistances); 
-    for(int TSP_i = 0; TSP_i < num_TSPs; TSP_i ++){
-      std::bitset<numgoals_> TSP_i_vertices(TSP_i);
+    const int maxnumgoals = MAXNUMGOALS;
+    for(unsigned long int TSP_i = 0; TSP_i < num_TSPs; TSP_i ++){
+      std::bitset<maxnumgoals> TSP_i_vertices (TSP_i);
       std::vector<int> goalindices;
       // find indices of goals corresponding to this assignment
       for(int goal_i = 0; goal_i < numgoals_; goal_i++){
-	if(TSP_i_vertices[goal_i])
+	if(TSP_i_vertices.test(maxnumgoals - goal_i -1))
 	  goalindices.push_back(goal_i);
       }
       std::vector<int> costV;
       solveTSP(goalDistances, goalindices, costV);
-      TSP_allagents_[agent_i][TSP_i].push_back(costV);
+      TSP_allagents_[agent_i][TSP_i] = costV;
     }
   }
 } 
@@ -263,7 +262,7 @@ void EGraphManager<HeuristicType>::bruteforceHeuristic(std::vector<double>& cont
     heur_allassignments[i] = std::accumulate(heur_allagents.begin(), heur_allagents.end(), 0);
   }
   // Admissible heuristic is the min of all possible assignments 
-  vector<int>::const_iterator it = std::min_element(heur_allassignments.begin(), 
+  std::vector<int>::const_iterator it = std::min_element(heur_allassignments.begin(), 
 						    heur_allassignments.end());
   int min_assignment_index = it - heur_allassignments.begin();
   int heur = *it;
@@ -289,15 +288,16 @@ int EGraphManager<HeuristicType>::bruteforceHeuristicPerAgent(int agent_i,
   SBPL_INFO("Getting heuristic for agent at (%d,%d)", heur_coord_agent[0], heur_coord_agent[1]);
 #endif
 */
-  std::bitset<100> TSP_i_vertices;
+  const int maxnumgoals = MAXNUMGOALS;
+  std::bitset<maxnumgoals> TSP_i_vertices;
   for(int i = 0; i < numgoals_; i ++){
     if(assignment[i] == agent_i){
       goalindices.push_back(i);
-      TSP_i_vertices[100-i-1] = 1;
+      TSP_i_vertices[maxnumgoals-i-1] = 1;
     }
   }
   unsigned long int TSPindex = TSP_i_vertices.to_ulong();
-  std::vector<int>* TSPcosts_pergoal = &TSP_allagents_[agent_i][TSPindex]; 
+  const std::vector<int>* TSPcosts_pergoal = &TSP_allagents_[agent_i][TSPindex]; 
   int bestheursofar = std::numeric_limits<int>::max();
   // for each goal, run 2d bfs
   for(int goal_i = 0; goal_i < (int)goalindices.size(); goal_i++){
@@ -317,12 +317,12 @@ int EGraphManager<HeuristicType>::bruteforceHeuristicPerAgent(int agent_i,
 
 
 template <typename HeuristicType>
-int EgraphManager<HeuristicType>::solveTSP(const Matrix& edgeCosts, 
+void EGraphManager<HeuristicType>::solveTSP(const Matrix& edgeCosts, 
 					   const std::vector<int>& vertex_indices,
 					   std::vector<int>& costV) const{
   
   //TODO: Will call TSP solver. For now, enumerate
-  costV.resize(goalindices.size(), 0);
+  costV.resize(vertex_indices.size(), 0);
   int bestheursofar = std::numeric_limits<int>::max();
   int heur = 0;
   
@@ -331,13 +331,13 @@ int EgraphManager<HeuristicType>::solveTSP(const Matrix& edgeCosts,
     int startvertex = vertex_indices[start_i];
     // consider all possible permutations of other goals
     std::vector<int> nonstart_vertex_indices = vertex_indices;
-    nonstart_vertex_indices.erase(start_i);
+    nonstart_vertex_indices.erase(nonstart_vertex_indices.begin()+start_i);
     do{
 	// cost from startvertex to first goal
 	heur = edgeCosts[startvertex][nonstart_vertex_indices[0]];
      
 	// add costs from each goal to the next
-	for(int i = 0; i < (int)goalindices.size()-1; i++){
+	for(int i = 0; i < (int) vertex_indices.size(); i++){
 	  heur += edgeCosts[nonstart_vertex_indices[i]][nonstart_vertex_indices[i+1]];
 	  if(heur > bestheursofar)
 	    break;
@@ -348,6 +348,7 @@ int EgraphManager<HeuristicType>::solveTSP(const Matrix& edgeCosts,
     costV[start_i] = bestheursofar;
   }
 }
+
 /*
 template <typename HeuristicType>
 int EGraphManager<HeuristicType>::solveTSP(int agent_i, std::vector<int>& goalindices)
@@ -401,12 +402,12 @@ void EGraphManager<HeuristicType>::validateEGraph(bool update_egraph){
     for(int agent_i = 0; agent_i < numagents_;agent_i++){
       for(size_t i=0; i < egraphperagent_[agent_i]->id2vertex.size(); i++){
         EGraph::EGraphVertex* v = egraphperagent_[agent_i]->id2vertex[i];
-        vector<double> coord;
+	std::vector<double> coord;
         egraphperagent_[agent_i]->discToCont(v,coord);
         for(unsigned int j=0; j<v->neighbors.size(); j++){
 	  EGraph::EGraphVertex* u = v->neighbors[j];
 	  if(v->id < u->id){
-	    vector<double> coord2;
+	    std::vector<double> coord2;
 	    egraphperagent_[agent_i]->discToCont(u,coord2);
 	    int cost = v->costs[j];
 	    bool change_cost;
@@ -426,7 +427,7 @@ void EGraphManager<HeuristicType>::validateEGraph(bool update_egraph){
     
       for(size_t i=0; i < egraph_->id2vertex.size(); i++){
         EGraph::EGraphVertex* v = egraphperagent_[agent_i]->id2vertex[i];
-        vector<double> coord;
+	std::vector<double> coord;
         egraphperagent_[agent_i]->discToCont(v,coord);
         if (!egraph_env_->isValidVertex(coord)){
             egraphperagent_[agent_i]->invalidateVertex(v);
@@ -476,17 +477,17 @@ int EGraphManager<HeuristicType>::getSnapTrueCost(int parentID, int childID){
 // lazily generates snaps. also updates the snaps_ cache which currently just
 // stores whether a particular edge is a snap edge.
 template <typename HeuristicType>
-void EGraphManager<HeuristicType>::getSnapSuccessors(int stateID, vector<int>* SuccIDV, 
-                                      vector<int>* CostV, 
-                                      vector<bool>* isTrueCost,
-                                      vector<EdgeType>* edgeTypes){
+void EGraphManager<HeuristicType>::getSnapSuccessors(int stateID, std::vector<int>* SuccIDV, 
+						     std::vector<int>* CostV, 
+						     std::vector<bool>* isTrueCost,
+						     std::vector<EdgeType>* edgeTypes){
   
   //ROS_INFO("looking for snaps");
     ContState source_state;
     egraph_env_->getCoord(stateID, source_state);
     HeuristicType heuristic_coord;
     egraph_env_->projectToHeuristicSpace(source_state,heuristic_coord);
-    vector<EGraph::EGraphVertex*> equal_heur_vertices;
+    std::vector<EGraph::EGraphVertex*> equal_heur_vertices;
     //ROS_INFO("get verts with same heur...");
     egraph_heur_->getEGraphVerticesWithSameHeuristic(heuristic_coord,
                                                      equal_heur_vertices);
@@ -497,18 +498,18 @@ void EGraphManager<HeuristicType>::getSnapSuccessors(int stateID, vector<int>* S
     stats_.num_snaps += equal_heur_vertices.size();
 
     for(auto& egraph_vertex : equal_heur_vertices){
-        vector<double> successor_state;
-        int cost_of_snap;
+      std::vector<double> successor_state;
+      int cost_of_snap;
 
-        egraph_->discToCont(egraph_vertex, successor_state);
-        int successor_id = egraph_env_->getStateID(successor_state);
-        bool is_snap_successful = successor_id != stateID;
-
-        // sbpl secret sauce (tm)
-        cost_of_snap = 1;
-        
-        bool is_unique = find(SuccIDV->begin(), SuccIDV->end(), successor_id) == SuccIDV->end();
-        if(is_snap_successful && is_unique){
+      egraph_->discToCont(egraph_vertex, successor_state);
+      int successor_id = egraph_env_->getStateID(successor_state);
+      bool is_snap_successful = successor_id != stateID;
+      
+      // sbpl secret sauce (tm)
+      cost_of_snap = 1;
+      
+      bool is_unique = find(SuccIDV->begin(), SuccIDV->end(), successor_id) == SuccIDV->end();
+      if(is_snap_successful && is_unique){
             assert(cost_of_snap > 0);
             //ROS_INFO("snap from %d to %d with cost %d\n",stateID,successor_id,cost_of_snap);
             SuccIDV->push_back(successor_id);
@@ -517,9 +518,8 @@ void EGraphManager<HeuristicType>::getSnapSuccessors(int stateID, vector<int>* S
             CostV->push_back(cost_of_snap);
             isTrueCost->push_back(false);
             edgeTypes->push_back(EdgeType::SNAP);
-        }
+      }
     }
-  
 }
 
 // a combo snap is:
@@ -528,18 +528,18 @@ void EGraphManager<HeuristicType>::getSnapSuccessors(int stateID, vector<int>* S
 // shortcut. 
 template <typename HeuristicType>
 void EGraphManager<HeuristicType>::getComboSnapShortcutSuccessors(int stateID, 
-                                                   vector<int>* SuccIDV, 
-                                                   vector<int>* CostV, 
-                                                   vector<bool>* isTrueCost){
+								  std::vector<int>* SuccIDV, 
+								  std::vector<int>* CostV, 
+								  std::vector<bool>* isTrueCost){
     clock_t time = clock();
     //ROS_INFO("trying to find combo snaps - found %lu", snap_successors.size());
     int num_combo_snaps = 0;
     for (size_t i=0; i < snap_successors_cache_.size(); i++){
         int snap_id = snap_successors_cache_[i];
-        vector<bool> shortcut_is_true_cost;
-        vector<int> shortcut_successors;
-        vector<int> shortcut_costs;
-        vector<EdgeType> edgeTypes;
+	std::vector<bool> shortcut_is_true_cost;
+	std::vector<int> shortcut_successors;
+	std::vector<int> shortcut_costs;
+	std::vector<EdgeType> edgeTypes;
 
         //ROS_INFO("looking up shortcut for snap_id %d", snap_id);
         getDirectShortcutSuccessors(snap_id, &shortcut_successors, 
@@ -584,34 +584,34 @@ void EGraphManager<HeuristicType>::getComboSnapShortcutSuccessors(int stateID,
 
 template <typename HeuristicType>
 void EGraphManager<HeuristicType>::getSnapShortcuts(int stateID, 
-                                     vector<int>* SuccIDV, 
-                                     vector<int>* CostV, 
-                                     vector<bool>* isTrueCost,
-                                     vector<EdgeType>* edgeTypes,
-                                     vector<int>* snap_midpoints){
+						    std::vector<int>* SuccIDV, 
+						    std::vector<int>* CostV, 
+						    std::vector<bool>* isTrueCost,
+						    std::vector<EdgeType>* edgeTypes,
+						    std::vector<int>* snap_midpoints){
   return; //TODO
   ContState source_state;
   egraph_env_->getCoord(stateID, source_state);
   HeuristicType heuristic_coord;
   egraph_env_->projectToHeuristicSpace(source_state,heuristic_coord);
-  vector<EGraph::EGraphVertex*> equal_heur_vertices;
+  std::vector<EGraph::EGraphVertex*> equal_heur_vertices;
   //ROS_INFO("get verts with same heur...");
   egraph_heur_->getEGraphVerticesWithSameHeuristic(heuristic_coord, equal_heur_vertices);
   //ROS_INFO("%d possible snaps",equal_heur_vertices.size());
 
   // for all vertices with the same heuristic value
   for(auto& egraph_vertex : equal_heur_vertices){
-    vector<double> successor_state;
+    std::vector<double> successor_state;
     egraph_->discToCont(egraph_vertex, successor_state);
     int egraph_state_id = egraph_env_->getStateID(successor_state);
     assert(egraph_state_id >= 0);
     if(egraph_state_id == stateID)
       continue;
 
-    vector<bool> true_costs;
-    vector<int> shortcuts;
-    vector<int> shortcut_costs;
-    vector<EdgeType> et;
+    std::vector<bool> true_costs;
+    std::vector<int> shortcuts;
+    std::vector<int> shortcut_costs;
+    std::vector<EdgeType> et;
     getDirectShortcutSuccessors(egraph_state_id, &shortcuts, &shortcut_costs, &true_costs, &et);
     if(shortcuts.size()==0)
       continue;
@@ -648,10 +648,10 @@ int EGraphManager<HeuristicType>::getSnapShortcutTrueCost(int parentID, int snap
   assert(snap_id == snap_midpoint);
   //ROS_INFO("source %d successor_id %d childID %d", parentID, successor_id, childID);
 
-  vector<bool> true_costs;
-  vector<int> shortcuts;
-  vector<int> shortcut_costs;
-  vector<EdgeType> edgeTypes;
+  std::vector<bool> true_costs;
+  std::vector<int> shortcuts;
+  std::vector<int> shortcut_costs;
+  std::vector<EdgeType> edgeTypes;
   getDirectShortcutSuccessors(snap_midpoint, &shortcuts, &shortcut_costs, &true_costs, &edgeTypes);
   assert(shortcuts.size() == 1);
   assert(shortcuts[0] == childID);
@@ -661,9 +661,11 @@ int EGraphManager<HeuristicType>::getSnapShortcutTrueCost(int parentID, int snap
 }
 
 template <typename HeuristicType>
-bool EGraphManager<HeuristicType>::reconstructSnapShortcut(LazyAEGState* state, LazyAEGState*& next_state,
-                                            vector<int>* wholePathIds, vector<int>* costs,
-                                            int& totalCost){
+bool EGraphManager<HeuristicType>::reconstructSnapShortcut(LazyAEGState* state,
+							   LazyAEGState*& next_state,
+							   std::vector<int>* wholePathIds, 
+							   std::vector<int>* costs,
+							   int& totalCost){
 
   //state->expanded_best_parent arrived at state using a snap-shortcut
   //state->expanded_best_parent -> uses snap -> state->expanded_snap_midpoint (fake_snap_state) -> uses shortcut -> state
@@ -708,9 +710,11 @@ DiscState EGraphManager<HeuristicType>::getDiscStateFromID(int state_id){
 // the points that make up the shortcut - that's dealt with in
 // reconstructDirectShortcuts
 template <typename HeuristicType>
-void EGraphManager<HeuristicType>::getDirectShortcutSuccessors(int source_state_id, vector<int>* SuccIDV, 
-                                                vector<int>* CostV, vector<bool>* isTrueCost,
-                                                vector<EdgeType>* edgeTypes){
+void EGraphManager<HeuristicType>::getDirectShortcutSuccessors(int source_state_id, 
+							       std::vector<int>* SuccIDV, 
+							       std::vector<int>* CostV, 
+							       std::vector<bool>* isTrueCost,
+							       std::vector<EdgeType>* edgeTypes){
     //ROS_INFO("looking for direct shortcuts for %d", source_state_id);
     DiscState disc_source_state = getDiscStateFromID(source_state_id);
     //printVector(disc_source_state);
@@ -730,7 +734,7 @@ void EGraphManager<HeuristicType>::getDirectShortcutSuccessors(int source_state_
     // shortcut per component. if you've got multiple shortcuts, there may or
     // may not be a problem with retrieving the correct unique_goal_id for later
     // reconstruction
-    vector<EGraph::EGraphVertex*> shortcuts;
+    std::vector<EGraph::EGraphVertex*> shortcuts;
     double gds_t0 = ros::Time::now().toSec();
     egraph_heur_->getDirectShortcut(equiv_eg_vert->component,shortcuts);
     double gds_t1 = ros::Time::now().toSec();
@@ -770,16 +774,17 @@ void EGraphManager<HeuristicType>::getDirectShortcutSuccessors(int source_state_
 // entire path segment (including the last point) for the shortcut
 template <typename HeuristicType>
 bool EGraphManager<HeuristicType>::reconstructDirectShortcuts(LazyAEGState* state, 
-                                                  LazyAEGState*& next_state, 
-                                                  vector<int>* wholePathIds, 
-                                                  vector<int>* costs,
-                                                  int& shortcut_count,
-                                                  int& totalCost){
-    vector<int> SuccIDV;
-    vector<int> CostV;
-    vector<bool> isTrueCost;
-    vector<EdgeType> edgeTypes;
-    getDirectShortcutSuccessors(state->expanded_best_parent->id, &SuccIDV,&CostV, &isTrueCost, &edgeTypes);
+							      LazyAEGState*& next_state, 
+							      std::vector<int>* wholePathIds, 
+							      std::vector<int>* costs,
+							      int& shortcut_count,
+							      int& totalCost){
+  std::vector<int> SuccIDV;
+  std::vector<int> CostV;
+  std::vector<bool> isTrueCost;
+  std::vector<EdgeType> edgeTypes;
+  getDirectShortcutSuccessors(state->expanded_best_parent->id, &SuccIDV, &CostV, 
+			      &isTrueCost, &edgeTypes);
     int actioncost = INFINITECOST;
     int shortcut_id = -1;
     // determine a shortcut was used. 
@@ -808,14 +813,14 @@ bool EGraphManager<HeuristicType>::reconstructDirectShortcuts(LazyAEGState* stat
 // backwarsd search
 template <typename HeuristicType>
 void EGraphManager<HeuristicType>::fillInDirectShortcut (int parent_id, int shortcut_id,
-                                          vector<int>* wholePathIds, 
-                                          vector<int>* costs, 
-                                          int& shortcut_count){
-    //ROS_INFO("get the direct shortcut path %d %d",parent_id, shortcut_id);
-    vector<int> shortcut_costs;
-    vector<int> shortcut_path = getDirectShortcutStateIDs(shortcut_id,
-                                                          parent_id,
-                                                          &shortcut_costs);
+							 std::vector<int>* wholePathIds, 
+							 std::vector<int>* costs, 
+							 int& shortcut_count){
+  //ROS_INFO("get the direct shortcut path %d %d",parent_id, shortcut_id);
+  std::vector<int> shortcut_costs;
+  std::vector<int> shortcut_path = getDirectShortcutStateIDs(shortcut_id,
+							     parent_id,
+							     &shortcut_costs);
 
     // assert that the shortcut path we get back is in reverse order
     assert(shortcut_path.back() == parent_id);
@@ -875,15 +880,15 @@ void EGraphManager<HeuristicType>::storeLastPath(const std::vector<int>& path,
 // start and end also included). the assumption here is that start and end are
 // on the same component. getShortestPath will break if this is not the case
 template <typename HeuristicType>
-vector<int> EGraphManager<HeuristicType>::getDirectShortcutStateIDs(int start_id, int end_id,
-                                                     vector<int>* costs){
+std::vector<int> EGraphManager<HeuristicType>::getDirectShortcutStateIDs(int start_id, int end_id,
+									 std::vector<int>* costs){
     DiscState disc_start = getDiscStateFromID(start_id);
     DiscState disc_end = getDiscStateFromID(end_id);
     //printVector(disc_start);
     EGraph::EGraphVertex* start_vertex = egraph_->getVertex(disc_start);
     EGraph::EGraphVertex* end_vertex = egraph_->getVertex(disc_end);
 
-    vector<EGraph::EGraphVertex*> path;
+    std::vector<EGraph::EGraphVertex*> path;
     costs->clear();
     egraph_->getShortestPath(start_vertex, end_vertex, &path, costs);
 
@@ -899,13 +904,13 @@ vector<int> EGraphManager<HeuristicType>::getDirectShortcutStateIDs(int start_id
 
 template <typename HeuristicType>
 bool EGraphManager<HeuristicType>::reconstructSnap(LazyAEGState* state, 
-                                    LazyAEGState*& next_state, 
-                                    vector<int>* wholePathIds, 
-                                    vector<int>* costs){
-    vector<int> SuccIDV;
-    vector<int> CostV;
-    vector<bool> isTrueCost;
-    vector<EdgeType> edgeTypes;
+						   LazyAEGState*& next_state, 
+						   std::vector<int>* wholePathIds, 
+						   std::vector<int>* costs){
+  std::vector<int> SuccIDV;
+  std::vector<int> CostV;
+  std::vector<bool> isTrueCost;
+  std::vector<EdgeType> edgeTypes;
     
     getSnapSuccessors(state->expanded_best_parent->id, &SuccIDV, &CostV, &isTrueCost, &edgeTypes);
     int actioncost = INFINITECOST;
@@ -935,13 +940,13 @@ bool EGraphManager<HeuristicType>::reconstructSnap(LazyAEGState* state,
 
 template <typename HeuristicType>
 bool EGraphManager<HeuristicType>::reconstructComboSnapShortcut(LazyAEGState* successor_state, 
-                                                 LazyAEGState*& next_state, 
-                                                 vector<int>* wholePathIds, 
-                                                 vector<int>* costs, 
-                                                 int goal_id){
-    vector<int> SuccIDV;
-    vector<int> CostV;
-    vector<bool> isTrueCost;
+								LazyAEGState*& next_state, 
+								std::vector<int>* wholePathIds, 
+								std::vector<int>* costs, 
+								int goal_id){
+  std::vector<int> SuccIDV;
+  std::vector<int> CostV;
+  std::vector<bool> isTrueCost;
 
     ROS_INFO("using a tasty snap combo!");
     Edge key(successor_state->expanded_best_parent->id, successor_state->id);
@@ -1010,7 +1015,7 @@ void EGraphManager<HeuristicType>::feedbackLastPath(){
 }
 
 template <typename HeuristicType>
-void EGraphManager<HeuristicType>::printVector(vector<double>& state){
+void EGraphManager<HeuristicType>::printVector(std::vector<double>& state){
     for (auto value : state){
         printf("%f ", value);
     }
@@ -1018,7 +1023,7 @@ void EGraphManager<HeuristicType>::printVector(vector<double>& state){
 }
 
 template <typename HeuristicType>
-void EGraphManager<HeuristicType>::printVector(vector<int>& state){
+void EGraphManager<HeuristicType>::printVector(std::vector<int>& state){
     for (auto value : state){
         printf("%d ", value);
     }
@@ -1064,19 +1069,19 @@ void EGraphManager<HeuristicType>::initEGraph(bool set_goal){
 // values again
 template <typename HeuristicType>
 void EGraphManager<HeuristicType>::errorCheckEGraphVertex(EGraph::EGraphVertex* egv){
-    vector<double> eg_coord;
-    egraph_->discToCont(egv,eg_coord);
-    //printVector(egv->coord);
-    //printVector(eg_coord);
-    int env_id = egraph_env_->getStateID(eg_coord);
-    vector<double> env_coord;
-    egraph_env_->getCoord(env_id, env_coord);
-    vector<int> env_dcoord;
-    egraph_->contToDisc(env_coord, env_dcoord);
-    EGraph::EGraphVertex* egv2 = egraph_->getVertex(env_dcoord);
-    if(egv==NULL){
-        ROS_ERROR("[AEG] ErrorCheckEGraph: The vertex is NULL!\n");
-        assert(false);
+  std::vector<double> eg_coord;
+  egraph_->discToCont(egv,eg_coord);
+  //printVector(egv->coord);
+  //printVector(eg_coord);
+  int env_id = egraph_env_->getStateID(eg_coord);
+  std::vector<double> env_coord;
+  egraph_env_->getCoord(env_id, env_coord);
+  std::vector<int> env_dcoord;
+  egraph_->contToDisc(env_coord, env_dcoord);
+  EGraph::EGraphVertex* egv2 = egraph_->getVertex(env_dcoord);
+  if(egv==NULL){
+    ROS_ERROR("[AEG] ErrorCheckEGraph: The vertex is NULL!\n");
+    assert(false);
     }
     if(egv2 != egv){
         ROS_ERROR("[AEG] ErrorCheckEGraph: We didn't get back the egraph vertex we started with (memory addresses don't match)!\n");
@@ -1110,3 +1115,4 @@ void EGraphManager<HeuristicType>::errorCheckEGraphVertex(EGraph::EGraphVertex* 
     }
 }
 
+#endif

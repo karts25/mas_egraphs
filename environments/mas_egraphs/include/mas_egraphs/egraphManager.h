@@ -27,6 +27,8 @@ typedef std::vector<int> DiscState;
 typedef std::vector<std::pair<int, int> > SuccessorList;
 typedef std::pair<int, int> Edge;
 
+#define MAXNUMGOALS 50
+
 struct EGraphParams {
     bool feedback_path;
     bool update_stats;
@@ -70,7 +72,7 @@ template <typename HeuristicType>
 class EGraphManager {
  public:
         typedef EGraphable<HeuristicType>* EGraphablePtr;
-        typedef EGraphMAS2dGridHeuristic* EGraphHeuristicPtr; //TODO: this should really be of base class type to support multiple heuristics
+        typedef EGraphMAS2dGridHeuristic* EGraphHeuristicPtr;
 	typedef std::vector<std::vector<int> > Matrix;
 	EGraphManager(std::vector<EGraphPtr> egraphs, EGraphablePtr egraph_env, 
 		      std::vector<std::vector<EGraphHeuristicPtr> > egraph_heur, 
@@ -172,7 +174,7 @@ class EGraphManager {
 	   solve the open-loop TSP starting at every vertex */
 	void solveTSP(const Matrix & edgeCosts, const std::vector<int>& vertex_indices, 
 		     std::vector<int>& costV) const;
-	int solveTSP(int agent_i, std::vector<int>& goalindices);
+	//int solveTSP(int agent_i, std::vector<int>& goalindices);
 	void errorCheckEGraphVertex(EGraph::EGraphVertex* vertex);
         std::vector<int> getDirectShortcutStateIDs(int start_id, int end_id,
 						   std::vector<int>* costs);
