@@ -1,0 +1,15 @@
+experiments:
+
+  - test: test_1
+    num_agents: 1
+    num_goals: 8
+    start: 14.5 5.0 0
+    goal: 3.5 3.0 0 
+    goal: 4.5 7.0 0  
+    goal: 12.5 6.0 0  
+    goal: 13.5 5.0 0
+    goal: 12.5 8.0 0  
+    goal: 10.5 3.0 0 
+    goal: 15.5 3.0 0  
+    goal: 16.5 6.0 0
+    
