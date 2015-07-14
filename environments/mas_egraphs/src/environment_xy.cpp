@@ -12,14 +12,16 @@ using namespace std;
 #endif
 */
 
-/*
+
 #ifndef VIZ_EXPANSIONS
 #define VIZ_EXPANSIONS
 #endif
-*/
+
+/*
 #ifndef DEBUG
 #define DEBUG
 #endif
+*/
 
 Environment_xy::Environment_xy()
 {

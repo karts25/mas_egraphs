@@ -311,6 +311,7 @@ void EGraphManager<HeuristicType>::bruteforceHeuristic(std::vector<double>& cont
   //std::cin.get();
 #ifdef DEBUG_HEUR  
   printf("Final heuristic is: ");
+  printVector(heurs);
   for(int i = 0; i < (int) heurs.size(); i++)
     printf("%d ", heurs[i]);
   printf("\n");
