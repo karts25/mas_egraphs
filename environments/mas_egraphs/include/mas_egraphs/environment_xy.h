@@ -302,7 +302,7 @@ class Environment_xy: public DiscreteSpaceInformation
 
     virtual void GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV);
     virtual void GetSuccsForAgent(int agentID, pose_disc_t pose, std::vector<pose_disc_t>& newPosesV,
-				  std::vector<int>& costV) const;
+				  std::vector<int>& costV);
     virtual void GetPreds(int TargetStateID, std::vector<int>* PredIDV, std::vector<int>* CostV);
     virtual void GetSuccsWithUniqueIds(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV);
 
@@ -313,6 +313,7 @@ class Environment_xy: public DiscreteSpaceInformation
     virtual unsigned int GETHASHBIN(std::vector<pose_disc_t> pose, std::vector<int> goalsVisited, std::vector<bool> activeAgents);
     
     virtual void PrintState(int stateID, bool bVerbose, FILE* fOut = NULL);
+    void PrintTimingStats();
     void VisualizeState(int stateID) const;
     /**
      * \brief returns the cost corresponding to the cell <x,y>
@@ -355,6 +356,12 @@ class Environment_xy: public DiscreteSpaceInformation
     EnvXYConfig_t EnvXYCfg;
     Environment_xy_t EnvXY;
     VizConfig_t VizCfg; 
+    clock_t GetSuccsForAgentClock;
+    clock_t GetSuccsClock;
+    clock_t GetSuccsPruningClock;
+    clock_t CreateHashEntryClock;
+    clock_t GetLazySuccsWithUniqueIdsClock;
+
     std::vector<sbpl_xy_theta_cell_t> affectedsuccstatesV; //arrays of states whose outgoing actions cross cell 0,0
     std::vector<sbpl_xy_theta_cell_t> affectedpredstatesV; //arrays of states whose incoming actions cross cell 0,0
     int iteration;

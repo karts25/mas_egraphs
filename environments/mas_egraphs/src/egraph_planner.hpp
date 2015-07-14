@@ -327,12 +327,17 @@ void LazyAEGPlanner<HeuristicType>::putStateInHeap(LazyAEGState* state){
     key.key[0] = state->g + int(eps * state->h);
     key.key[1] = state->h;
     
-    for(unsigned int agent_i = 0; agent_i < state->h_peragent.size(); agent_i++){
+    /*for(unsigned int agent_i = 0; agent_i < state->h_peragent.size(); agent_i++){
       key.key[2+agent_i] = state->h_peragent[agent_i];
-    }
+      }*/
     
-    if(print)
-      printf("put state in open with f %lu\n", key.key[0]);
+    if(print){
+      printf("inserting state with f = %lu h = %lu h_peragent: ", key.key[0], state->h);
+      for(int agent_i = 0; agent_i < state->h_peragent.size(); agent_i++){
+	printf("%lu ", state->h_peragent[agent_i]);
+      }
+      printf("\n");
+    }
     //if the state is already in the heap, just update its priority
     if(state->heapindex != 0){
       //SBPL_INFO("updating heap");
@@ -383,7 +388,7 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
 #ifdef DEBUG_PLANNER    
     SBPL_INFO("[Egraph_planner]: \n\nExpanding:");
     environment_->PrintState(state->id, true);
-    SBPL_INFO("g = %d h = %d", state->g, state->h);
+    SBPL_INFO("f = %d g = %d h = %d", min_key.key[0], state->g, state->h);
     for(int i = 0; i < (int) state->h_peragent.size(); i++)
       SBPL_INFO("h for agent %d is %d", i, state->h_peragent[i]);
     std::cin.get();
@@ -656,12 +661,13 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
 
   key.key[0] = eps*start_state->h;
   key.key[1] = start_state->h;
+  /*
   for(int i = 0; i < egraph_mgr_->egraph_env_->GetNumAgents(); i ++){
 #ifdef DEBUG_PLANNER
     SBPL_INFO("start state h per agent is %d", start_state->h_peragent[i]);
 #endif
     key.key[i+2] = start_state->h_peragent[i];
-  }
+    }*/
   heap.insertheap(start_state, key);
   //ensure heuristics are up-to-date
   //environment_->EnsureHeuristicsUpdated((bforwardsearch==true));
@@ -746,12 +752,13 @@ void LazyAEGPlanner<HeuristicType>::prepareNextSearchIteration(){
     s->in_incons = false;
     key.key[0] = s->g + int(eps * s->h);
     key.key[1] = s->h;
+    /*  
     for(unsigned int i = 0; i < s->h_peragent.size(); i++){
-      key.key[i+2] = s->h_peragent[i];
+      key.key[i+2] = s->h_peragent[i];  
 #ifdef DEBUG_PLANNER
       SBPL_INFO("Planner:preparenextsearchiteration: Inserting h_peragent for agent %d = %d", i, s->h_peragent[i]);
 #endif
-    }
+}*/
 #ifdef DEBUG_PLANNER
     SBPL_INFO("Planner:preparenextsearchiteration: Inserting s into heap");
 #endif      
@@ -760,12 +767,13 @@ void LazyAEGPlanner<HeuristicType>::prepareNextSearchIteration(){
   
   //recompute priorities for states in OPEN and reorder it
   
-  for (int i=1; i <= heap.currentsize; ++i){
+   for (int i=1; i <= heap.currentsize; ++i){
     LazyAEGState* state = (LazyAEGState*)heap.heap[i].heapstate;
     heap.heap[i].key.key[0] = state->g + int(eps * state->h);
     heap.heap[i].key.key[1] = state->h;
-    for(unsigned int j = 0; j < state->h_peragent.size(); j++)
+    /*for(unsigned int j = 0; j < state->h_peragent.size(); j++)
       heap.heap[j].key.key[j+2] = state->h_peragent[j];
+    */
   }
   heap.makeheap();
   

@@ -17,7 +17,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
     primitive_filenames_.push_back(temp);
   }
   double time_per_action, timetoturn45degsinplace_secs;
-  private_nh.param("time_per_action", time_per_action, 1000.0);
+  private_nh.param("time_per_action", time_per_action, 10.0);
   private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
   //private_nh.param("sMotPrimFiles", sMotPrimFiles_, NULL);
   int lethal_obstacle;
@@ -124,7 +124,7 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
     heurs_[agent_i].resize(req.num_goals);
     for(int goal_i=0; goal_i < req.num_goals; goal_i ++){
       heurs_[agent_i][goal_i] = new EGraphMAS2dGridHeuristic(*env_, costmap_ros_->getSizeInCellsX(),
-							     costmap_ros_->getSizeInCellsY(), 100);
+							     costmap_ros_->getSizeInCellsY(), 1);
     }
   }
 
@@ -304,7 +304,8 @@ void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs,
   plan_pub_.publish(gui_path);
 }
 
-bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> start_y, std::vector<double> start_z, 
+bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> start_y, 
+			    std::vector<double> start_z, 
 			    std::vector<double> start_theta,
 			    EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res,
 			    int maxtime){
@@ -371,18 +372,22 @@ do{
     }
   }
   
-  egraph_mgr_->updateManager(); // updates start and goal
+  //egraph_mgr_->updateManager(); // updates start and goal
   egraph_mgr_->updateHeuristicGrids(heur_grid);
   
   // plan!
   solution_stateIDs.clear();
   bool ret = planner_->replan(&solution_stateIDs, params);
+  env_->PrintTimingStats();
+  if (!ret){
+    SBPL_INFO("Hit any key to continue");
+    std::cin.get();
+    return false;
+  }
   env_->getAssignments(solution_stateIDs[solution_stateIDs.size()-1], assignments);
   for(int i = 0; i < numgoals_; i++){
     SBPL_INFO("Goal %d assigned to %d", i, assignments[i]);
   }
-  if (!ret)
-    return false;
   publishPath(solution_stateIDs, res);    
   /*
   // extract locations from first plan to "simulate" robots

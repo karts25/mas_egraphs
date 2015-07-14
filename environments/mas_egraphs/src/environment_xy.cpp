@@ -6,18 +6,20 @@
 #include <sbpl/utils/key.h>
 
 using namespace std;
-
 /*
 #ifndef DEBUG_ENV
 #define DEBUG_ENV
 #endif
 */
 
-
+/*
 #ifndef VIZ_EXPANSIONS
 #define VIZ_EXPANSIONS
 #endif
-
+*/
+#ifndef DEBUG
+#define DEBUG
+#endif
 
 Environment_xy::Environment_xy()
 {
@@ -35,6 +37,11 @@ Environment_xy::Environment_xy()
   Coord2StateIDHashTable = NULL;
   EnvXYCfg.robotConfigV.resize(1);
   EnvXYCfg.robotConfigV[0].actionwidth = DEFAULTACTIONWIDTH;
+  GetSuccsForAgentClock = 0;
+  GetSuccsClock = 0;
+  GetSuccsPruningClock = 0;
+  CreateHashEntryClock = 0;
+  GetLazySuccsWithUniqueIdsClock = 0;
 }
 
 Environment_xy::~Environment_xy()
@@ -741,11 +748,12 @@ bool Environment_xy::SetNumAgents(int numagents)
 bool Environment_xy::isGoal(int id) const {
   // any state with all goals visited is a goal state
   EnvXYHashEntry_t* HashEntry = StateID2CoordTable[id];
-  for(int i = 0; i < EnvXYCfg.numGoals; i++){
-      if (HashEntry->goalsVisited[i] == -1)
-	return false;
-    }
-  return true;
+  if (std::all_of(HashEntry->goalsVisited.begin(),
+		  HashEntry->goalsVisited.end(), 
+		  [](int i){return i >= 0;}))
+    return true;
+  else
+    return false;
 }
 
 bool Environment_xy::isStart(int id){
@@ -961,9 +969,10 @@ EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_disc_
 void Environment_xy::GetLazySuccsWithUniqueIds(int SourceStateID,
 					       std::vector<int>* SuccIDV, std::vector<int>* CostV,
 					       std::vector<bool>* isTrueCost){ 
+  clock_t GetLazySuccsWithUniqueIds_t0 = clock();
   GetSuccs(SourceStateID, SuccIDV, CostV);
-  for(int i = 0; i < (int)SuccIDV->size(); i++)
-    isTrueCost->push_back(true);
+  isTrueCost->resize((int)SuccIDV->size(), true);
+  GetLazySuccsWithUniqueIdsClock += clock() - GetLazySuccsWithUniqueIds_t0;
 }
 
 
@@ -978,6 +987,7 @@ void Environment_xy::GetSuccs(int SourceStateID,
 			      std::vector<int>* SuccIDV,
 			      std::vector<int>* CostV)
 {
+  clock_t GetSuccs_t0 = clock();
 #ifdef DEBUG_ENV
   SBPL_INFO("[Environment]: In GetSuccs");
 #endif
@@ -1016,8 +1026,6 @@ void Environment_xy::GetSuccs(int SourceStateID,
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
     if (!HashEntry->activeAgents[agent_i])
       continue;
-    std::vector<pose_disc_t> newPosesV;
-    std::vector<int> costV;
     GetSuccsForAgent(agent_i, HashEntry->poses[agent_i],
 		     allnewPoses[activeagent_i], 
 		     allnewCosts[activeagent_i]);
@@ -1042,27 +1050,38 @@ void Environment_xy::GetSuccs(int SourceStateID,
       int numActions = EnvXYCfg.robotConfigV[agent_ctr].actionwidth+1;
       int action_i = index % numActions;
       index = (int) index/numActions;	
-      cost = cost + allnewCosts[agent_ctr][action_i]; 
+      cost += allnewCosts[agent_ctr][action_i]; 
       int agent_index = activeAgents_indices[agent_ctr];
       poses[agent_index] = allnewPoses[agent_ctr][action_i];
       if (action_i == numActions-1){ // last action is always to retire agent
 	  activeAgents[agent_index] = 0;
 	}
     }
+
+    clock_t GetSuccsPruning_t0 = clock();
     if (cost >= INFINITECOST){
       continue;
     }
     // don't want all robots retired as an action
+    //if(!std::any(activeAgents.begin(), activeAgents.end(), [](bool v){return v;}));
+
     if (std::all_of(activeAgents.begin(), activeAgents.end(), [](bool v){return !v;})) 
       continue;
     
     std::vector<int> goalsVisited = HashEntry->goalsVisited;
     getGoalsVisited(poses, goalsVisited);
 
+    // don't want more active robots than unvisited goals except at the end
+    int numgoals_unvisited = std::count(goalsVisited.begin(), goalsVisited.end(), -1);
+    if(numgoals_unvisited > 0 &&
+       std::count(activeAgents.begin(), activeAgents.end(), 1) > numgoals_unvisited)
+      continue;
     // don't want all robots stopped as an action
     if(IsEqualHashEntry(HashEntry, poses, goalsVisited, activeAgents))
       continue;
-
+    clock_t GetSuccsPruning_t1 = clock();
+    GetSuccsPruningClock += GetSuccsPruning_t1 - GetSuccsPruning_t0;
+    clock_t CreateHashEntry_t0 = clock();
     if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited, activeAgents)) == NULL) {
       //have to create a new entry
       OutHashEntry = (this->*CreateNewHashEntry)(poses, goalsVisited, activeAgents);
@@ -1070,7 +1089,8 @@ void Environment_xy::GetSuccs(int SourceStateID,
     
     SuccIDV->push_back(OutHashEntry->stateID);
     CostV->push_back(cost);
-
+    clock_t CreateHashEntry_t1 = clock();
+    CreateHashEntryClock += CreateHashEntry_t1 - CreateHashEntry_t0;
 #ifdef DEBUG_ENV
     PrintState(OutHashEntry->stateID, true);
 #endif
@@ -1078,11 +1098,14 @@ void Environment_xy::GetSuccs(int SourceStateID,
 #ifdef DEBUG_ENV
   std::cin.get();
 #endif
+  clock_t GetSuccs_t1 = clock();
+  GetSuccsClock += GetSuccs_t1 - GetSuccs_t0;
 }
 
 void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose, 
 				      std::vector<pose_disc_t>& newPosesV,
-				      std::vector<int>& costV) const{
+				      std::vector<int>& costV){
+  clock_t GetSuccsForAgent_t0 = clock();
   RobotConfig_t robotConfig = EnvXYCfg.robotConfigV[agentID];
   costV.clear();
   costV.reserve(robotConfig.actionwidth + 1);
@@ -1111,6 +1134,8 @@ void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose,
     cost = INFINITECOST;
   newPosesV.push_back(pose);
   costV.push_back(cost);
+  clock_t GetSuccsForAgent_t1 = clock();
+  GetSuccsForAgentClock += GetSuccsForAgent_t1 - GetSuccsForAgent_t0;
 }
 
 void Environment_xy::getGoalsVisited(const std::vector<pose_disc_t>& poses,
@@ -1309,8 +1334,17 @@ void Environment_xy::VisualizeState(int stateID) const{
   state_pub_.publish(agentmarkers);
 }
 
-void Environment_xy::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/)
-{
+void Environment_xy::PrintTimingStats(){
+  printf("Environment Timing Stats:\n");
+  printf("GetSuccs:                    %.2f\n", double(GetSuccsClock)/CLOCKS_PER_SEC);
+  printf("GetLazySuccsWithUniqueIds:   %.2f\n",
+	 double(GetLazySuccsWithUniqueIdsClock)/CLOCKS_PER_SEC);
+  printf("GetSuccsForAgent:            %.2f\n", double(GetSuccsForAgentClock)/CLOCKS_PER_SEC);
+  printf("GetSuccsPruning:             %.2f\n", double(GetSuccsPruningClock)/CLOCKS_PER_SEC);
+  printf("CreateHashEntry:             %.2f\n", double(CreateHashEntryClock)/CLOCKS_PER_SEC);
+}
+
+void Environment_xy::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/) {
 #if DEBUG
     if(stateID >= (int)StateID2CoordTable.size())
     {
@@ -1334,8 +1368,8 @@ void Environment_xy::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/
 		(int) HashEntry->poses[i].theta, (int) HashEntry->activeAgents[i]);
     }
 
-    SBPL_INFO("Goals Visited:");
-    for(int i = 0; i < EnvXYCfg.numGoals; i++){
-      SBPL_INFO("%d ", (int) HashEntry->goalsVisited[i]);
-    } 
+    printf("Goals Visited: ");
+    for(int i = 0; i < EnvXYCfg.numGoals; i++)
+      printf("%d ", (int) HashEntry->goalsVisited[i]);
+    printf("\n");
 }

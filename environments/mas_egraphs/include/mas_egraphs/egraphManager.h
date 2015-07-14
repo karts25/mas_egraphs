@@ -27,7 +27,7 @@ typedef std::vector<int> DiscState;
 typedef std::vector<std::pair<int, int> > SuccessorList;
 typedef std::pair<int, int> Edge;
 
-#define MAXNUMGOALS 50
+#define MAXNUMGOALS 20
 
 struct EGraphParams {
     bool feedback_path;

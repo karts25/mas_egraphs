@@ -17,8 +17,8 @@ int main(int argc, char** argv){
   int maxiters = 4;
   double egraph_eps_values[] = {1, 2, 10, 500};
   req.dec_egraph_eps = 100.0;
-  req.initial_eps = 2;
-  req.final_eps = 2;
+  req.initial_eps = 20;
+  req.final_eps = 20;
   req.dec_eps = 0.4;
   req.feedback_path = true;
   req.save_egraph = false;
@@ -40,9 +40,11 @@ int main(int argc, char** argv){
   while(1){
     req.start_x.clear();
     req.start_y.clear();
+    req.start_z.clear();
     req.start_theta.clear();
     req.goal_x.clear();
     req.goal_y.clear();
+    req.goal_z.clear();
     req.goal_theta.clear();
     int test_num = 0;
     if(fscanf(fin,"  - test: test_%d\n", &test_num) <= 0)
