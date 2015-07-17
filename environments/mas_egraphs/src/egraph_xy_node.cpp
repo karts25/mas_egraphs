@@ -17,7 +17,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
     primitive_filenames_.push_back(temp);
   }
   double time_per_action, timetoturn45degsinplace_secs;
-  private_nh.param("time_per_action", time_per_action, 10.0);
+  private_nh.param("time_per_action", time_per_action, 6.0);
   private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
   //private_nh.param("sMotPrimFiles", sMotPrimFiles_, NULL);
   int lethal_obstacle;
@@ -49,7 +49,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
 			      costmap_ros_->getSizeInCellsY(), // height
 			      0, // mapdata
 			      numagents_, // numAgents
-			      0.2, 0.2, 0, //goal tolerance of 10 cm
+			      0.2, 0.2, 0, //goal tolerance of 20 cm
 			      perimeterptsV,
     			      costmap_ros_->getResolution(), time_per_action,
 			      primitive_filenames_,
@@ -136,8 +136,8 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
     visualization_msgs::Marker marker;
     marker.id = id; 
     id++;
-    marker.scale.x = 0.5;
-    marker.scale.y = 0.5;
+    marker.scale.x = 0.4;
+    marker.scale.y = 0.4;
     marker.scale.z = 0;
     marker.color.g = 1;
     marker.color.a = 1;
@@ -163,8 +163,8 @@ bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req,
      visualization_msgs::Marker marker;
     marker.id = id; 
     id++;
-    marker.scale.x = 0.5;
-    marker.scale.y = 0.5;
+    marker.scale.x = 0.4;
+    marker.scale.y = 0.4;
     marker.scale.z = 0;
     marker.color.r = 1;
     marker.color.a = 1;
@@ -379,6 +379,7 @@ do{
   solution_stateIDs.clear();
   bool ret = planner_->replan(&solution_stateIDs, params);
   env_->PrintTimingStats();
+  egraph_mgr_->printTimingStats();
   if (!ret){
     SBPL_INFO("Hit any key to continue");
     std::cin.get();
@@ -448,7 +449,9 @@ void EGraphXYNode::publishfootprints(std::vector<pose_cont_t> poses) const{
       point.y = footprint[i].y - cost_map_.getOriginY();
       point.z = poses[agent_i].z; 
       PolygonStamped.polygon.points.push_back(point);
+      printf("(%f %f %f) ", point.x, point.y, point.z);
     }
+    printf("\n");
     footprint_pub_.publish(PolygonStamped);
   }
 }

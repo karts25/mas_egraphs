@@ -588,7 +588,7 @@ unsigned char Environment_xy::GetMapCost(int x, int y)
 void Environment_xy::SetConfiguration(int width, int height, const unsigned char* mapdata,	    
 				      int numagents,
 				      double cellsize_m, double time_per_action,
-				    const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV,
+				      const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV,
 				      double goaltol_x, double goaltol_y, double goaltol_theta){
     EnvXYCfg.EnvWidth_c = width;
     EnvXYCfg.EnvHeight_c = height;
@@ -623,11 +623,13 @@ void Environment_xy::SetConfiguration(int width, int height, const unsigned char
     for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
       EnvXYCfg.robotConfigV[agent_i].FootprintPolygon = robot_perimeterV[agent_i];
     }
-
+    
     // set goal tolerances
-   EnvXYCfg.goaltol_x = CONTXY2DISC(goaltol_x, EnvXYCfg.cellsize_m);
-   EnvXYCfg.goaltol_y = CONTXY2DISC(goaltol_y, EnvXYCfg.cellsize_m);
-
+    EnvXYCfg.goaltol_x = 1 + CONTXY2DISC(goaltol_x, EnvXYCfg.cellsize_m);
+    EnvXYCfg.goaltol_y = 1 + CONTXY2DISC(goaltol_y, EnvXYCfg.cellsize_m);
+    printf("Goal tolerances set to (%f, %f) = (%d, %d)\n", 
+	   goaltol_x, goaltol_y,
+	   EnvXYCfg.goaltol_x, EnvXYCfg.goaltol_y);
 }
 
 bool Environment_xy::UpdateCost(int x, int y, unsigned char newcost)
@@ -840,6 +842,7 @@ int Environment_xy::SetStart(std::vector<pose_cont_t> start_m)
   
   if (!IsValidConfiguration(start)) {
     SBPL_ERROR("ERROR: start configuration is invalid\n");
+    return -1;
   }
 	   
     EnvXYHashEntry_t* OutHashEntry; 
@@ -867,7 +870,7 @@ int Environment_xy::SetStart(std::vector<pose_cont_t> start_m)
 // Hashing functions
 EnvXYHashEntry_t* Environment_xy::GetHashEntry_hash(std::vector<pose_disc_t>& poses, 
 						    std::vector<int>& goalsVisited,
-						    std::vector<bool> activeAgents)
+						    std::vector<bool>& activeAgents)
 {
   
 #if TIME_DEBUG
@@ -901,7 +904,7 @@ EnvXYHashEntry_t* Environment_xy::GetHashEntry_hash(std::vector<pose_disc_t>& po
 bool Environment_xy::IsEqualHashEntry(EnvXYHashEntry_t* hashentry,
 				      std::vector<pose_disc_t>& poses,
 				      std::vector<int>& goalsVisited, 
-				      std::vector<bool> activeAgents) const
+				      std::vector<bool>& activeAgents) const
 {
   for(int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i++){
     int lhs_visited = hashentry->goalsVisited[goal_i];
@@ -925,7 +928,7 @@ bool Environment_xy::IsEqualHashEntry(EnvXYHashEntry_t* hashentry,
 
 EnvXYHashEntry_t* Environment_xy::CreateNewHashEntry_hash(std::vector<pose_disc_t>& poses,
 							  std::vector<int>& goalsVisited,
-							  std::vector<bool> activeAgents)
+							  std::vector<bool>& activeAgents)
 {
   int i;
 
@@ -1028,7 +1031,7 @@ void Environment_xy::GetSuccs(int SourceStateID,
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
     if (!HashEntry->activeAgents[agent_i])
       continue;
-    GetSuccsForAgent(agent_i, HashEntry->poses[agent_i],
+    GetSuccsForAgent(SourceStateID, agent_i, HashEntry->poses[agent_i],
 		     allnewPoses[activeagent_i], 
 		     allnewCosts[activeagent_i]);
     activeagent_i++;
@@ -1041,7 +1044,8 @@ void Environment_xy::GetSuccs(int SourceStateID,
 
   // Make successors from all possible combinations of active agents and actions
   // We have [agent1.actionwidth*agent2.actionwidth ....]  primitives
-  
+  SuccIDV->reserve(numPrimitives);
+  CostV->reserve(numPrimitives);
   for(int primitive_i = 0; primitive_i < numPrimitives; primitive_i++){
     poses = HashEntry->poses;
     activeAgents = HashEntry->activeAgents;
@@ -1061,20 +1065,18 @@ void Environment_xy::GetSuccs(int SourceStateID,
     }
 
     clock_t GetSuccsPruning_t0 = clock();
-    if (cost >= INFINITECOST){
+    if (cost >= INFINITECOST)
       continue;
-    }
-    // don't want all robots retired as an action
-    //if(!std::any(activeAgents.begin(), activeAgents.end(), [](bool v){return v;}));
-
-    if (std::all_of(activeAgents.begin(), activeAgents.end(), [](bool v){return !v;})) 
-      continue;
-    
+  
     std::vector<int> goalsVisited = HashEntry->goalsVisited;
     getGoalsVisited(poses, goalsVisited);
-
-    // don't want more active robots than unvisited goals except at the end
     int numgoals_unvisited = std::count(goalsVisited.begin(), goalsVisited.end(), -1);
+    // don't want all robots retired as an action except at end
+    if (numgoals_unvisited > 0 && 
+	std::all_of(activeAgents.begin(), activeAgents.end(), [](bool v){return !v;})) 
+      continue;
+    
+    // don't want more active robots than unvisited goals except at the end
     if(numgoals_unvisited > 0 &&
        std::count(activeAgents.begin(), activeAgents.end(), 1) > numgoals_unvisited)
       continue;
@@ -1099,13 +1101,18 @@ void Environment_xy::GetSuccs(int SourceStateID,
   }
 #ifdef DEBUG_ENV
   std::cin.get();
+  printf("\n[Env Get Succs]: Numsuccessors = %d out of %d \n CostV: ", CostV->size(), numPrimitives);
+  for(int i = 0; i < CostV->size(); i++){
+    printf("%d ", CostV->at(i));
+  }
+  printf("\n");
 #endif
   clock_t GetSuccs_t1 = clock();
   GetSuccsClock += GetSuccs_t1 - GetSuccs_t0;
 }
 
-void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose, 
-				      std::vector<pose_disc_t>& newPosesV,
+void Environment_xy::GetSuccsForAgent(int SourceStateID, int agentID, pose_disc_t pose, 
+				      std::vector<pose_disc_t>& newPosesV,			    
 				      std::vector<int>& costV){
   clock_t GetSuccsForAgent_t0 = clock();
   RobotConfig_t robotConfig = EnvXYCfg.robotConfigV[agentID];
@@ -1114,6 +1121,8 @@ void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose,
   newPosesV.clear();
   newPosesV.reserve(robotConfig.actionwidth + 1);
   int cost;
+  int retirementcost = INFINITECOST;
+
   for(int action_i = 0; action_i < robotConfig.actionwidth; action_i++){
     pose_disc_t newPose = pose;    
     EnvXYAction_t* action = &EnvXYCfg.robotConfigV[agentID].ActionsV[pose.theta][action_i];
@@ -1129,9 +1138,10 @@ void Environment_xy::GetSuccsForAgent(int agentID, pose_disc_t pose,
     newPosesV.push_back(newPose);
     costV.push_back(cost);
   }
-  // allow agent to retire as an action with 0 cost
-  if(isAGoal(pose))
+  // allow agent to retire with 0 cost if agent is at a goal or state is the starting state
+  if((SourceStateID == EnvXY.startstateid) || isAGoal(pose)){
     cost = 0;
+  }
   else
     cost = INFINITECOST;
   newPosesV.push_back(pose);
@@ -1148,8 +1158,8 @@ void Environment_xy::getGoalsVisited(const std::vector<pose_disc_t>& poses,
     int y = poses[agent_i].y;
     for(int j = 0; j < EnvXYCfg.numGoals; j++){
 	// if goal is unvisited so far, and a robot is at the goal, record its index
-      if((goalsVisited[j] == -1) && (abs(x - EnvXYCfg.goal[j].x) < EnvXYCfg.goaltol_x)
-	 && (abs(y - EnvXYCfg.goal[j].y) < EnvXYCfg.goaltol_y))
+      if((goalsVisited[j] == -1) && (abs(x - EnvXYCfg.goal[j].x) <= EnvXYCfg.goaltol_x)
+	 && (abs(y - EnvXYCfg.goal[j].y) <= EnvXYCfg.goaltol_y))
 	  goalsVisited[j] = agent_i;
       }
   }
@@ -1158,8 +1168,8 @@ void Environment_xy::getGoalsVisited(const std::vector<pose_disc_t>& poses,
 bool Environment_xy::isAGoal(const pose_disc_t &pose) const
 {
   for(int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i++){
-    if((abs(pose.x - EnvXYCfg.goal[goal_i].x) < EnvXYCfg.goaltol_x) && 
-       (abs(pose.y - EnvXYCfg.goal[goal_i].y) < EnvXYCfg.goaltol_y))
+    if((abs(pose.x - EnvXYCfg.goal[goal_i].x) <= EnvXYCfg.goaltol_x) && 
+       (abs(pose.y - EnvXYCfg.goal[goal_i].y) <= EnvXYCfg.goaltol_y))
       return true;
     }
   return false;
@@ -1171,51 +1181,58 @@ bool Environment_xy::IsValidCell(int X, int Y) const
 	  EnvXYCfg.Grid2D[X][Y] < EnvXYCfg.obsthresh);
 }
 
+bool Environment_xy::IsValidPose(int agent_i, const pose_disc_t& pos) const
+{
+  std::vector<sbpl_2Dcell_t> footprint;
+  sbpl_xy_theta_pt_t pose;
+  //compute continuous pose                                                        
+  pose.x = DISCXY2CONT(pos.x, EnvXYCfg.cellsize_m);
+  pose.y = DISCXY2CONT(pos.y, EnvXYCfg.cellsize_m);
+  pose.theta = DiscTheta2Cont(pos.theta, EnvXYCfg.NumThetaDirs);
 
-bool Environment_xy::IsValidConfiguration(std::vector<pose_disc_t> pos) const
+  // compute footprint cells
+  get_2d_footprint_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, &footprint, 
+			 pose, EnvXYCfg.cellsize_m);
+  // iterate over all footprint cells
+  for(int find =0; find < (int)footprint.size(); find++){
+    int x = footprint.at(find).x;
+    int y = footprint.at(find).y;
+    if(!IsValidCell(x,y)){
+      SBPL_WARN("Cell not valid: (%d, %d)", x, y);
+      return false;
+    }
+  }
+
+return true;
+}
+
+bool Environment_xy::IsValidConfiguration(const std::vector<pose_disc_t>& pos) const
 {
   // collision check robots. TODO: Use footprint
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
     for(int agent2_i = agent_i+1; agent2_i < pos.size(); agent2_i++){
       if ((pos[agent_i].x == pos[agent2_i].x) && 
 	  (pos[agent_i].y == pos[agent2_i].y) && 
-	  (pos[agent_i].z == pos[agent2_i].z)){
+	  (pos[agent_i].z == pos[agent2_i].z))
+	{
 	SBPL_WARN("Robots are in collision");
 	return false;
-      }
-    }      
-  }
-  std::vector<sbpl_2Dcell_t> footprint;
-  sbpl_xy_theta_pt_t pose;
-  for(unsigned int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++){
-    //compute continuous pose                                                        
-    pose.x = DISCXY2CONT(pos[agent_i].x, EnvXYCfg.cellsize_m);
-    pose.y = DISCXY2CONT(pos[agent_i].y, EnvXYCfg.cellsize_m);
-    pose.theta = DiscTheta2Cont(pos[agent_i].theta, EnvXYCfg.NumThetaDirs);
-
-    // compute footprint cells
-    get_2d_footprint_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, &footprint, 
-			   pose, EnvXYCfg.cellsize_m);
-    // iterate over all footprint cells
-    for(int find =0; find < (int)footprint.size(); find++){
-      int x = footprint.at(find).x;
-      int y = footprint.at(find).y;
-      if(!IsValidCell(x,y)){
-	SBPL_WARN("Cell not valid: (%d, %d)", x, y);
-	return false;
-      }
+	} 
     }
+    if(!IsValidPose(agent_i, pos[agent_i]))
+      return false;
   }
   return true;
 }
-
+    
 void Environment_xy::GetRobotFootprint(int agentId, pose_cont_t pose,
 				      std::vector<sbpl_2Dpt_t>& FootprintPolygon) const{
+  std::vector<sbpl_2Dpt_t> FootprintPolygon_zero = EnvXYCfg.robotConfigV[agentId].FootprintPolygon;
   FootprintPolygon = EnvXYCfg.robotConfigV[agentId].FootprintPolygon;
   for(unsigned int i =0; i < FootprintPolygon.size(); i++){
     // rotate points around pose.theta
-    FootprintPolygon[i].x = FootprintPolygon[i].x*cos(pose.theta) - FootprintPolygon[i].y*sin(pose.theta);
-    FootprintPolygon[i].y = FootprintPolygon[i].x*sin(pose.theta) + FootprintPolygon[i].y*cos(pose.theta);
+    FootprintPolygon[i].x = FootprintPolygon_zero[i].x*cos(pose.theta) - FootprintPolygon_zero[i].y*sin(pose.theta);
+    FootprintPolygon[i].y = FootprintPolygon_zero[i].x*sin(pose.theta) + FootprintPolygon_zero[i].y*cos(pose.theta);
     // add offset
     FootprintPolygon[i].x += pose.x;
     FootprintPolygon[i].y += pose.y;
@@ -1298,15 +1315,15 @@ bool Environment_xy::GetFakePlan(int startstateID, std::vector<int>& solutionsta
   return true;
 }
 
-void Environment_xy::VisualizeState(int stateID) const{
+void Environment_xy::VisualizeState(const int stateID) const{
   EnvXYHashEntry_t* HashEntry = StateID2CoordTable[stateID];
   visualization_msgs::MarkerArray agentmarkers;
   for(int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++){
     visualization_msgs::Marker marker;
     pose_disc_t pose = HashEntry->poses[agent_i];
-    marker.id = stateID*EnvXYCfg.numAgents + agent_i; 
-    marker.scale.x = 0.05;
-    marker.scale.y = 0.05;
+    marker.id = agent_i; //stateID*EnvXYCfg.numAgents + agent_i; 
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
     marker.scale.z = 0;
     marker.color.g = 1;
     marker.color.b = 1;
@@ -1346,7 +1363,7 @@ void Environment_xy::PrintTimingStats(){
   printf("CreateHashEntry:             %.2f\n", double(CreateHashEntryClock)/CLOCKS_PER_SEC);
 }
 
-void Environment_xy::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/) {
+void Environment_xy::PrintState(const int stateID, bool bVerbose, FILE* fOut /*=NULL*/) {
 #if DEBUG
     if(stateID >= (int)StateID2CoordTable.size())
     {
@@ -1362,14 +1379,13 @@ void Environment_xy::PrintState(int stateID, bool bVerbose, FILE* fOut /*=NULL*/
     if (stateID == EnvXY.goalstateid && bVerbose) {
         SBPL_FPRINTF(fOut, "the state is a goal state\n");
     }
-
+    printf("State id: %d\n", stateID);
     for(int i = 0; i < EnvXYCfg.numAgents; i++){
-      SBPL_INFO("Agent %d (X=%d Y=%d Z=%d Theta=%d) isActive: %d", i, 
+      printf("Agent %02d (X=%03d Y=%03d Z=%03d Theta=%02d) isActive: %d\n", i, 
 		(int) HashEntry->poses[i].x, (int) HashEntry->poses[i].y, 
 		(int) HashEntry->poses[i].z,
 		(int) HashEntry->poses[i].theta, (int) HashEntry->activeAgents[i]);
     }
-
     printf("Goals Visited: ");
     for(int i = 0; i < EnvXYCfg.numGoals; i++)
       printf("%d ", (int) HashEntry->goalsVisited[i]);

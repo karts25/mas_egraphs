@@ -117,13 +117,13 @@ class EGraphManager {
         bool reconstructComboSnapShortcut(LazyAEGState* state, LazyAEGState*& next_state, 
                                           std::vector<int>* wholePathIds, std::vector<int>* costs, 
                                           int goal_id);
-
         void storeLastPath(const std::vector<int>& path, const std::vector<int>& costs);
         void feedbackLastPath();
         EGraphStats getStats(){ return stats_; };
         void save(std::string filename){ egraph_->save(filename); };
 	void validateEGraph(bool update_egraph=true);
         void initEGraph(bool set_goal=true);	
+	void printTimingStats();
 	EGraphablePtr egraph_env_;
        
  private:      
@@ -153,6 +153,15 @@ class EGraphManager {
         UpdateEGThreadData update_eg_thread_data_;
         EGraphStats stats_;
 
+	// timing information
+	clock_t getHeuristicBFSClock;
+	clock_t bruteforceHeuristicClock;
+	clock_t bruteforceHeuristicPerAgentClock;
+	clock_t precomputeTSPcostsClock;
+	clock_t mintimeClock;
+	unsigned long int bruteforceHeuristicPerAgentCtr;
+	unsigned long int bruteforceHeuristicCtr;
+
 	// helper function that returns the coords of goal # i
 	void getGoalCoord(int i, std::vector<int>& coord);
 	void computeDistanceBetweenGoals(int agent_i, std::vector<std::vector<int> > & goalDistances);
@@ -168,7 +177,7 @@ class EGraphManager {
 				 std::vector<int>& heurs);
 	int bruteforceHeuristicPerAgent(int agent_i, std::vector<int>& heur_coord_agent,
 					const std::vector<int>& assignment,
-					const std::vector<int>& distance_to_goalV) const;
+					const std::vector<int>& distance_to_goalV);
 	void precomputeTSPcosts();
 	/* Given a full graph, and a set of vertices to consider,
 	   solve the open-loop TSP starting at every vertex */
@@ -184,7 +193,6 @@ class EGraphManager {
                                   std::vector<int>* costs, int& shortcut_count);
 
         void printVector(std::vector<double>& v); 
-
 	DiscState getDiscStateFromID(int state_id);
 };
 #include<mas_egraphs/../../src/egraphManager.hpp>

@@ -15,7 +15,7 @@ EGraphMAS2dGridHeuristic::EGraphMAS2dGridHeuristic(const EGraphable<vector<int> 
   width_ = sizex_ + 2;
   height_ = sizey_ + 2;
   planeSize_ = width_ * height_;
-  ROS_INFO("sizes: x=%d y=%d plane=%d\n",sizex_,sizey_,planeSize_);
+  //ROS_INFO("sizes: x=%d y=%d plane=%d\n",sizex_,sizey_,planeSize_);
 
   heur.resize(planeSize_);
   sc.resize(planeSize_);

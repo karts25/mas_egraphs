@@ -326,7 +326,6 @@ void LazyAEGPlanner<HeuristicType>::putStateInHeap(LazyAEGState* state){
     CKey key;
     key.key[0] = state->g + int(eps * state->h);
     key.key[1] = state->h;
-    
     /*for(unsigned int agent_i = 0; agent_i < state->h_peragent.size(); agent_i++){
       key.key[2+agent_i] = state->h_peragent[agent_i];
       }*/
@@ -386,12 +385,11 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
     LazyAEGState* state = (LazyAEGState*)heap.deleteminheap();
 
 #ifdef DEBUG_PLANNER    
-    SBPL_INFO("[Egraph_planner]: \n\nExpanding:");
+    printf("[Egraph_planner]: Expanding:\n");
     environment_->PrintState(state->id, true);
-    SBPL_INFO("f = %d g = %d h = %d", min_key.key[0], state->g, state->h);
-    for(int i = 0; i < (int) state->h_peragent.size(); i++)
-      SBPL_INFO("h for agent %d is %d", i, state->h_peragent[i]);
-    std::cin.get();
+    printf("f = %d g = %d h = %d\n", min_key.key[0], state->g, state->h);
+    /*for(int i = 0; i < (int) state->h_peragent.size(); i++)
+      SBPL_INFO("h for agent %d is %d", i, state->h_peragent[i]); */
 #endif
     
     if(state->v == state->g){
@@ -425,8 +423,14 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
       if(expands%10000 == 0)
         printf("expands so far=%u\n", expands);
     }
-    else //otherwise the state needs to be evaluated for its true cost
-      EvaluateState(state);
+    else //otherwise the state needs to be evaluated for its true cost 
+      {
+	EvaluateState(state);
+      }
+#ifdef DEBUG_PLANNER
+    printf("\n[Egraph_planner]: Done Expanding\n\n");
+    std::cin.get();
+#endif
 
     //get the min key for the next iteration
     min_key = heap.getminkeyheap();
@@ -435,10 +439,14 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
   search_expands += expands;
    
   if(goal_state.g == INFINITECOST && (heap.emptyheap() || min_key.key[0] >= INFINITECOST))
-    return 0;//solution does not exists
+    return 0;//solution does not exist
   if(!heap.emptyheap() && goal_state.g > min_key.key[0])
     return 2; //search exited because it ran out of time
   printf("search exited with a solution for eps=%.2f\n", eps*params.epsE);
+#ifdef DEBUG_PLANNER
+  printf("Goal State is: \n");
+  environment_->PrintState(goal_state.id, true);
+#endif
   if(goal_state.g < goal_state.v){
     goal_state.expanded_best_parent = goal_state.best_parent;
     goal_state.expanded_best_edge_type = goal_state.best_edge_type;

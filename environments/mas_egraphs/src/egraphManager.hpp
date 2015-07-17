@@ -35,6 +35,13 @@ EGraphManager<HeuristicType>::EGraphManager(std::vector<EGraphPtr> egraphs,
       i++;
     }
   }
+  getHeuristicBFSClock = 0;
+  bruteforceHeuristicClock = 0;
+  bruteforceHeuristicCtr = 0;
+  bruteforceHeuristicPerAgentClock = 0; 
+  bruteforceHeuristicPerAgentCtr = 0;
+  precomputeTSPcostsClock = 0;
+  mintimeClock = 0;
 }
 
 template <typename HeuristicType>
@@ -60,19 +67,9 @@ template <typename HeuristicType>
 void EGraphManager<HeuristicType>::updateManager(){
   setGoal();
   initEGraph(true);
-  /*
-  // Allocate edgecosts_agent_i ( [#numgoals+1 x #numgoals+1] vector )
-  TSPEdgecosts_.clear();
-
-  for(int agent_i = 0; agent_i < numagents_; agent_i++){
-  Matrix TSPEdgecosts_agent_i;
-  for(int i = 0; i < numgoals_ + 1; i++){
-  std::vector<int> row(numgoals_ + 1, 0);
-  TSPEdgecosts_agent_i.push_back(row);
-  }
-  TSPEdgecosts_.push_back(TSPEdgecosts_agent_i);
-  }*/
+  clock_t precomputeTSPcosts_t0 = clock();
   precomputeTSPcosts();
+  precomputeTSPcostsClock += clock() - precomputeTSPcosts_t0;
 }
 
 template <typename HeuristicType>
@@ -119,7 +116,7 @@ std::vector<int> EGraphManager<HeuristicType>::getHeuristic(int state_id){
 
   ContState cont_state;
   egraph_env_->getCoord(state_id, cont_state); // TODO: We'd like getcoord to return pose, goalsvisited
-
+  /*
 #ifdef DEBUG_HEUR  
   SBPL_INFO("[egraphManager]: \nComputing heuristic for state %d", state_id);
   int i;
@@ -135,14 +132,16 @@ std::vector<int> EGraphManager<HeuristicType>::getHeuristic(int state_id){
     printf("%d ", (int) cont_state[4*numagents_ + numgoals_ + agent_i]);
   printf("\n\n");  
 #endif  
-
+  */
   // find number and indices of active agents
   std::vector<int> activeAgents_indices;
   for(int i = 0; i < numagents_; i++)
     if(cont_state[i + numagents_*4 + numgoals_]){
       activeAgents_indices.push_back(i);
     }
+  clock_t bruteforceHeuristic_t0 = clock();
   bruteforceHeuristic(cont_state, activeAgents_indices, heurs);
+  bruteforceHeuristicClock += clock() - bruteforceHeuristic_t0;
   return heurs;
 }
 
@@ -219,112 +218,126 @@ void EGraphManager<HeuristicType>::bruteforceHeuristic(std::vector<double>& cont
   HeuristicType heur_coord;
   HeuristicType heur_coord_agent(2,0);
   egraph_env_->projectToHeuristicSpace(cont_state, heur_coord);    
-
+  bruteforceHeuristicCtr ++;
   int numActiveAgents = activeAgents_indices.size();
   // look at all possible assignments of goals to agents
   int numassignments = pow(numActiveAgents, numgoals_);
   std::vector<int> heur_allassignments(numassignments, 0);
-  std::vector<int> heur_allagents(numagents_, 0);
-  std::vector<int> assignment(numgoals_);
-  std::vector<std::vector<int> > heur_allagents_allassignments;
-  
+  std::vector<int> heur_active_agents(numActiveAgents, 0);
+  //std::vector<int> assignment(numgoals_);
+  std::vector<std::vector<int> > assignment(numagents_);
   // compute distance from each agent to all unvisited goals
   std::vector<std::vector<int> > distance_to_goal(numagents_);
-  for(int agent_i = 0; agent_i < numagents_; agent_i++ ){
-    distance_to_goal[agent_i].resize(numgoals_, -1);
-    heur_coord_agent[0] = heur_coord[2*agent_i];
-    heur_coord_agent[1] = heur_coord[2*agent_i+1];
+  std::vector<int>::iterator agent_iterator;
+
+  //clock_t mintime_t0 = clock();
+  for(agent_iterator = activeAgents_indices.begin(); agent_iterator != activeAgents_indices.end();
+      agent_iterator++ ){
+    assignment[*agent_iterator].resize(numgoals_ + 1, 0);
+    distance_to_goal[*agent_iterator].resize(numgoals_, -1);
+    heur_coord_agent[0] = heur_coord[2*(*agent_iterator)];
+    heur_coord_agent[1] = heur_coord[2*(*agent_iterator)+1];
     for(int goal_i = 0; goal_i < numgoals_; goal_i++){
-      if(cont_state[4*numagents_ + goal_i] >= 0) // don't care about already visited goals
+      /*if(cont_state[4*numagents_ + goal_i] >= 0) // don't care about already visited goals
 	continue;
-      EGraphHeuristicPtr egraph_heur = egraph_heurs_[agent_i][goal_i];
-      distance_to_goal[agent_i][goal_i] = egraph_heur->getHeuristic(heur_coord_agent);
+      */
+      EGraphHeuristicPtr egraph_heur = egraph_heurs_[*agent_iterator][goal_i];
+      clock_t getHeuristicBFS_t0 = clock();
+      /*      printf("\n 2DBFS for start (%d, %d), goal %d is %d\n ",
+	     heur_coord_agent[0], heur_coord_agent[1], goal_i, 
+	     egraph_heur->getHeuristic(heur_coord_agent)); */
+      distance_to_goal[*agent_iterator][goal_i] = egraph_heur->getHeuristic(heur_coord_agent);
+      getHeuristicBFSClock += clock() - getHeuristicBFS_t0;
     }
   }
-  
+  //mintimeClock += clock() - mintime_t0;
+  int bestheursofar =  std::numeric_limits<int>::max();
+  int min_assignment_index = -1;
+  /*
+#ifdef DEBUG_HEUR
+  printf("Computing heuristic for activeagents: ");
+  for(int agent_i = 0; agent_i < activeAgents_indices.size(); agent_i++)
+    printf("%d ", activeAgents_indices[agent_i]);
+  printf("\n");
+#endif
+  */
   for(int assg_i = 0; assg_i < numassignments; assg_i ++){
-    int index = assg_i;
+    bool ASSG_FAILFAST_FLAG = false;
+    int index = assg_i;  
+    for(agent_iterator = activeAgents_indices.begin(); agent_iterator != activeAgents_indices.end();
+	agent_iterator++){
+      assignment[*agent_iterator][0] = 0;
+    }
+    
     // assignment is index in base numactiveagents
     for(int goal_i = 0; goal_i < numgoals_; goal_i++){
       int activeagent_index = index % numActiveAgents;
-      // if goal is already visited at this state, don't assign to agent
-      if(cont_state[4*numagents_ + goal_i] >= 0)
-	assignment[goal_i] = -1;
-      else
-	assignment[goal_i] = activeAgents_indices[activeagent_index];
+      if(cont_state[4*numagents_ + goal_i] == -1){
+	// first element of assignment[agent_i] stores the number of goals assigned to agent_i
+	assignment[activeAgents_indices[activeagent_index]][0]++;
+	int ctr = assignment[activeAgents_indices[activeagent_index]][0];
+	assignment[activeAgents_indices[activeagent_index]][ctr] = goal_i;	
+      }
       index = (int) index/numActiveAgents;
-#ifdef DEBUG_HEUR
-      printf("%d ", assignment[goal_i]);
-#endif
     }
-        
     // for this assignment, compute heuristic for every agent
-    for(int agent_i = 0; agent_i < numagents_; agent_i++){
-      heur_coord_agent[0] = heur_coord[2*agent_i];
-      heur_coord_agent[1] = heur_coord[2*agent_i + 1];
-      heur_allagents[agent_i] = bruteforceHeuristicPerAgent(agent_i, 
-							    heur_coord_agent, assignment,
-							    distance_to_goal[agent_i]);
+    for(agent_iterator = activeAgents_indices.begin(); agent_iterator != activeAgents_indices.end();
+	agent_iterator++){
+      heur_coord_agent[0] = heur_coord[2*(*agent_iterator)];
+      heur_coord_agent[1] = heur_coord[2*(*agent_iterator) + 1];
+      //clock_t bruteforceHeuristicPerAgent_t0 = clock();
+      heur_allassignments[assg_i] += bruteforceHeuristicPerAgent((*agent_iterator), 
+	  heur_coord_agent, 
+	  assignment[(*agent_iterator)],
+	  distance_to_goal[(*agent_iterator)]);
+      if(heur_allassignments[assg_i] > bestheursofar){ 
+	// for this assignment, no need to evaluate any other agent
+	ASSG_FAILFAST_FLAG = true;
+	break;
+      }
+	
+      //bruteforceHeuristicPerAgentClock += clock() - bruteforceHeuristicPerAgent_t0;
     }
-    //for this assignment, heuristic is the sum of heuristics for all agents
-    heur_allagents_allassignments.push_back(heur_allagents);
-    heur_allassignments[assg_i] = std::accumulate(heur_allagents.begin(), heur_allagents.end(), 0);
-#ifdef DEBUG_HEUR
-    printf("Heur for this assignment is %d\t Heur per agent:", heur_allassignments[assg_i]);
-    for(int i = 0; i < numagents_; i++)
-      printf("%d ",  heur_allagents[i]);
-    printf("\n");
-#endif
+    if(ASSG_FAILFAST_FLAG)
+      continue;
+   
+    if(heur_allassignments[assg_i] < bestheursofar){
+      bestheursofar = heur_allassignments[assg_i];
+      min_assignment_index = assg_i;
+    }
+    //bestheursofar = std::min(bestheursofar, heur_allassignments[assg_i]);
   }
   // Admissible heuristic is the min of all possible assignments 
-  std::vector<int>::const_iterator it = std::min_element(heur_allassignments.begin(), 
-							 heur_allassignments.end());
-  int min_assignment_index = it - heur_allassignments.begin();
-  int heur = *it;
-  heurs[0] = heur;
-
-  int index = min_assignment_index;
-  std::vector<int> best_assignment(numgoals_);
+  heurs[0] = bestheursofar;
+ 
+#ifdef DEBUG_HEUR
   // assignment is index in base numactiveagents
-#ifdef DEBUG_HEUR
+  std::vector<int> best_assignment(numgoals_);
+  int index = min_assignment_index;
   printf("Best Assignment: ");
-#endif
   for(int goal_i = 0; goal_i < numgoals_; goal_i++){
-    int activeagent_index = index % numActiveAgents;
-    // if goal is already visited at this state, don't assign to agent
-    if(cont_state[4*numagents_ + goal_i] >= 0)
-      best_assignment[goal_i] = -1;
-    else
-      best_assignment[goal_i] = activeAgents_indices[activeagent_index];
-    index = (int) index/numActiveAgents;
-#ifdef DEBUG_HEUR
-    printf("%d ", best_assignment[goal_i]);
+	int activeagent_index = index % numActiveAgents;
+	// if goal is already visited at this state, don't assign to agent
+	if(cont_state[4*numagents_ + goal_i] >= 0)
+	  best_assignment[goal_i] = -1;
+	else
+	  best_assignment[goal_i] = activeAgents_indices[activeagent_index];
+	index = (int) index/numActiveAgents;
+	printf("%d ", best_assignment[goal_i]);
+      }
+  //printf("Best heur: %d\n", bestheursofar);
 #endif
-  }
-#ifdef DEBUG_HEUR
-  printf("\n");
-#endif
-
-  for(int agent_i = 0; agent_i < numagents_; agent_i++){
-    heurs[agent_i+1] = heur_allagents_allassignments[min_assignment_index][agent_i];
-    }
-  //std::cin.get();
-#ifdef DEBUG_HEUR  
-  printf("Final heuristic is: ");
-  printVector(heurs);
-  for(int i = 0; i < (int) heurs.size(); i++)
-    printf("%d ", heurs[i]);
-  printf("\n");
-#endif
-
+  //printf("Best heur: %d numassignments %d \n", bestheursofar, numassignments);
 }
 
-
+// Note: first element of goalindices is the number of goals allotted
 template <typename HeuristicType>
 int EGraphManager<HeuristicType>::bruteforceHeuristicPerAgent(int agent_i, 
 							      std::vector<int>& heur_coord_agent,
-							      const std::vector<int>& assignment,
-							      const std::vector<int>& distance_to_allgoalsV) const {
+							      const std::vector<int>& goalindices,
+							      const std::vector<int>& distance_to_allgoalsV) {
+  bruteforceHeuristicPerAgentCtr++;
+  /*
   std::vector<int> goalindices;
   const int maxnumgoals = MAXNUMGOALS;
   std::bitset<maxnumgoals> TSP_i_vertices;
@@ -333,40 +346,48 @@ int EGraphManager<HeuristicType>::bruteforceHeuristicPerAgent(int agent_i,
       goalindices.push_back(goal_i);
       TSP_i_vertices.set(goal_i);
     }
+    }*/
+  // if there are no goals to this agent, it has to travel at least to nearest goal before retiring
+
+  if(goalindices[0] == 0)
+    {
+      //printf("\nno assignment for agent %d. heur = %d\n", agent_i, 
+      // *std::min_element(distance_to_allgoalsV.begin(), distance_to_allgoalsV.end())); 
+      return *std::min_element(distance_to_allgoalsV.begin(), distance_to_allgoalsV.end());    
+    }
+  const int maxnumgoals = MAXNUMGOALS;
+  std::bitset<maxnumgoals> TSP_i_vertices(0);
+
+  for(int i = 1; i <= goalindices[0]; i++){
+    TSP_i_vertices.set(goalindices[i]);
   }
-  if(goalindices.size() == 0)
-    return 0;
   unsigned long int TSPindex = TSP_i_vertices.to_ulong();
-#ifdef DEBUG_HEUR
-    SBPL_INFO("Getting TSP cost for TSPindex %d", (int)TSPindex);
-    SBPL_INFO("Size of TSP_allagents_ = (%d, %d)", (int) TSP_allagents_.size(), TSP_allagents_[0].size());
-#endif
   const std::vector<int>* TSPcosts_pergoal = &TSP_allagents_[agent_i][TSPindex-1]; 
   int bestheursofar = std::numeric_limits<int>::max();
   // for each goal, run 2d bfs
-#ifdef DEBUG_HEUR
-  printf("\nHeur per goal: \n");
-#endif
-
-  for(int goal_i = 0; goal_i < (int)goalindices.size(); goal_i++){
-  // TSPcosts_pergoal only has entries for goals in this assignment
-#ifdef DEBUG_HEUR
-    printf("%d %d %d\n", TSPcosts_pergoal->at(goal_i),
-	   distance_to_allgoalsV[goalindices[goal_i]],
-	   TSPcosts_pergoal->at(goal_i) + distance_to_allgoalsV[goalindices[goal_i]]);
-#endif
-  bestheursofar = std::min(bestheursofar, 
-    TSPcosts_pergoal->at(goal_i) + distance_to_allgoalsV[goalindices[goal_i]]); 
-}
-  return bestheursofar;
   /*
-    #ifdef DEBUG_HEUR
-    std::vector<int> goalcoord;
-    getGoalCoord(goalindices[i], goalcoord);
-    SBPL_INFO("Goal is (%d,%d)", goalcoord[0], goalcoord[1]);
-    SBPL_INFO("Heuristic is %d", heur_val);
-    #endif
-  */ 
+#ifdef DEBUG_HEUR
+  printf("Agent %d\n", agent_i);
+#endif
+  */
+  for(int goal_i = 1; goal_i <= goalindices[0]; goal_i++){
+  // TSPcosts_pergoal only has entries for goals in this assignment
+	
+    //#ifdef DEBUG_HEUR
+    /*
+    printf("Start goal %d: TSP = %d d_to_goal %d total = %d\n", goalindices[goal_i], 
+	   TSPcosts_pergoal->at(goal_i-1),
+	   distance_to_allgoalsV[goalindices[goal_i]],
+	   TSPcosts_pergoal->at(goal_i-1) + distance_to_allgoalsV[goalindices[goal_i]]);
+    */
+    //#endif
+	
+  bestheursofar = std::min(bestheursofar, 
+			   TSPcosts_pergoal->at(goal_i-1) + 
+			   distance_to_allgoalsV[goalindices[goal_i]]); 
+  }
+  //printf("agent %d h %d \n", agent_i, bestheursofar);
+  return bestheursofar; 
 }
 
 
@@ -1086,11 +1107,18 @@ void EGraphManager<HeuristicType>::feedbackLastPath(){
 }
 
 template <typename HeuristicType>
-void EGraphManager<HeuristicType>::printVector(std::vector<double>& state){
-    for (auto value : state){
-        printf("%f ", value);
-    }
-    printf("\n");
+void EGraphManager<HeuristicType>::printTimingStats(){
+  printf("Heuristic Timing Stats:\n");
+  printf("precomputeTSP:                 %.2f\n", 
+	 double(precomputeTSPcostsClock)/CLOCKS_PER_SEC);
+  printf("getHeuristicBFS:               %.2f\n", double(getHeuristicBFSClock)/CLOCKS_PER_SEC);
+  printf("bruteforceHeuristic:           %.2f  number of calls:   %lu\n",
+	 double(bruteforceHeuristicClock)/CLOCKS_PER_SEC, bruteforceHeuristicCtr);
+  printf("bruteforceHeuristicPerAgent:   %.2f  number of calls:   %lu\n",
+	 double(bruteforceHeuristicPerAgentClock)/CLOCKS_PER_SEC, bruteforceHeuristicPerAgentCtr);
+  printf("mintime:                       %.2f\n",
+	 double(mintimeClock)/CLOCKS_PER_SEC);
+
 }
 
 template <typename HeuristicType>
