@@ -187,8 +187,7 @@ class Environment_xy: public DiscreteSpaceInformation
   virtual bool InitializeEnv(const char* sEnvFile);
 
   virtual bool InitializeEnv(int width, int height, const unsigned char* mapdata, 
-			     int numagents, //int numgoals,
-			     //std::vector<pose_cont_t> start, std::vector<pose_cont_t> goal,
+			     int numagents,
 			     double goaltol_x, double goaltol_y, double goaltol_theta,
 			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 			     double cellsize_m, double time_per_action,

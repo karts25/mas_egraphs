@@ -12,7 +12,8 @@
 
 class EGraphMAS2dGridHeuristic : public EGraphHeuristic<std::vector<int> >{
   public:
-  EGraphMAS2dGridHeuristic(const EGraphable<std::vector<int> >& env, int size_x, int size_y, int move_cost);
+  EGraphMAS2dGridHeuristic(const EGraphable<std::vector<int> >& env, 
+			   int size_x, int size_y, int move_cost);
   void setAgentId(int agentid);
   void setGrid(const std::vector<std::vector<bool> >& grid);
   void setGoal(const std::vector<int>& goal);

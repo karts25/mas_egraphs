@@ -238,9 +238,9 @@ void EGraphManager<HeuristicType>::bruteforceHeuristic(std::vector<double>& cont
     heur_coord_agent[0] = heur_coord[2*(*agent_iterator)];
     heur_coord_agent[1] = heur_coord[2*(*agent_iterator)+1];
     for(int goal_i = 0; goal_i < numgoals_; goal_i++){
-      /*if(cont_state[4*numagents_ + goal_i] >= 0) // don't care about already visited goals
-	continue;
-      */
+      //if(cont_state[4*numagents_ + goal_i] >= 0) // don't care about already visited goals
+      //continue;
+      
       EGraphHeuristicPtr egraph_heur = egraph_heurs_[*agent_iterator][goal_i];
       clock_t getHeuristicBFS_t0 = clock();
       /*      printf("\n 2DBFS for start (%d, %d), goal %d is %d\n ",

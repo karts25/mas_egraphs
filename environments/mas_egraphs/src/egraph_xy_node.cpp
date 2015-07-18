@@ -331,6 +331,7 @@ bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> sta
     start_shifted[1].theta = start_theta[1];
   }
 int timestep = 0;
+
 do{
   int retid = env_->SetStart(start_shifted);
   if(retid < 0 || planner_->set_start(retid) == 0){
@@ -443,6 +444,7 @@ void EGraphXYNode::publishfootprints(std::vector<pose_cont_t> poses) const{
     footprint.clear();
     PolygonStamped.polygon.points.clear();
     env_->GetRobotFootprint(agent_i, poses[agent_i], footprint);
+    printf("Footprint of Agent %d: ", agent_i);
     for(unsigned int i = 0; i < footprint.size(); i++){
       geometry_msgs::Point32 point;
       point.x = footprint[i].x - cost_map_.getOriginX();

@@ -12,11 +12,11 @@ using namespace std;
 #endif
 */
 
-
+/*
 #ifndef VIZ_EXPANSIONS
 #define VIZ_EXPANSIONS
 #endif
-
+*/
 /*
 #ifndef DEBUG
 #define DEBUG
@@ -1226,7 +1226,7 @@ bool Environment_xy::IsValidConfiguration(const std::vector<pose_disc_t>& pos) c
 }
     
 void Environment_xy::GetRobotFootprint(int agentId, pose_cont_t pose,
-				      std::vector<sbpl_2Dpt_t>& FootprintPolygon) const{
+				       std::vector<sbpl_2Dpt_t>& FootprintPolygon) const{
   std::vector<sbpl_2Dpt_t> FootprintPolygon_zero = EnvXYCfg.robotConfigV[agentId].FootprintPolygon;
   FootprintPolygon = EnvXYCfg.robotConfigV[agentId].FootprintPolygon;
   for(unsigned int i =0; i < FootprintPolygon.size(); i++){
