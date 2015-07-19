@@ -330,9 +330,9 @@ bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> sta
     start_shifted[1].z = start_z[1];
     start_shifted[1].theta = start_theta[1];
   }
-int timestep = 0;
-
-do{
+  int timestep = 0;
+ 
+  do{
   int retid = env_->SetStart(start_shifted);
   if(retid < 0 || planner_->set_start(retid) == 0){
     ROS_ERROR("ERROR: failed to set start state\n");
