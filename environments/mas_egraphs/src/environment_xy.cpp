@@ -813,6 +813,15 @@ int Environment_xy::SetGoal(std::vector<pose_cont_t> goal_m)
     return EnvXY.goalstateid;
 }
 
+bool Environment_xy::isValidPlan(const std::vector<int>& solution_stateIDs_V){
+  for(int i = 0; i < (int) solution_stateIDs_V.size(); i++){
+    EnvXYHashEntry_t* HashEntry = StateID2CoordTable[solution_stateIDs_V[i]];
+    if(!IsValidConfiguration(HashEntry->poses))
+      return false;
+  }
+  return true;
+}
+
 //returns the stateid if success, and -1 otherwise
 int Environment_xy::SetStart(std::vector<pose_cont_t> start_m)
 {

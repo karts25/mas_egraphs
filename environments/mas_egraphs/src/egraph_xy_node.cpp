@@ -328,7 +328,10 @@ bool EGraphXYNode::simulate(std::vector<int>& solution_stateIDs){
     // update costs according to new sensor information
     updatelocalMap(res.pointcloud);
 
-    // if old plan is invalid, or a new communication is recieved
+    // if old plan is invalid, or a new communication is recieved, we want to replan
+    if(!env->isValidPlan(solution_stateIDs_V))
+      replan_required = true;
+   
     ros::Duration(time_per_action_).sleep();
   }
 }
