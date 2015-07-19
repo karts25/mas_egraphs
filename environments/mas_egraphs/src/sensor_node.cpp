@@ -1,11 +1,11 @@
 #include <mas_egraphs/simulator.h>
 
-SensorNode::SensorNode(costmap_2d::Costmap2DROS* costmap_ros, int agentID){
+SensorNode::SensorNode(costmap_2d::Costmap2DROS* costmap_ros){
   ros::NodeHandle private_nh("~");
   ros::NodeHandle nh;
   
   numgoals_ = 1;
-
+  numagents_ = 1;
   costmap_ros_ = costmap_ros;
   costmap_ros_->clearRobotFootprint();
   costmap_ros_->getCostmapCopy(cost_map_);
@@ -25,52 +25,53 @@ SensorNode::SensorNode(costmap_2d::Costmap2DROS* costmap_ros, int agentID){
     }
   }
 
-  obstacles_pub_ = nh.advertise<sensor_msgs::PointCloud>("laserscan");
-  plan_sub_ = nh.subscribe("mas_plan", 1000, &Simulator::Simulate, this);
+  sensor_update_service_ = nh.advertiseService("/mas_egraphs/sensorupdate", 
+					       &SensorNode::sensor_update, this);
 }
 
-void SensorNode::setNumAgents(int agentID){
-  agentID_ = agentID;;
+void SensorNode::setNumAgents(int numagents){
+  numagents_ = numagents;
 }
 
 void SensorNode::setNumGoals(int numgoals){
   numgoals_ = numgoals;
 }
 
-void SensorNode::simulate(const visualization_msgs::MarkerArray& plan){	
-  visualization_msgs::Marker pos;
+void SensorNode::sensor_update(mas_egraphs::GetSensorUpdate::Request& req,
+			       mas_egraphs::GetSensorUpdate::Response& res){	
+
+  double x = req.x;
+  double y = req.y;
+  double z = req.z;
+  double theta = req.theta;
   
-  for(int t = 0; t < plan.markers.size(); t++){
-    ros::Time sim_time = ros::Time::now();  
-    sensor_msgs::PointCloud pointcloud;
-    pos = plan.markers[t];
-    int id = 0;
-    
-    pointcloud.header.stamp = sim_time;
-    pointcloud.header.frame_id = costmap_ros_->getGlobalFrameID();
+  res.pointcloud.points.clear();
+  res.pointcloud.channels.clear();
 
-    // "sense" all obstacles at some radius around the robot. TODO: make raytrace
-    for(unsigned int ix = std::min(0, pos.position.x - SENSOR_RADIUS);
-	ix < std::min(cost_map_.getSizeInCellsX(), pos.position.x + SENSOR_RADIUS); ix++){
-      for(unsigned int iy = std::min(0, pos.position.y - SENSOR_RADIUS); 
-	  iy < std::min(cost_map_.getSizeInCellsY(), pos.position.y + SENSOR_RADIUS); iy++){
-	geometry_msgs::Point32 point;
-	sensor_msgs::ChannelFloat32 channel;
-	marker.id = id; 
-	id++;
-	point.x = ix;
-	point.y = iy;
-	point.z = 0;	
+  ros::Time sim_time = ros::Time::now();  
+  res.header.stamp = sim_time;
+  res.header.frame_id = costmap_ros_->getGlobalFrameID();
+  res.header.seq = req.agentID;
 
-	double cost = cost_map_.getCost(ix, iy)/255;
-	channel.name = "intensity";
-	channel.values.push_back(cost);
-      }
-      pointcloud.push_back(point);
-      channels.push_back(channel);
+  // "sense" all obstacles at some radius around the robot. TODO: make raytrace
+  for(unsigned int ix = std::min(0, x - SENSOR_RADIUS);
+      ix < std::min(cost_map_.getSizeInCellsX(), x + SENSOR_RADIUS); ix++){
+    for(unsigned int iy = std::min(0, y - SENSOR_RADIUS); 
+	iy < std::min(cost_map_.getSizeInCellsY(), y + SENSOR_RADIUS); iy++){
+      double cost = cost_map_.getCost(ix, iy);      
+      geometry_msgs::Point32 point;
+      sensor_msgs::ChannelFloat32 channel;
+      marker.id = id; 
+      id++;
+      point.x = ix;
+      point.y = iy;
+      point.z = 0;	
+      
+      double cost = cost_map_.getCost(ix, iy);
+      channel.name = "intensity";
+      channel.values.push_back(cost);
     }
-
-    obstacles_pub.publish(pointcloud);
-  }
-  std::cin.get();
+    res.pointcloud.points.push_back(point);
+    res.pointcloud.channels.push_back(channel);
+  } 
 }

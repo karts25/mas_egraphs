@@ -2,7 +2,10 @@
 #include <nav_msgs/Path.h>
 using namespace std;
 
-EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
+EGraphXYNode::EGraphXYNode(int agentID, costmap_2d::Costmap2DROS* costmap_ros) {
+
+  agentID = agentID;
+
   ros::NodeHandle private_nh("~");
   ros::NodeHandle nh;
   
@@ -16,8 +19,8 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
     private_nh.param(prim_fname_agent, temp, std::string(""));
     primitive_filenames_.push_back(temp);
   }
-  double time_per_action, timetoturn45degsinplace_secs;
-  private_nh.param("time_per_action", time_per_action, 6.0);
+  double timetoturn45degsinplace_secs;
+  private_nh.param("time_per_action", time_per_action_, 6.0);
   private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
   //private_nh.param("sMotPrimFiles", sMotPrimFiles_, NULL);
   int lethal_obstacle;
@@ -51,7 +54,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
 			      numagents_, // numAgents
 			      0.2, 0.2, 0, //goal tolerance of 20 cm
 			      perimeterptsV,
-    			      costmap_ros_->getResolution(), time_per_action,
+    			      costmap_ros_->getResolution(), time_per_action_,
 			      primitive_filenames_,
 			      cost_map_.getOriginX(), cost_map_.getOriginY());
   }
@@ -77,6 +80,10 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   plan_pub_ = nh.advertise<visualization_msgs::MarkerArray>("mas_plan", 1);
   plan_service_ = nh.advertiseService("/sbpl_planning/plan_path",&EGraphXYNode::makePlan,this);
   footprint_pub_ = nh.advertise<geometry_msgs::PolygonStamped>("footprint", 10);
+
+  ros::service::waitForService("/mas_egraphs/sensorupdate",10);
+  sensorupdate_client_ = ros::NodeHandle().serviceClient<mas_egraphs::GetSensorUpdate>('/mas_egraphs/sensorupdate', true);
+
 }
 
 void EGraphXYNode::interruptPlannerCallback(std_msgs::EmptyConstPtr){
@@ -304,6 +311,65 @@ void EGraphXYNode::publishPath(std::vector<int>& solution_stateIDs,
   plan_pub_.publish(gui_path);
 }
 
+bool EGraphXYNode::simulate(std::vector<int>& solution_stateIDs){
+  mas_egraphs::GetSensorUpdate::Request req;
+  mas_egraphs::GetSensorUpdate::Response res;
+  
+  for(unsigned int step = 0; step < solution_stateIDs.size(); step++){
+    // get sensor reading for current agent position
+    std::vector<pose_t> poses;
+    getAgentPoses(solution_stateIDs, poses);
+    req.agentID = agentID;
+    req.x = poses[agentID].x;
+    req.y = poses[agentID].y;    
+    req.z = poses[agentID].z;
+    req.theta = poses[agentID].theta;
+    sensorupdate_client_.call(req, res);
+    // update costs according to new sensor information
+    updatelocalMap(res.pointcloud);
+
+    // if old plan is invalid, or a new communication is recieved
+    ros::Duration(time_per_action_).sleep();
+  }
+}
+
+void EGraphXYNode::updatelocalMap(sensor_msgs::PointCloud& pointcloud){
+  for(unsigned int i = 0; i < pointcloud.points.size(); i++){
+    int x = (int) pointcloud.points[i].x;
+    int y = (int) pointcloud.points[i].y;
+    unsigned char c = costMapCostToSBPLCost(cost_map_.getCost(x, y));
+    if(c >= inscribed_inflated_obstacle_){
+      if (!heur_grid_[x][y]){ // new obstacle
+	std::vector<int> obstacle(2);
+	obstacle[1] = x;
+	obstacle[2] = y;
+	comm_packet_.newobstacles.append(obstacle);
+	
+	// update costs
+	heur_grid_[x][y] = true;      
+	env_->UpdateCost(x, y, c);
+	egraph_mgr_->updateHeuristicGrids(heur_grid);
+      }
+    }
+  }
+}
+
+bool EGraphXYNode::getAgentPoses(const std::vector<int>& solution_stateIDs,
+				 std::vector<pose_t>& poses){
+  ros::Time time_now = ros::Time::now();
+  int timesteps_elapsed = (int) (time_now.toSec() - time_lastplan_.toSec())/time_per_action_;
+  std::vector<double> coord;
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    env->getCoord(solution_stateIDs[], coord);
+    pose_t pose;
+    pose.x = coord[0];
+    pose.y = coord[1];
+    pose.z = coord[2];
+    pose.theta = coord[3];
+    poses.push_back(pose);
+  }
+}
+
 bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> start_y, 
 			    std::vector<double> start_z, 
 			    std::vector<double> start_theta,
@@ -361,15 +427,14 @@ bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> sta
     startmarkers.markers.push_back(marker);
   }
   plan_pub_.publish(startmarkers);
-  
-  vector<vector<bool> > heur_grid(cost_map_.getSizeInCellsX(), 
-				  vector<bool>(cost_map_.getSizeInCellsY(), false));
+  heur_grid_ = std::vector<bool> (cost_map_.getSizeInCellsX(), 
+				  std::vector<bool>(cost_map_.getSizeInCellsY(), false));
   for(unsigned int ix = 0; ix < cost_map_.getSizeInCellsX(); ix++){
     for(unsigned int iy = 0; iy < cost_map_.getSizeInCellsY(); iy++){
       unsigned char c = costMapCostToSBPLCost(cost_map_.getCost(ix,iy));
       env_->UpdateCost(ix, iy, c);
       if(c >= inscribed_inflated_obstacle_)
-	heur_grid[ix][iy] = true;
+	heur_grid_[ix][iy] = true;
     }
   }
   
@@ -391,39 +456,6 @@ bool EGraphXYNode::simulate(std::vector<double> start_x, std::vector<double> sta
     SBPL_INFO("Goal %d assigned to %d", i, assignments[i]);
   }
   publishPath(solution_stateIDs, res);    
-  /*
-  // extract locations from first plan to "simulate" robots
-  if(timestep == 0){
-    unsigned int planlength = solution_stateIDs.size();
-    // r1,r2 at 20% of way
-    for(int i = 0; i < maxtime; i ++){
-      
-      int r1id = (int) (r1percents[i] * (float) planlength);
-      int r2id = (int) (r2percents[i] * (float) planlength);
-//    SBPL_INFO("r1id = %d, r2id = %d", r1id, r2id);
-      env_->getCoord(solution_stateIDs[r1id], coord);
-       r1[i].push_back(coord[0]);
-      r1[i].push_back(coord[1]);
-      start_shifted[0].x = coord[0];
-      start_shifted[0].y = coord[1];
-      start_shifted[0].z = coord[2];
-      start_shifted[0].theta = coord[3];
-      if(numagents_ == 2){
-	env_->getCoord(solution_stateIDs[r2id], coord);
-	r2[i].push_back(coord[2]);
-	r2[i].push_back(coord[3]);
-      }
-    }
-  }
-
-  // reset start states
-  start_shifted[0].x = r1[timestep][0] - cost_map_.getOriginX();
-  start_shifted[0].y = r1[timestep][1] - cost_map_.getOriginY();
-  if(numagents_== 2){
-    start_shifted[1].x = r2[timestep][0] - cost_map_.getOriginX();
-    start_shifted[1].y = r2[timestep][1] - cost_map_.getOriginY();
-  }
-*/
   SBPL_INFO("Hit any key to forward simulate");
   std::cin.get();
   timestep++;

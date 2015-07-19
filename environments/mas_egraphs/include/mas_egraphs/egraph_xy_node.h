@@ -5,6 +5,10 @@
 #define ROS
 #endif
 
+#ifndef SIM
+#define SIM
+#endif
+
 #include <iostream>
 #include <vector>
 #include <ros/ros.h>
@@ -15,9 +19,24 @@
 #include <mas_egraphs/egraph_planner.h>
 #include <mas_egraphs/egraph_mas_2d_grid_heuristic.h>
 
+typedef struct
+{
+  double x;
+  double y;
+  double z;
+  double theta;
+} pose_t;
+
+typedef struct{
+  int agentID;
+  std::vector<std::vector<int> > new_obstacles;
+  pose_t pose;
+} comm_t;
+
 class EGraphXYNode{
  public:
-  EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros);
+  int agentID;
+  EGraphXYNode(int agentID, costmap_2d::Costmap2DROS* costmap_ros);
   bool makePlan(mas_egraphs::GetXYThetaPlan::Request& req, 
 		mas_egraphs::GetXYThetaPlan::Response& res);
   
@@ -32,9 +51,12 @@ class EGraphXYNode{
   costmap_2d::Costmap2DROS* costmap_ros_; /**< manages the cost map for us */
   costmap_2d::Costmap2D cost_map_;        /**< local copy of the costmap underlying cost_map_ros_ */
   std::vector<geometry_msgs::Point> footprint_;
+  std::vector<std::vector<bool> > heur_grid_;
   std::vector<char*> sMotPrimFiles_;
+  std::vector<pose_t> agentposes_;
   int numagents_;
   int numgoals_;
+  double time_per_action_;
   EGraphXY* env_;
   std::vector<EGraph*> egraphs_;
   EGraphMAS2dGridHeuristic* heur_;
@@ -46,6 +68,7 @@ class EGraphXYNode{
   ros::Publisher plan_pub_;
   ros::Publisher footprint_pub_;
   ros::ServiceServer plan_service_;
+  ros::ServiceClient sensorupdate_client_;
   
   ros::Subscriber interrupt_sub_;
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);

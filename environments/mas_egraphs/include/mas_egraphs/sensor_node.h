@@ -23,10 +23,5 @@ class SensorNode{
   costmap_2d::Costmap2DROS* costmap_ros; /**< manages the cost map for us */
   costmap_2d::Costmap2D cost_map_; /**< local copy of the costmap underlying cost_map_ros_ */ 
   std::vector<std::vector<int> > costmap_grid_;
-
-  unsigned char lethal_obstacle_;
-  unsigned char inscribed_inflated_obstacle_;
-
-  ros::Publisher obstacles_pub_; 
-  ros::Subscriber plan_sub_;
+  ros::ServiceServer sensor_update_service_;
 }
