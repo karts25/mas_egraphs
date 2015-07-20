@@ -105,6 +105,15 @@ unsigned char EGraphXYNode::costMapCostToSBPLCost(unsigned char newcost){
   
 }
 
+void EGraphXYNode::replan(){
+  if (!replan_required_)
+    return;
+
+  
+  // unset replan_required
+  replan_required_ = false;
+}
+
 bool EGraphXYNode::makePlan(mas_egraphs::GetXYThetaPlan::Request& req, 
 			    mas_egraphs::GetXYThetaPlan::Response& res){
   ROS_DEBUG("[sbpl_lattice_planner] getting fresh copy of costmap");
@@ -317,6 +326,7 @@ bool EGraphXYNode::simulate(std::vector<int>& solution_stateIDs){
   
   for(unsigned int step = 0; step < solution_stateIDs.size(); step++){
     // get sensor reading for current agent position
+#ifdef SIM
     std::vector<pose_t> poses;
     getAgentPoses(solution_stateIDs, poses);
     req.agentID = agentID;
@@ -325,16 +335,20 @@ bool EGraphXYNode::simulate(std::vector<int>& solution_stateIDs){
     req.z = poses[agentID].z;
     req.theta = poses[agentID].theta;
     sensorupdate_client_.call(req, res);
+
     // update costs according to new sensor information
     updatelocalMap(res.pointcloud);
+#endif
 
     // if old plan is invalid, or a new communication is recieved, we want to replan
     if(!env->isValidPlan(solution_stateIDs_V))
-      replan_required = true;
+      replan_required_ = true;
    
     ros::Duration(time_per_action_).sleep();
+    
   }
 }
+
 
 void EGraphXYNode::updatelocalMap(sensor_msgs::PointCloud& pointcloud){
   for(unsigned int i = 0; i < pointcloud.points.size(); i++){
@@ -355,6 +369,42 @@ void EGraphXYNode::updatelocalMap(sensor_msgs::PointCloud& pointcloud){
       }
     }
   }
+}
+
+void EGraphXYNode::sendCommunication(){
+  mas_msgs::MasComm comm_msg;
+  comm_msg.header.seq = comm_packet_.packetID;
+  comm_msg.header.frame_id = costmap_ros_->getGlobalFrameID(); 
+  comm_msg.header.stamp = ros::Time::now();
+  comm_msg.agentID = agentID;
+  for(int i = 0; i < comm_packet_.new_obstacles.size(); i++){
+    comm_msg.obstacles_x.push_back(comm_packet_.new_obstacles[i][0]);
+    comm_msg.obstacles_y.push_back(comm_packet_.new_obstacles[i][1]);
+  }
+  comm_msg.x = comm_packet_.pose.x;
+  comm_msg.y = comm_packet_.pose.y;
+  comm_msg.z = comm_packet_.pose.z;
+  comm_msg.theta = comm_packet_.pose.theta;
+  comm_pub_.publish(comm_msg);
+  // increment packetID
+  comm_packet_.packetID++;
+}
+
+void EGraphXYNode::receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg){
+  if(msg->agentID == agentID_)
+    return;
+  
+  // update robot pose
+  robotposes_[msg->agentID].x = msg->x;
+  robotposes_[msg->agentID].y = msg->y;
+  robotposes_[msg->agentID].z = msg->z;
+  robotposes_[msg->agentID].theta = msg->theta;
+
+  // also send back communication, if we haven't replied yet
+  if(comm_packet_.packetID < msg->header.seq)
+    sendCommunication();
+
+  replan_required_ = true;
 }
 
 bool EGraphXYNode::getAgentPoses(const std::vector<int>& solution_stateIDs,

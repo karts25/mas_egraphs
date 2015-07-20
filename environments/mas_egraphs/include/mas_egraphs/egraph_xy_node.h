@@ -18,7 +18,7 @@
 #include <mas_egraphs/egraphManager.h>
 #include <mas_egraphs/egraph_planner.h>
 #include <mas_egraphs/egraph_mas_2d_grid_heuristic.h>
-
+#include <mas_egraphs/MasComm.h>
 typedef struct
 {
   double x;
@@ -29,18 +29,24 @@ typedef struct
 
 typedef struct{
   int agentID;
+  unsigned int packetID; 
   std::vector<std::vector<int> > new_obstacles;
   pose_t pose;
 } comm_t;
 
 class EGraphXYNode{
  public:
-  int agentID;
+  int agentID_;
   EGraphXYNode(int agentID, costmap_2d::Costmap2DROS* costmap_ros);
   bool makePlan(mas_egraphs::GetXYThetaPlan::Request& req, 
 		mas_egraphs::GetXYThetaPlan::Response& res);
   
  private:
+
+  bool replan_required_; // true when we need to replan
+  std::vector<pose_t> robotposes_;
+  comm_t comm_package_; // stores information until the last communication
+
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
   
   std::string cost_map_topic_; /** what topic is being used for the costmap topic */
@@ -65,12 +71,16 @@ class EGraphXYNode{
   LazyAEGPlanner<std::vector<int> >* planner_;
   EGraphVisualizer* egraph_vis_;
   
-  ros::Publisher plan_pub_;
-  ros::Publisher footprint_pub_;
+  ros::Publisher plan_pub_; // publish plan for Rviz
+  ros::Publisher footprint_pub_; // publish footprint for Rviz
+  ros::Publisher comm_pub_;  // publish communication packet for other robots
+  
   ros::ServiceServer plan_service_;
   ros::ServiceClient sensorupdate_client_;
   
   ros::Subscriber interrupt_sub_;
+  ros::Subscriber comm_sub_;
+
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
   void publishfootprints(std::vector<pose_cont_t> poses) const;
   bool simulate(std::vector<double> start_x, std::vector<double> start_y, 
