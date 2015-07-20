@@ -25,6 +25,5 @@ bool use_egraph
 
 ---
 
-geometry_msgs/PoseStamped[] path
 string[] stat_names
 float64[] stat_values

@@ -19,33 +19,30 @@
 #include <mas_egraphs/egraph_planner.h>
 #include <mas_egraphs/egraph_mas_2d_grid_heuristic.h>
 #include <mas_egraphs/MasComm.h>
-typedef struct
-{
-  double x;
-  double y;
-  double z;
-  double theta;
-} pose_t;
 
 typedef struct{
   int agentID;
-  unsigned int packetID; 
-  std::vector<std::vector<int> > new_obstacles;
-  pose_t pose;
-} comm_t;
+  unsigned int lastpacketID; // id of last packet sent
+  std::vector<std::vector<int> > new_obstacles; // store obstacles found since last communication
+  std::vector<pose_cont_t> poses;
+  std::vector<pose_cont_t> goals;
+  std::vector<int> goalsVisited; 
+  std::vector<int> assignments;
+} exec_state_t;
 
 class EGraphXYNode{
  public:
-  int agentID_;
   EGraphXYNode(int agentID, costmap_2d::Costmap2DROS* costmap_ros);
-  bool makePlan(mas_egraphs::GetXYThetaPlan::Request& req, 
-		mas_egraphs::GetXYThetaPlan::Response& res);
-  
+  bool startMASPlanner(mas_egraphs::GetXYThetaPlan::Request& req, 
+		       mas_egraphs::GetXYThetaPlan::Response& res);
+  void receiveCommunication(const mas_egraphs::MasComm::Constptr& msg);
+  void sendCommunication() const;
+
  private:
 
   bool replan_required_; // true when we need to replan
   std::vector<pose_t> robotposes_;
-  comm_t comm_package_; // stores information until the last communication
+  exec_state_t state_; // stores state information known to this agent
 
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
   
@@ -72,7 +69,7 @@ class EGraphXYNode{
   EGraphVisualizer* egraph_vis_;
   
   ros::Publisher plan_pub_; // publish plan for Rviz
-  ros::Publisher footprint_pub_; // publish footprint for Rviz
+  //  ros::Publisher footprint_pub_; // publish footprint for Rviz
   ros::Publisher comm_pub_;  // publish communication packet for other robots
   
   ros::ServiceServer plan_service_;
@@ -83,10 +80,11 @@ class EGraphXYNode{
 
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
   void publishfootprints(std::vector<pose_cont_t> poses) const;
-  bool simulate(std::vector<double> start_x, std::vector<double> start_y, 
-		std::vector<double> start_z, std::vector<double> start_theta,
-		EGraphReplanParams params, mas_egraphs::GetXYThetaPlan::Response& res, int maxtime);
-  void publishPath(std::vector<int>& solution_stateIDs, mas_egraphs::GetXYThetaPlan::Response& res);
+  bool EGraphXYNode::makePlan(EGraphReplanParams& params);
+  bool execute(const std::vector<int>& solution_stateIDs);
+  // publish this agent's belief of the world
+  void contPosetoGUIPose(const pose_cont_t& pose, geometry_msgs::pose& GUIPose);
+  void publishPath(std::vector<int>& solution_stateIDs);
 };
 
 #endif

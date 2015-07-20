@@ -46,15 +46,15 @@ Heuristic computation is way too slow.
 GetSuccs can be faster:
   - precompute combinatorial actions
 
-Adding goals to map
-
-Plan:
-
-July 8: Speed up getsuccs [for fun]
-        Add aerial vehicle
-
-July 9: Swap out with MST based assignment heuristic
-        
-
-July 10: Start working with andrew on simulator
      
+July 20 status:
+
+Joint planner works, couple of mods needed:
+
+Only allow agent to retire immediately after arriving at a goal. Currently, agents can go back to a goal anytime and retire.
+Heuristic for active agent without assignment is now min distance to an unvisited goal.
+maxnumgoals for bitset can be changed to be exactly numgoals.
+
+Currently working on comm framework
+
+

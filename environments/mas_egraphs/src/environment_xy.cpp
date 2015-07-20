@@ -824,7 +824,8 @@ bool Environment_xy::IsValidPlan(const std::vector<int>& solution_stateIDs_V) co
 }
 
 //returns the stateid if success, and -1 otherwise
-int Environment_xy::SetStart(std::vector<pose_cont_t> start_m)
+int Environment_xy::SetStart(const std::vector<pose_cont_t>& start_m, 
+			     const std::vector<int>& goalsAlreadyVisited)
 {
   std::vector<pose_disc_t> start(EnvXYCfg.numAgents);
   std::vector<int> x(EnvXYCfg.numAgents), y(EnvXYCfg.numAgents);
@@ -855,7 +856,7 @@ int Environment_xy::SetStart(std::vector<pose_cont_t> start_m)
   }
 	   
     EnvXYHashEntry_t* OutHashEntry; 
-    std::vector<int> goalsVisited(EnvXYCfg.numGoals, -1);
+    std::vector<int> goalsVisited = goalsAlreadyVisited;
     getGoalsVisited(start, goalsVisited);
     std::vector<bool> activeAgents(EnvXYCfg.numAgents, true);
     if ((OutHashEntry = (this->*GetHashEntry)(start, goalsVisited, activeAgents)) == NULL) {

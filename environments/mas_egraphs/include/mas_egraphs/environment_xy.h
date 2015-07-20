@@ -267,14 +267,16 @@ class Environment_xy: public DiscreteSpaceInformation
     
     virtual void PrintEnv_Config(FILE* fOut){};
 
-    void GetCoordFromState(int stateID, std::vector<pose_disc_t>& poses, std::vector<int>& goalsVisited, std::vector<bool>& activeAgents) const;
+    void GetCoordFromState(int stateID, std::vector<pose_disc_t>& poses, 
+			   std::vector<int>& goalsVisited, std::vector<bool>& activeAgents) const;
 
     virtual int GetStateFromCoord(std::vector<pose_disc_t>& poses, std::vector<int> goalsVisited,
 				  std::vector<bool> activeAgents);
     /**
      * \brief sets start in meters/radians
      */
-    virtual int SetStart(std::vector<pose_cont_t> start);
+    virtual int SetStart(const std::vector<pose_cont_t>& start, 
+			 const std::vector<int>& goalsAlreadyVisited);
 
     bool SetMap(const unsigned char* mapdata);
 
