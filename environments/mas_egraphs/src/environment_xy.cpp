@@ -556,7 +556,8 @@ void Environment_xy::PrecomputeActionswithCompleteMotionPrimitive(int agent_i,
 }
      
   
-bool Environment_xy::PoseContToDisc(double px, double py, double pz, double pth,
+bool Environment_xy::PoseContToDisc(const double px, const double py, const double pz, 
+				    const double pth,
 				    int &ix, int &iy, int &iz, int &ith) const
 {
     ix = CONTXY2DISC(px, EnvXYCfg.cellsize_m);
@@ -568,7 +569,7 @@ bool Environment_xy::PoseContToDisc(double px, double py, double pz, double pth,
       (iz >= 0) && (pth >= -2 * PI_CONST) && (pth <= 2 * PI_CONST);
 }
 
-bool Environment_xy::PoseDiscToCont(int ix, int iy, int iz, int ith, 
+bool Environment_xy::PoseDiscToCont(const int ix, const int iy, const int iz, const int ith, 
 				    double &px, double &py, double &pz, double &pth) const
 {
   px = DISCXY2CONT(ix, EnvXYCfg.cellsize_m);
@@ -579,7 +580,7 @@ bool Environment_xy::PoseDiscToCont(int ix, int iy, int iz, int ith,
     (ix < EnvXYCfg.EnvWidth_c) && (iy >= 0) && (iy < EnvXYCfg.EnvHeight_c) && (iz > 0);
 }
 
-unsigned char Environment_xy::GetMapCost(int x, int y)
+unsigned char Environment_xy::GetMapCost(int x, int y) const
 {
     return EnvXYCfg.Grid2D[x][y];
 }

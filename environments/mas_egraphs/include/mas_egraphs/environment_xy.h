@@ -322,7 +322,7 @@ class Environment_xy: public DiscreteSpaceInformation
     /**
      * \brief returns the cost corresponding to the cell <x,y>
      */
-    virtual unsigned char GetMapCost(int x, int y);
+    virtual unsigned char GetMapCost(int x, int y) const;
 
     /**
      * \brief returns true if cell is within map
@@ -338,7 +338,7 @@ class Environment_xy: public DiscreteSpaceInformation
      * \return true if the resulting indices lie within the grid bounds
      *         and the angle was valid.
      */
-    virtual bool PoseContToDisc(double px, double py, double pz, double pth, 
+    virtual bool PoseContToDisc(const double px, const double py, const double pz, const double pth, 
 				int &ix, int &iy, int &iz, int &ith) const;
 
     /** \brief Transform grid indices into a continuous pose. The computed
@@ -350,7 +350,7 @@ class Environment_xy: public DiscreteSpaceInformation
      *
      * \return true if all the indices are within grid bounds.
      */
-    virtual bool PoseDiscToCont(int ix, int iy, int iz, int ith, 
+    virtual bool PoseDiscToCont(const int ix, const int iy, const int iz, const int ith, 
 				double &px, double &py, double &pz, double &pth) const;
     virtual int SizeofCreatedEnv();
 

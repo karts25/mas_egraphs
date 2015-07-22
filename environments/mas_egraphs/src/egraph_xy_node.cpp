@@ -356,23 +356,38 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){
     std::vector<bool> activeAgents;
     std::vector<double> coord;
     env_->getCoord(solution_stateIDs_V[step], coord);
+
+    for(int agent_i = 0; agent_i < numgoals_; agent_i++){
+      belief_state_.poses[agent_i].x = coord[4*agent_i];
+      belief_state_.poses[agent_i].y = coord[4*agent_i+1];
+      belief_state_.poses[agent_i].z = coord[4*agent_i+2];
+      belief_state_.poses[agent_i].theta = coord[4*agent_i+3];
+    }
+
     for(int goal_i = 0; goal_i < numgoals_; goal_i++){
       belief_state_.goalsVisited[goal_i] = coord[4*numagents_+goal_i];
     }
     
 #ifdef SIM
+    // localize current agent
+    belief_state_.poses[agentID_].x = coord[4*agentID_];
+    belief_state_.poses[agentID_].y = coord[4*agentID_+1];
+    belief_state_.poses[agentID_].z = coord[4*agentID_+2];
+    belief_state_.poses[agentID_].theta = coord[4*agentID_+3];
+
     // get sensor reading for current agent position
     mas_egraphs::GetSensorUpdate::Request req;
     mas_egraphs::GetSensorUpdate::Response res;
     req.agentID = agentID_;
-    req.x = poses[agentID_].x;
-    req.y = poses[agentID_].y;    
-    req.z = poses[agentID_].z;
+    pose_cont_t pose = poses[agentID_];
+    int theta;
+    env_->PoseContToDisc(pose.x, pose.y, pose.z, pose.theta,
+			 req.x, req.y, req.z, theta);
     req.theta = poses[agentID_].theta;
     sensorupdate_client_.call(req, res);
 
     // update costs according to new sensor information
-    updatelocalMap(res.pointcloud);
+    updatelocalMap(res.pointcloud);    
 #endif
 
     visualizePoses();
@@ -434,6 +449,7 @@ void EGraphXYNode::updatelocalMap(sensor_msgs::PointCloud& pointcloud){
 	obstacle[1] = x;
 	obstacle[2] = y;
 	observed_state_.new_obstacles.push_back(obstacle);       
+
 	updateCosts(x, y, c);	
       }
     }
