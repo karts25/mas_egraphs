@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <vector>
+#include <string>
 #include <ros/ros.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <mas_egraphs/egraph_xy.h>
@@ -21,7 +22,6 @@
 #include <mas_egraphs/GetXYThetaPlan.h>
 #include <mas_egraphs/GetSensorUpdate.h>
 #include <mas_egraphs/MasComm.h>
-
 #include <nav_msgs/Path.h>
 typedef struct
 {
@@ -44,12 +44,18 @@ typedef struct
   std::vector<int> assignments; 
 } observed_state_t;
 
+
+typedef struct
+{
+  int last_plan_markerID_;
+  int last_obst_markerID_;
+}viz_t;
+
 class EGraphXYNode
 {
  public:
   EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros);
-  bool startMASPlanner(mas_egraphs::GetXYThetaPlan::Request& req, 
-		       mas_egraphs::GetXYThetaPlan::Response& res);
+  void startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& msg);
   void receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg);
   void sendCommunication();
 
@@ -58,7 +64,7 @@ class EGraphXYNode
   bool replan_required_; // true when we need to replan
   belief_state_t belief_state_; 
   observed_state_t observed_state_;
-
+  int last_plan_markerID_; // stores number of markers used to publish the previous plan
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
   
   std::string cost_map_topic_; /** what topic is being used for the costmap topic */
@@ -86,9 +92,9 @@ class EGraphXYNode
   //  ros::Publisher footprint_pub_; // publish footprint for Rviz
   ros::Publisher comm_pub_;  // publish communication packet for other robots
   
-  ros::ServiceServer plan_service_;
+  //ros::ServiceServer plan_service_;
   ros::ServiceClient sensorupdate_client_;
-  
+  ros::Subscriber makeplan_sub_;
   ros::Subscriber interrupt_sub_;
   ros::Subscriber comm_sub_;
 

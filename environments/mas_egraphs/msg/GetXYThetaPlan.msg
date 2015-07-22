@@ -22,8 +22,3 @@ float64 dec_eps
 bool feedback_path
 bool save_egraph
 bool use_egraph
-
----
-
-string[] stat_names
-float64[] stat_values
