@@ -13,36 +13,51 @@
 #include <vector>
 #include <ros/ros.h>
 #include <costmap_2d/costmap_2d_ros.h>
-#include <mas_egraphs/GetXYThetaPlan.h>
 #include <mas_egraphs/egraph_xy.h>
 #include <mas_egraphs/egraphManager.h>
 #include <mas_egraphs/egraph_planner.h>
 #include <mas_egraphs/egraph_mas_2d_grid_heuristic.h>
+
+#include <mas_egraphs/GetXYThetaPlan.h>
+#include <mas_egraphs/GetSensorUpdate.h>
 #include <mas_egraphs/MasComm.h>
 
-typedef struct{
-  int agentID;
-  unsigned int lastpacketID; // id of last packet sent
-  std::vector<std::vector<int> > new_obstacles; // store obstacles found since last communication
-  std::vector<pose_cont_t> poses;
-  std::vector<pose_cont_t> goals;
-  std::vector<int> goalsVisited; 
-  std::vector<int> assignments;
-} exec_state_t;
+#include <nav_msgs/Path.h>
+typedef struct
+{
+  //poses of all agents (only pose[agentID_] is fully observed)
+  std::vector<pose_cont_t> poses; 
+  //goalsVisited[i] = agentID_ of agent that first visited the goal, or -1 if unvisited. (only goalsVisited[agentID_] is fully observed)
+  std::vector<int> goalsVisited; // stores indices of agents that visit each goal.
+} belief_state_t;
 
-class EGraphXYNode{
+// elements in this struct are always true
+typedef struct
+{
+  //id of last packet sent by all agents (fully observed)
+  std::vector<unsigned int> lastpacketID_V;
+  //obstacle locations seen by this agent since last communication (fully observed)
+  std::vector<std::vector<int> > new_obstacles;
+  //goals known to be visited
+  std::vector<int> goalsVisited;
+  //assignments of goals to agents. -1 if unassigned
+  std::vector<int> assignments; 
+} observed_state_t;
+
+class EGraphXYNode
+{
  public:
-  EGraphXYNode(int agentID, costmap_2d::Costmap2DROS* costmap_ros);
+  EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros);
   bool startMASPlanner(mas_egraphs::GetXYThetaPlan::Request& req, 
 		       mas_egraphs::GetXYThetaPlan::Response& res);
-  void receiveCommunication(const mas_egraphs::MasComm::Constptr& msg);
-  void sendCommunication() const;
+  void receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg);
+  void sendCommunication();
 
  private:
-
+  int agentID_;
   bool replan_required_; // true when we need to replan
-  std::vector<pose_t> robotposes_;
-  exec_state_t state_; // stores state information known to this agent
+  belief_state_t belief_state_; 
+  observed_state_t observed_state_;
 
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
   
@@ -56,7 +71,6 @@ class EGraphXYNode{
   std::vector<geometry_msgs::Point> footprint_;
   std::vector<std::vector<bool> > heur_grid_;
   std::vector<char*> sMotPrimFiles_;
-  std::vector<pose_t> agentposes_;
   int numagents_;
   int numgoals_;
   double time_per_action_;
@@ -78,13 +92,21 @@ class EGraphXYNode{
   ros::Subscriber interrupt_sub_;
   ros::Subscriber comm_sub_;
 
+  void updatelocalMap(sensor_msgs::PointCloud& pointcloud);
+  void updateCosts(int x, int y);
+  void updateCosts(int x, int y, unsigned char c);
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
   void publishfootprints(std::vector<pose_cont_t> poses) const;
-  bool EGraphXYNode::makePlan(EGraphReplanParams& params);
-  bool execute(const std::vector<int>& solution_stateIDs);
+  bool makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs);
+  
+  // loops between execution and replanning until execute signals completion
+  bool agentManager(EGraphReplanParams& params);
+  // executes plan. returns true if plan executed to completion, else false
+  bool execute(const std::vector<int>& solution_stateIDs_V);
   // publish this agent's belief of the world
-  void contPosetoGUIPose(const pose_cont_t& pose, geometry_msgs::pose& GUIPose);
-  void publishPath(std::vector<int>& solution_stateIDs);
+  void visualizePoses() const;
+  void visualizePath(std::vector<int>& solution_stateIDs);
+  void contPosetoGUIPose(const pose_cont_t& pose, visualization_msgs::Marker& GUIMarker) const;
 };
 
 #endif

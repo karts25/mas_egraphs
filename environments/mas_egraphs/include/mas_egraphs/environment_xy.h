@@ -144,8 +144,8 @@ typedef struct ENV_XY_CONFIG
 
 typedef struct VIZ_CONFIG
 {
-double costmap_originX;
-double costmap_originY;
+  double costmap_originX;
+  double costmap_originY;
 }VizConfig_t;
 
 /*
@@ -246,7 +246,7 @@ class Environment_xy: public DiscreteSpaceInformation
     virtual bool IsValidCell(int X, int Y) const;    
     virtual bool IsValidPose(int agent_i, const pose_disc_t& pos) const;
     virtual bool IsValidConfiguration(const std::vector<pose_disc_t>& pos) const;
-    virtual bool IsValidPlan(const std::vector<int>& solution_stateIDs_V[i]) const;
+    virtual bool IsValidPlan(const std::vector<int>& solution_stateIDs_V, int step) const;
     /**
      * \brief see comments on the same function in the parent class
      */

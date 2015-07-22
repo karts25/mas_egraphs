@@ -1,5 +1,4 @@
-#include <mas_egraphs/simulator.h>
-
+#include <mas_egraphs/sensor_node.h>
 SensorNode::SensorNode(costmap_2d::Costmap2DROS* costmap_ros){
   ros::NodeHandle private_nh("~");
   ros::NodeHandle nh;
@@ -25,7 +24,7 @@ SensorNode::SensorNode(costmap_2d::Costmap2DROS* costmap_ros){
     }
   }
 
-  sensor_update_service_ = nh.advertiseService("/mas_egraphs/sensorupdate", 
+  sensor_update_service_ = nh.advertiseService("/mas_egraphs/sensor", 
 					       &SensorNode::sensor_update, this);
 }
 
@@ -54,11 +53,11 @@ void SensorNode::sensor_update(mas_egraphs::GetSensorUpdate::Request& req,
   res.header.seq = req.agentID;
 
   // "sense" all obstacles at some radius around the robot. TODO: make raytrace
+  int id = 0;
   for(unsigned int ix = std::min(0, x - SENSOR_RADIUS);
       ix < std::min(cost_map_.getSizeInCellsX(), x + SENSOR_RADIUS); ix++){
     for(unsigned int iy = std::min(0, y - SENSOR_RADIUS); 
 	iy < std::min(cost_map_.getSizeInCellsY(), y + SENSOR_RADIUS); iy++){
-      double cost = cost_map_.getCost(ix, iy);      
       geometry_msgs::Point32 point;
       sensor_msgs::ChannelFloat32 channel;
       marker.id = id; 

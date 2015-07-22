@@ -1,4 +1,4 @@
-int agentID
+int32 agentID
 float64 x
 float64 y
 float64 z

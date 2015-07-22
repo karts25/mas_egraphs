@@ -18,7 +18,6 @@
 
 
 
-#include "geometry_msgs/PoseStamped.h"
 
 namespace mas_egraphs
 {
@@ -146,21 +145,16 @@ struct GetXYThetaPlanResponse_ {
   typedef GetXYThetaPlanResponse_<ContainerAllocator> Type;
 
   GetXYThetaPlanResponse_()
-  : path()
-  , stat_names()
+  : stat_names()
   , stat_values()
   {
   }
 
   GetXYThetaPlanResponse_(const ContainerAllocator& _alloc)
-  : path(_alloc)
-  , stat_names(_alloc)
+  : stat_names(_alloc)
   , stat_values(_alloc)
   {
   }
-
-  typedef std::vector< ::geometry_msgs::PoseStamped_<ContainerAllocator> , typename ContainerAllocator::template rebind< ::geometry_msgs::PoseStamped_<ContainerAllocator> >::other >  _path_type;
-  std::vector< ::geometry_msgs::PoseStamped_<ContainerAllocator> , typename ContainerAllocator::template rebind< ::geometry_msgs::PoseStamped_<ContainerAllocator> >::other >  path;
 
   typedef std::vector<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > , typename ContainerAllocator::template rebind<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::other >  _stat_names_type;
   std::vector<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > , typename ContainerAllocator::template rebind<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::other >  stat_names;
@@ -270,12 +264,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::mas_egraphs::GetXYThetaPlanResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "2033c4345b073f4beae2b61a3e6149bb";
+    return "911eb2a312779ab8da6872ef63023f94";
   }
 
   static const char* value(const  ::mas_egraphs::GetXYThetaPlanResponse_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0x2033c4345b073f4bULL;
-  static const uint64_t static_value2 = 0xeae2b61a3e6149bbULL;
+  static const uint64_t static_value1 = 0x911eb2a312779ab8ULL;
+  static const uint64_t static_value2 = 0xda6872ef63023f94ULL;
 };
 
 template<class ContainerAllocator>
@@ -293,56 +287,9 @@ struct Definition< ::mas_egraphs::GetXYThetaPlanResponse_<ContainerAllocator> > 
   static const char* value() 
   {
     return "\n\
-geometry_msgs/PoseStamped[] path\n\
 string[] stat_names\n\
 float64[] stat_values\n\
 \n\
-\n\
-================================================================================\n\
-MSG: geometry_msgs/PoseStamped\n\
-# A Pose with reference coordinate frame and timestamp\n\
-Header header\n\
-Pose pose\n\
-\n\
-================================================================================\n\
-MSG: std_msgs/Header\n\
-# Standard metadata for higher-level stamped data types.\n\
-# This is generally used to communicate timestamped data \n\
-# in a particular coordinate frame.\n\
-# \n\
-# sequence ID: consecutively increasing ID \n\
-uint32 seq\n\
-#Two-integer timestamp that is expressed as:\n\
-# * stamp.secs: seconds (stamp_secs) since epoch\n\
-# * stamp.nsecs: nanoseconds since stamp_secs\n\
-# time-handling sugar is provided by the client library\n\
-time stamp\n\
-#Frame this data is associated with\n\
-# 0: no frame\n\
-# 1: global frame\n\
-string frame_id\n\
-\n\
-================================================================================\n\
-MSG: geometry_msgs/Pose\n\
-# A representation of pose in free space, composed of postion and orientation. \n\
-Point position\n\
-Quaternion orientation\n\
-\n\
-================================================================================\n\
-MSG: geometry_msgs/Point\n\
-# This contains the position of a point in free space\n\
-float64 x\n\
-float64 y\n\
-float64 z\n\
-\n\
-================================================================================\n\
-MSG: geometry_msgs/Quaternion\n\
-# This represents an orientation in free space in quaternion form.\n\
-\n\
-float64 x\n\
-float64 y\n\
-float64 z\n\
-float64 w\n\
 \n\
 ";
   }
@@ -398,7 +345,6 @@ template<class ContainerAllocator> struct Serializer< ::mas_egraphs::GetXYThetaP
 {
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
-    stream.next(m.path);
     stream.next(m.stat_names);
     stream.next(m.stat_values);
   }
@@ -416,7 +362,7 @@ template<>
 struct MD5Sum<mas_egraphs::GetXYThetaPlan> {
   static const char* value() 
   {
-    return "10e411f2442519b560bc7b0b14d9cf7e";
+    return "2b24dbb396334e539daff2824444afeb";
   }
 
   static const char* value(const mas_egraphs::GetXYThetaPlan&) { return value(); } 
@@ -436,7 +382,7 @@ template<class ContainerAllocator>
 struct MD5Sum<mas_egraphs::GetXYThetaPlanRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "10e411f2442519b560bc7b0b14d9cf7e";
+    return "2b24dbb396334e539daff2824444afeb";
   }
 
   static const char* value(const mas_egraphs::GetXYThetaPlanRequest_<ContainerAllocator> &) { return value(); } 
@@ -456,7 +402,7 @@ template<class ContainerAllocator>
 struct MD5Sum<mas_egraphs::GetXYThetaPlanResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "10e411f2442519b560bc7b0b14d9cf7e";
+    return "2b24dbb396334e539daff2824444afeb";
   }
 
   static const char* value(const mas_egraphs::GetXYThetaPlanResponse_<ContainerAllocator> &) { return value(); } 

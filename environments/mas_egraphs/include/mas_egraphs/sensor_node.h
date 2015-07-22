@@ -4,16 +4,20 @@
 #include <iostream>
 #include <vector>
 #include <ros/ros.h>
-#include <cotsmap_2d/costmap_2d_ros.h>
+#include <costmap_2d/costmap_2d_ros.h>
+
+#include <mas_egraphs/GetSensorUpdate.h>
 
 #define SENSOR_RADIUS 5
 
 class SensorNode{
  public:
-  SensorNode(costmap_2d::Costmap2DROS* costmap_ros, int agentID);
-  setNumAgents(int numagents);
-  setNumGoals(int numgoals);
-  void simulate(const visualization_msgs::MarkerArray& plan);
+  SensorNode(costmap_2d::Costmap2DROS* costmap_ros);
+  void setNumAgents(int numagents);
+  void setNumGoals(int numgoals);
+  void sensor_update(mas_egraphs::GetSensorUpdate::Request& req,
+		     mas_egraphs::GetSensorUpdate::Response& res);
+
 
  private:
   int agentID_;
@@ -25,3 +29,5 @@ class SensorNode{
   std::vector<std::vector<int> > costmap_grid_;
   ros::ServiceServer sensor_update_service_;
 }
+
+#endif

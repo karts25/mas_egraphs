@@ -814,8 +814,8 @@ int Environment_xy::SetGoal(std::vector<pose_cont_t> goal_m)
 }
 
 
-bool Environment_xy::IsValidPlan(const std::vector<int>& solution_stateIDs_V) const{
-  for(int i = 0; i < (int) solution_stateIDs_V.size(); i++){
+bool Environment_xy::IsValidPlan(const std::vector<int>& solution_stateIDs_V, int step) const{
+  for(int i = step; i < (int) solution_stateIDs_V.size(); i++){
     EnvXYHashEntry_t* HashEntry = StateID2CoordTable[solution_stateIDs_V[i]];
     if(!IsValidConfiguration(HashEntry->poses))
       return false;
