@@ -65,28 +65,31 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
     exit(1);
   }
   
-  for (ssize_t ix(0); ix < costmap_ros_->getSizeInCellsX(); ++ix)
-    for (ssize_t iy(0); iy < costmap_ros_->getSizeInCellsY(); ++iy)
-      env_->UpdateCost(ix, iy, costMapCostToSBPLCost(cost_map_.getCost(ix,iy)));
-
+  heur_grid_.resize(cost_map_.getSizeInCellsX());
+  for (ssize_t ix(0); ix < costmap_ros_->getSizeInCellsX(); ++ix){
+    heur_grid_[ix].resize(cost_map_.getSizeInCellsY());
+    for (ssize_t iy(0); iy < costmap_ros_->getSizeInCellsY(); ++iy){
+      updateCosts(ix, iy, costMapCostToSBPLCost(cost_map_.getCost(ix,iy)));
+    }
+  }
   egraphs_.reserve(numagents_);
   for(int agent_i = 0; agent_i < numagents_; agent_i++)
     egraphs_.push_back(new EGraph(env_, 4, 0));
 
   // create subscribers and publishers
   interrupt_sub_ = nh.subscribe("/sbpl_planning/interrupt", 1, &EGraphXYNode::interruptPlannerCallback,this);
-  comm_sub_ = nh.subscribe("mas_comm", 1, &EGraphXYNode::receiveCommunication, this);
-  makeplan_sub_ = nh.subscribe("/sbpl_planning/mas_plan_req", 1, &EGraphXYNode::startMASPlanner, this);
+  comm_sub_ = nh.subscribe("/mas_egraphs/mas_comm", 1, &EGraphXYNode::receiveCommunication, this);
+  makeplan_sub_ = nh.subscribe("/mas_egraphs/mas_plan_req", 1, &EGraphXYNode::startMASPlanner, this);
 
-  plan_pub_ = nh.advertise<visualization_msgs::MarkerArray>("mas_plan", 1);
-  comm_pub_ = nh.advertise<mas_egraphs::MasComm>("mas_comm", 1);
-  last_plan_markerID_ = 0;
+  plan_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/mas_egraphs/mas_plan", 1);
+  comm_pub_ = nh.advertise<mas_egraphs::MasComm>("/mas_egraphs/mas_comm", 1);
+  viz_.last_plan_markerID_ = 0;
   //footprint_pub_ = nh.advertise<geometry_msgs::PolygonStamped>("footprint", 10);
 
   // create service providers and clients
   //plan_service_ = nh.advertiseService("/sbpl_planning/plan_path",
   //&EGraphXYNode::startMASPlanner, this);
-  ros::service::waitForService("/mas_egraphs/sensorupdate",10);
+  ros::service::waitForService("mas_egraphs/sensor",10);
   sensorupdate_client_ = ros::NodeHandle().serviceClient<mas_egraphs::GetSensorUpdate>("/mas_egraphs/sensor", true);
 
 }
@@ -129,6 +132,7 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
   egraph_mgr_->printTimingStats();
 
   if(ret){
+    env_->IsValidPlan(solution_stateIDs, 0);
     visualizePath(solution_stateIDs);    
     // unset replan_required
     replan_required_ = false;
@@ -260,11 +264,12 @@ void EGraphXYNode::visualizePoses() const{
   int id = numgoals_;
   for(int agent_i = 0; agent_i < numagents_; agent_i++){
     visualization_msgs::Marker marker;
+    marker.ns = std::to_string(agentID_); 
     marker.id = id;
     id++;
     marker.scale.x = 0.5;
     marker.scale.y = 0.5;
-    marker.scale.z = 0;
+    marker.scale.z = 0.5;
     marker.color.b = agentID_%2;
     marker.color.r = agentID_%2 + 1;
     marker.color.a = 1;
@@ -274,6 +279,7 @@ void EGraphXYNode::visualizePoses() const{
     contPosetoGUIPose(belief_state_.poses[agent_i], marker); 
     gui_path.markers.push_back(marker);
   }
+  plan_pub_.publish(gui_path);
 }
 
 void EGraphXYNode::contPosetoGUIPose(const pose_cont_t& pose, 
@@ -299,6 +305,29 @@ void EGraphXYNode::visualizePath(std::vector<int>& solution_stateIDs){
   int id = numgoals_ + numagents_;
   ros::Time plan_time = ros::Time::now();  
 
+  // publish number of packets sent so far
+  visualization_msgs::Marker marker;
+  marker.id = id;
+  marker.header.stamp = plan_time;
+  marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+  marker.ns = std::to_string(agentID_);
+  id++;
+  marker.scale.z = 0.5;
+  marker.color.r = 1;
+  marker.color.a = 1;
+  marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+  marker.text = std::to_string(observed_state_.lastpacketID_V[agentID_]);
+  marker.pose.position.x = 0.1*agentID_ + cost_map_.getOriginX();
+  marker.pose.position.y = cost_map_.getOriginY();
+  marker.pose.position.z = 0;
+  tf::Quaternion temp;
+  temp.setEulerZYX(0, 0, 0);
+  marker.pose.orientation.x = temp.getX();
+  marker.pose.orientation.y = temp.getY();
+  marker.pose.orientation.z = temp.getZ();
+  marker.pose.orientation.w = temp.getW();
+  
+  // publish path
   for(int agent_i = 0; agent_i < numagents_; agent_i++)
     {
       for(unsigned int i=0; i < solution_stateIDs.size(); i++){    
@@ -331,7 +360,7 @@ void EGraphXYNode::visualizePath(std::vector<int>& solution_stateIDs){
     }
 
   // delete extra markers from previous round
-  for(int erase_id = id; erase_id <= last_plan_markerID_; erase_id++){
+  for(int erase_id = id; erase_id <= viz_.last_plan_markerID_; erase_id++){
     visualization_msgs::Marker marker;
     marker.id = erase_id;
     marker.ns = std::to_string(agentID_);
@@ -339,14 +368,12 @@ void EGraphXYNode::visualizePath(std::vector<int>& solution_stateIDs){
     gui_path.markers.push_back(marker);
   }
   plan_pub_.publish(gui_path);
-  last_plan_markerID_ = id-1;
+  viz_.last_plan_markerID_ = id-1;
 }
 
 bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){  
   for(unsigned int step = 0; step < solution_stateIDs_V.size(); step++){
-    std::vector<pose_cont_t> poses;
-    std::vector<int> goalsVisited;
-    std::vector<bool> activeAgents;
+    printf("------------------\nExecuting step %d\n------------------\n", (int)step);
     std::vector<double> coord;
     env_->getCoord(solution_stateIDs_V[step], coord);
 
@@ -372,23 +399,23 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){
     mas_egraphs::GetSensorUpdate::Request req;
     mas_egraphs::GetSensorUpdate::Response res;
     req.agentID = agentID_;
-    pose_cont_t pose = poses[agentID_];
+    pose_cont_t pose = belief_state_.poses[agentID_];
     int theta;
     env_->PoseContToDisc(pose.x, pose.y, pose.z, pose.theta,
 			 req.x, req.y, req.z, theta);
-    req.theta = poses[agentID_].theta;
+    req.theta = belief_state_.poses[agentID_].theta;
+    printf("Getting sensor info\n");
     sensorupdate_client_.call(req, res);
-
+    printf("Got sensor info\n");
     // update costs according to new sensor information
     updatelocalMap(res.pointcloud);    
 #endif
-
     visualizePoses();
     // if old plan is invalid, we want to replan
     if(!env_->IsValidPlan(solution_stateIDs_V, step))
       replan_required_ = true;
    
-    ros::Duration(time_per_action_).sleep();    
+    ros::Duration(1.0).sleep();    
     
     if(replan_required_)
       return false;
@@ -398,7 +425,6 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){
 
 
 bool EGraphXYNode::agentManager(EGraphReplanParams& params){
-  bool isComplete = false;
   std::vector<int> solution_stateIDs;
   while(true){
     solution_stateIDs.clear();
@@ -415,11 +441,11 @@ bool EGraphXYNode::agentManager(EGraphReplanParams& params){
     env_->getAssignments(solution_stateIDs.back(), new_assignments);
     int most_recent_packetID = *std::max_element(observed_state_.lastpacketID_V.begin(), 
 						 observed_state_.lastpacketID_V.end());
-    if((observed_state_.assignments != new_assignments) ||
-       (observed_state_.lastpacketID_V[agentID_] < most_recent_packetID))
+    if((numagents_ > 1) && ((observed_state_.assignments != new_assignments) ||
+			    (observed_state_.lastpacketID_V[agentID_] < most_recent_packetID)))
       sendCommunication();
 
-    isComplete = execute(solution_stateIDs);
+    bool isComplete = execute(solution_stateIDs);
     
     // if all goals have been visited, we are done
     if (std::all_of(observed_state_.goalsVisited.begin(),
@@ -427,6 +453,7 @@ bool EGraphXYNode::agentManager(EGraphReplanParams& params){
 		    [](int i){return i >= 0;}))
        break;
   }  
+  printf("Agent %d is done\n", agentID_);
   return true;
 }
 
@@ -435,9 +462,10 @@ void EGraphXYNode::updatelocalMap(sensor_msgs::PointCloud& pointcloud){
   for(unsigned int i = 0; i < pointcloud.points.size(); i++){
     int x = (int) pointcloud.points[i].x;
     int y = (int) pointcloud.points[i].y;
-    unsigned char c = costMapCostToSBPLCost(cost_map_.getCost(x, y));
+    unsigned char c = costMapCostToSBPLCost(pointcloud.channels[0].values[i]); //costMapCostToSBPLCost(cost_map_.getCost(x, y));
     if(c >= inscribed_inflated_obstacle_){
       if (!heur_grid_[x][y]){ // new obstacle
+	printf("new obstacle at (%d, %d) with cost %d\n", x,y, (int) c);
 	std::vector<int> obstacle(2);
 	obstacle[1] = x;
 	obstacle[2] = y;
@@ -453,7 +481,7 @@ void EGraphXYNode::updateCosts(int x, int y){
 }
 
 void EGraphXYNode::updateCosts(int x, int y, unsigned char c){
-  env_->UpdateCost(x,y, c);
+  env_->UpdateCost(x,y,c);
   if(c >= inscribed_inflated_obstacle_){
     heur_grid_[x][y] = true; 
   }
@@ -465,7 +493,7 @@ void EGraphXYNode::sendCommunication(){
   comm_msg.header.frame_id = costmap_ros_->getGlobalFrameID(); 
   comm_msg.header.stamp = ros::Time::now();
   comm_msg.agentID = agentID_;
-  for(int i = 0; i < observed_state_.new_obstacles.size(); i++){
+  for(unsigned int i = 0; i < observed_state_.new_obstacles.size(); i++){
     comm_msg.obstacles_x.push_back(observed_state_.new_obstacles[i][0]);
     comm_msg.obstacles_y.push_back(observed_state_.new_obstacles[i][1]);
   }
@@ -548,7 +576,7 @@ int main(int argc, char** argv){
   EGraphXYNode xy(costmap);
 
   //ros::spin();
-  ros::MultiThreadedSpinner spinner(2);//need 2 threads to catch the interrupt
+  ros::MultiThreadedSpinner spinner(4);//need 2 threads to catch the interrupt
   spinner.spin();
 }
 

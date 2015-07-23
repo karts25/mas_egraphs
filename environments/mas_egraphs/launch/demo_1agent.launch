@@ -2,12 +2,16 @@
 
   <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 map base_link 10" />
   <node name="map_server" pkg="map_server" type="map_server" args="$(find mas_egraphs)/maps/office.pgm 0.1" />
-  <node name="egraphXYNode" pkg="mas_egraphs" type="egraphXYNode" output="screen">
-    <rosparam name="agentID" type="int" value="0" />
+  <node name="sensorNode" pkg = "mas_egraphs" type="sensorNode" output = "screen">
+        <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+  	  <rosparam file="$(find mas_egraphs)/config/global_costmap_params.yaml" command="load" />
+  </node>
+  <node name="egraphXYNode" pkg="mas_egraphs" type="egraphXYNode" output="screen" launch-prefix="gdb -ex run --args">
     <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
     <rosparam file="$(find mas_egraphs)/config/global_costmap_params.yaml" command="load" />
-    <param name="num_agents" type="int" value="1" />
-    <param name="primitive_filename_1" value="$(find mas_egraphs)/config/hexacopter_equitime.mprim" />
+    <param name="num_agents" type="int" value="1" />			   
+    <param name="agentID" type="int" value="0" />
+    <param name="primitive_filename_1" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />
   </node>
 
 </launch>

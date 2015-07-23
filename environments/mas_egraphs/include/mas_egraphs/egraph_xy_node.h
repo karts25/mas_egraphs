@@ -44,10 +44,10 @@ typedef struct
   std::vector<int> assignments; 
 } observed_state_t;
 
-
+// everything used for visualization
 typedef struct
 {
-  int last_plan_markerID_;
+  int last_plan_markerID_; // stores number of markers used to publish the previous plan
   int last_obst_markerID_;
 }viz_t;
 
@@ -64,7 +64,8 @@ class EGraphXYNode
   bool replan_required_; // true when we need to replan
   belief_state_t belief_state_; 
   observed_state_t observed_state_;
-  int last_plan_markerID_; // stores number of markers used to publish the previous plan
+  viz_t viz_;
+  int last_plan_markerID_; 
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
   
   std::string cost_map_topic_; /** what topic is being used for the costmap topic */

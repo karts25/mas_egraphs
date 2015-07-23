@@ -120,7 +120,7 @@ bool Environment_xy::InitializeEnv()
     StateID2CoordTable.clear();
     
     //initialize publisher to visualize states
-    state_pub_ = nh.advertise<visualization_msgs::MarkerArray>("expandedstates", 1);
+    state_pub_ = nh.advertise<visualization_msgs::MarkerArray>("mas_egraphs/expandedstates", 1);
     //initialized
     EnvXY.bInitialized = true;
     
@@ -634,7 +634,7 @@ void Environment_xy::SetConfiguration(int width, int height, const unsigned char
 
 bool Environment_xy::UpdateCost(int x, int y, unsigned char newcost)
 {
-  //SBPL_FPRINTF(fDeb, "Cost updated for cell %d %d from old cost=%d to new cost=%d\n", x,y,EnvXYCfg.Grid2D[x][y], newcost);
+  //printf("Cost updated for cell %d %d from old cost=%d to new cost=%d\n", x,y,EnvXYCfg.Grid2D[x][y], newcost);
   
   EnvXYCfg.Grid2D[x][y] = newcost;
   return true;
@@ -818,8 +818,9 @@ int Environment_xy::SetGoal(std::vector<pose_cont_t> goal_m)
 bool Environment_xy::IsValidPlan(const std::vector<int>& solution_stateIDs_V, int step) const{
   for(int i = step; i < (int) solution_stateIDs_V.size(); i++){
     EnvXYHashEntry_t* HashEntry = StateID2CoordTable[solution_stateIDs_V[i]];
-    if(!IsValidConfiguration(HashEntry->poses))
+    if(!IsValidConfiguration(HashEntry->poses)){
       return false;
+    }
   }
   return true;
 }
@@ -1141,7 +1142,7 @@ void Environment_xy::GetSuccsForAgent(int SourceStateID, int agentID, pose_disc_
     newPose.y = pose.y + action->dY;
     newPose.z = pose.z; // assume planar movement
     newPose.theta = NORMALIZEDISCTHETA(action->endtheta, EnvXYCfg.NumThetaDirs);
-    if(!IsValidCell(newPose.x, newPose.y))
+    if(!IsValidPose(agentID, newPose))
       cost = INFINITECOST;
     else
       cost = action->cost;
@@ -1221,7 +1222,7 @@ bool Environment_xy::IsValidConfiguration(const std::vector<pose_disc_t>& pos) c
 {
   // collision check robots. TODO: Use footprint
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
-    for(int agent2_i = agent_i+1; agent2_i < pos.size(); agent2_i++){
+    for(int agent2_i = agent_i+1; agent2_i < EnvXYCfg.numAgents; agent2_i++){
       if ((pos[agent_i].x == pos[agent2_i].x) && 
 	  (pos[agent_i].y == pos[agent2_i].y) && 
 	  (pos[agent_i].z == pos[agent2_i].z))
@@ -1231,7 +1232,9 @@ bool Environment_xy::IsValidConfiguration(const std::vector<pose_disc_t>& pos) c
 	} 
     }
     if(!IsValidPose(agent_i, pos[agent_i]))
-      return false;
+      {
+	return false;
+      }
   }
   return true;
 }
@@ -1332,7 +1335,8 @@ void Environment_xy::VisualizeState(const int stateID) const{
   for(int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++){
     visualization_msgs::Marker marker;
     pose_disc_t pose = HashEntry->poses[agent_i];
-    marker.id = agent_i; //stateID*EnvXYCfg.numAgents + agent_i; 
+    marker.id = stateID; //stateID*EnvXYCfg.numAgents + agent_i; 
+    marker.ns = std::to_string(agent_i);
     marker.scale.x = 0.5;
     marker.scale.y = 0.5;
     marker.scale.z = 0;

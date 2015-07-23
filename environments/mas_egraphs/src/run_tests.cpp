@@ -14,8 +14,8 @@ int main(int argc, char** argv){
   //mas_egraphs::GetXYThetaPlan::Response res;
   mas_egraphs::GetXYThetaPlan plan_req_msg;
   //egraph and planner parameters
-  int maxiters = 4;
-  double egraph_eps_values[] = {1, 2, 10, 500};
+  int maxiters = 1;
+  double egraph_eps_values[] = {1};
   plan_req_msg.dec_egraph_eps = 0.0;
   plan_req_msg.initial_eps = 3;
   plan_req_msg.final_eps = 3;
@@ -26,7 +26,7 @@ int main(int argc, char** argv){
   
   //ros::service::waitForService("/sbpl_planning/plan_path",10);
   //ros::ServiceClient planner = ros::NodeHandle().serviceClient<mas_egraphs::GetXYThetaPlan>("/sbpl_planning/plan_path", true);
-  ros::Publisher plan_req_pub = nh.advertise<mas_egraphs::GetXYThetaPlan>("mas_planning/mas_plan_msg", 1);
+  ros::Publisher plan_req_pub = nh.advertise<mas_egraphs::GetXYThetaPlan>("mas_egraphs/mas_plan_req", 1);
   sleep(1);
 
   FILE* fin = fopen(argv[1],"r");
@@ -84,6 +84,7 @@ int main(int argc, char** argv){
       first = false;
     }
   }
+  ros::spin();
   return 0;
 }
 

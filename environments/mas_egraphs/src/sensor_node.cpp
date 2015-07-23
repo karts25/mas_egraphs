@@ -27,7 +27,6 @@ bool SensorNode::sensor_update(mas_egraphs::GetSensorUpdate::Request& req,
   int y = req.y;
   int z = req.z;
   //double theta = req.theta;
-  
   res.pointcloud.points.clear();
   res.pointcloud.channels.clear();
 
@@ -40,9 +39,9 @@ bool SensorNode::sensor_update(mas_egraphs::GetSensorUpdate::Request& req,
   int id = 0;
   sensor_msgs::ChannelFloat32 channel;
   channel.name = "intensity";
-  for(unsigned int ix = std::min(0, x - SENSOR_RADIUS);
+  for(unsigned int ix = std::max(0, x - SENSOR_RADIUS);
       ix < std::min((int) cost_map_.getSizeInCellsX(), x + SENSOR_RADIUS); ix++){
-    for(unsigned int iy = std::min(0, y - SENSOR_RADIUS); 
+    for(unsigned int iy = std::max(0, y - SENSOR_RADIUS); 
 	iy < std::min((int) cost_map_.getSizeInCellsY(), y + SENSOR_RADIUS); iy++){
       geometry_msgs::Point32 point;
       point.x = ix;
