@@ -627,9 +627,9 @@ void Environment_xy::SetConfiguration(int width, int height, const unsigned char
     // set goal tolerances
     EnvXYCfg.goaltol_x = 1 + CONTXY2DISC(goaltol_x, EnvXYCfg.cellsize_m);
     EnvXYCfg.goaltol_y = 1 + CONTXY2DISC(goaltol_y, EnvXYCfg.cellsize_m);
-    printf("Goal tolerances set to (%f, %f) = (%d, %d)\n", 
-	   goaltol_x, goaltol_y,
-	   EnvXYCfg.goaltol_x, EnvXYCfg.goaltol_y);
+    //printf("Goal tolerances set to (%f, %f) = (%d, %d)\n", 
+    //goaltol_x, goaltol_y,
+    //EnvXYCfg.goaltol_x, EnvXYCfg.goaltol_y);
 }
 
 bool Environment_xy::UpdateCost(int x, int y, unsigned char newcost)
@@ -1210,7 +1210,6 @@ bool Environment_xy::IsValidPose(int agent_i, const pose_disc_t& pos) const
     int x = footprint.at(find).x;
     int y = footprint.at(find).y;
     if(!IsValidCell(x,y)){
-      SBPL_WARN("Cell not valid: (%d, %d)", x, y);
       return false;
     }
   }

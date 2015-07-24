@@ -35,7 +35,7 @@ typedef struct
 typedef struct
 {
   //id of last packet sent by all agents (fully observed)
-  std::vector<unsigned int> lastpacketID_V;
+  std::vector<int> lastpacketID_V;
   //obstacle locations seen by this agent since last communication (fully observed)
   std::vector<std::vector<int> > new_obstacles;
   //goals known to be visited
@@ -111,9 +111,11 @@ class EGraphXYNode
   // executes plan. returns true if plan executed to completion, else false
   bool execute(const std::vector<int>& solution_stateIDs_V);
   // publish this agent's belief of the world
+  void visualizeCommPackets() const;
   void visualizePoses() const;
   void visualizePath(std::vector<int>& solution_stateIDs);
   void contPosetoGUIPose(const pose_cont_t& pose, visualization_msgs::Marker& GUIMarker) const;
+  void waitforReplies() const;
 };
 
 #endif

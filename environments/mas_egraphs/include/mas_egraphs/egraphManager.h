@@ -83,7 +83,7 @@ class EGraphManager {
 	void allocateHeuristics();
 	std::vector<int> getHeuristic(int state_id);
 	void updateHeuristicGrids(const std::vector<std::vector<bool> >& grid);
-	void printVector(std::vector<int>& v); 
+	void printVector(const std::vector<int>& v) const; 
 	void getSnapSuccessors(int stateID, std::vector<int>* SuccIDV, 
                                std::vector<int>* CostV, std::vector<bool>* isTrueCost, 
                                std::vector<EdgeType>* edgeTypes);

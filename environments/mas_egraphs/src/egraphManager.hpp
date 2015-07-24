@@ -1122,7 +1122,7 @@ void EGraphManager<HeuristicType>::printTimingStats(){
 }
 
 template <typename HeuristicType>
-void EGraphManager<HeuristicType>::printVector(std::vector<int>& state){
+void EGraphManager<HeuristicType>::printVector(const std::vector<int>& state) const{
     for (auto value : state){
         printf("%d ", value);
     }
