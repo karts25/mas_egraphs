@@ -1,9 +1,9 @@
-w = 400;
-h = 400;
+w = 300;
+h = 300;
 room_h = h/4;
 door_size = room_h/4;
 Map = ones(h, w);
-wall_w = 10;
+wall_w = 5;
 
 % make border around map
 Map(1:h, 1:wall_w) = 0;
@@ -12,8 +12,8 @@ Map(1:wall_w, 1:w) = 0;
 Map(h-wall_w:h, 1:w) = 0;
 
 % vertical wall
-leftcorridor_x = 150;
-rightcorridor_x = 250;
+leftcorridor_x = 120;
+rightcorridor_x = 180;
 
 % corridor
 Map(1:h, leftcorridor_x:leftcorridor_x+wall_w) = 0;
@@ -40,11 +40,24 @@ for i = 1:4
     % right room horizontal door
     if(i ~=4)
        Map(room_h*i:room_h*i+wall_w, ...
-            rightcorridor_x + rightcorridor_x/2-door_size:3*rightcorridor_x/2) = 1;
+            3*rightcorridor_x/2-door_size:3*rightcorridor_x/2) = 1;
     end
 end
 
-
-h = figure(1);
+figure(1);
 imshow(mat2gray(Map));
-print('office.png', '-dpng');
+imwrite(Map,'office_known.pgm');
+
+%% make unknown map
+Map_unknown = Map;
+num_obstacles = 10;
+obstacles_w = 2;
+obstacles_h = 2;
+obstacles_x = h/2+randperm(h/2, num_obstacles);
+obstacles_y = 5+ randperm(w, num_obstacles);
+for i = 1:num_obstacles    
+    Map_unknown(obstacles_x(i)-obstacles_h:obstacles_x(i) + obstacles_h, obstacles_y(i) - obstacles_w:obstacles_y(i) + obstacles_w) = 0.4;    
+end
+figure(2);
+imshow(mat2gray(Map_unknown));
+imwrite(Map_unknown, 'office_unknown.pgm');

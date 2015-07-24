@@ -86,9 +86,6 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   viz_.last_plan_markerID_ = 0;
   //footprint_pub_ = nh.advertise<geometry_msgs::PolygonStamped>("footprint", 10);
 
-  // create service providers and clients
-  //plan_service_ = nh.advertiseService("/sbpl_planning/plan_path",
-  //&EGraphXYNode::startMASPlanner, this);
   ros::service::waitForService("mas_egraphs/sensor",10);
   sensorupdate_client_ = ros::NodeHandle().serviceClient<mas_egraphs::GetSensorUpdate>("/mas_egraphs/sensor", true);
 
@@ -110,7 +107,6 @@ unsigned char EGraphXYNode::costMapCostToSBPLCost(unsigned char newcost){
     return 0;
   else
     return (unsigned char) (newcost/sbpl_cost_multiplier_ + 0.5);
-  
 }
 
 bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs){
@@ -143,8 +139,6 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
 }
 
 void EGraphXYNode::startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& msg){
-				   //mas_egraphs::GetXYThetaPlan::Msguest& msg, 
-				   //mas_egraphs::GetXYThetaPlan::Response& res){
   ROS_DEBUG("[sbpl_lattice_planner] getting fresh copy of costmap");
   costmap_ros_->clearRobotFootprint();
   ROS_DEBUG("[sbpl_lattice_planner] robot footprint cleared");
@@ -333,6 +327,7 @@ void EGraphXYNode::visualizeCommPackets() const{
 void EGraphXYNode::visualizePath(std::vector<int>& solution_stateIDs){
   // ids [0: (numgoals_ -1)] used to publish goals
   // ids [numgoals_ : (numgoals_:numagents_-1)] used to publish start poses
+  // id numgoals_+numagents_ used to publish number of packets sent by this agent
   
   visualization_msgs::MarkerArray gui_path;
   vector<double> coord;
@@ -508,7 +503,7 @@ void EGraphXYNode::updatelocalMap(sensor_msgs::PointCloud& pointcloud){
   for(unsigned int i = 0; i < pointcloud.points.size(); i++){
     int x = (int) pointcloud.points[i].x;
     int y = (int) pointcloud.points[i].y;
-    unsigned char c = costMapCostToSBPLCost(pointcloud.channels[0].values[i]); //costMapCostToSBPLCost(cost_map_.getCost(x, y));
+    unsigned char c = costMapCostToSBPLCost(pointcloud.channels[0].values[i]); 
     if(c >= inscribed_inflated_obstacle_){
       if (!heur_grid_[x][y]){ // new obstacle
 	printf("new obstacle at (%d, %d) with cost %d\n", x,y, (int) c);
