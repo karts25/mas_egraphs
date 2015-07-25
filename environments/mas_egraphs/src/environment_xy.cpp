@@ -12,11 +12,11 @@ using namespace std;
 #endif
 */
 
-/*
+
 #ifndef VIZ_EXPANSIONS
 #define VIZ_EXPANSIONS
 #endif
-*/
+
 /*
 #ifndef DEBUG
 #define DEBUG
@@ -786,11 +786,7 @@ int Environment_xy::SetGoal(std::vector<pose_cont_t> goal_m)
       goal[goal_i].x = x;
       goal[goal_i].y = y;
       goal[goal_i].z = z;
-      goal[goal_i].theta = theta;
-    }
-      
-    if (!IsValidConfiguration(goal)) {
-        SBPL_ERROR("ERROR: goal configuration is invalid\n");
+      goal[goal_i].theta = theta;       
     }
     
     EnvXYHashEntry_t* OutHashEntry;
@@ -1219,7 +1215,7 @@ return true;
 
 bool Environment_xy::IsValidConfiguration(const std::vector<pose_disc_t>& pos) const
 {
-  // collision check robots. TODO: Use footprint
+  // collision check poses. TODO: Use footprint
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
     for(int agent2_i = agent_i+1; agent2_i < EnvXYCfg.numAgents; agent2_i++){
       if ((pos[agent_i].x == pos[agent2_i].x) && 

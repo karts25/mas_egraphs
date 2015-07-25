@@ -18,7 +18,8 @@ class EGraphMAS2dGridHeuristic : public EGraphHeuristic<std::vector<int> >{
   void setGrid(const std::vector<std::vector<bool> >& grid);
   void setGoal(const std::vector<int>& goal);
   int getHeuristic(const std::vector<int>& coord);
-  void getEGraphVerticesWithSameHeuristic(const std::vector<int>& coord, std::vector<EGraph::EGraphVertex*>& vertices);
+  void getEGraphVerticesWithSameHeuristic(const std::vector<int>& coord, 
+					  std::vector<EGraph::EGraphVertex*>& vertices);
   void runPrecomputations();
   void getDirectShortcut(int component, std::vector<EGraph::EGraphVertex*>& shortcuts);
   virtual void resetShortcuts();

@@ -3,14 +3,14 @@ experiments:
   - test: test_1
     num_agents: 2
     num_goals: 8
-    start: 15.0 2.5 1.0 1.58
-    start: 15.0 2.5 0 1.58
-    goal: 4.0 3.3 0  
-    goal: 4.0 10 0
-    goal: 4.0 16.5 0  
-    goal: 4.0 23 0 
-    goal: 25.5 3.3 0  
-    goal: 25.5 10 0
-    goal: 25.5 16.5 0  
-    goal: 25.5 23 0 
+    start: 15.0 1.5 0.0 1.58
+    start: 15.0 1.5 1.0 1.58
+    goal: 7.5 3.75 0  
+    goal: 7.5 11.25 0
+    goal: 7.5 18.75 0  
+    goal: 7.5 26.25 0 
+    goal: 22.5 3.75 0  
+    goal: 22.5 11.25 0
+    goal: 22.5 18.75 0  
+    goal: 22.5 26.25 0 
     

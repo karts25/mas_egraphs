@@ -1,14 +1,14 @@
 <launch>
 
   <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 map base_link 10" />
-  <node name="known_map_server" pkg="map_server" type="map_server" args="$(find mas_egraphs)/maps/office_known.pgm 0.1"/>
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find mas_egraphs)/maps/office_known.pgm 0.1">
+  </node>
   <node name="unknown_map_server" pkg="map_server" type="map_server" args="$(find mas_egraphs)/maps/office_unknown.pgm 0.1">
   <remap from="map" to="map_unknown"/>
   </node>
   <node name="sensorNode" pkg = "mas_egraphs" type="sensorNode" output = "screen">
-        <remap from="map_unknown" to="map"/>
         <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
-  	  <rosparam file="$(find mas_egraphs)/config/global_costmap_params.yaml" command="load" />
+        <rosparam file="$(find mas_egraphs)/config/sim_costmap_params.yaml" command="load" />
   </node>
   <node name="egraphXYNode" pkg="mas_egraphs" type="egraphXYNode" output="screen" launch-prefix="gdb -ex run --args">
     <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />

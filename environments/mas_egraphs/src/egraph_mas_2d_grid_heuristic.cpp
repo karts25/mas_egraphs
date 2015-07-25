@@ -49,13 +49,15 @@ void EGraphMAS2dGridHeuristic::setGrid(const vector<vector<bool> >& grid){
     ROS_ERROR("[EGraphMAS2dGridHeuristic] The dimensions provided in the constructor don't match the given grid.");
     return;
   }
-
   for(unsigned int x=0; x<grid.size(); x++){
     for(unsigned int y=0; y<grid[x].size(); y++){
       int id = HEUR_XY2ID(x,y);
       if(grid[x][y]){
         heur[id].cost = -1;
         sc[id].cost = -1;
+	
+//	if((x >= 251) && (x <= 268) && (y >=223) && (y <= 232))
+//	  printf("setgrid: (%d, %d) cost = %d id = %d\n", x,y, heur[id].cost, id);
       }
       else{
         heur[id].cost = INFINITECOST;
@@ -63,17 +65,6 @@ void EGraphMAS2dGridHeuristic::setGrid(const vector<vector<bool> >& grid){
       }
     }
   }
-
-/*
-  FILE* fout = fopen("heur2d_grid.csv","w");
-  for(unsigned int x=0; x<grid.size(); x++){
-    for(unsigned int y=0; y<grid[x].size(); y++){
-      fprintf(fout,"%d ",int(grid[x][y]));
-    }
-    fprintf(fout,"\n");
-  }
-  fclose(fout);
-*/
 }
 
 void EGraphMAS2dGridHeuristic::getEGraphVerticesWithSameHeuristic(const vector<int>& coord, vector<EGraph::EGraphVertex*>& vertices){
@@ -114,7 +105,8 @@ void EGraphMAS2dGridHeuristic::runPrecomputations(){
     //ROS_INFO("size of coord %d",c_coord.size());
     env_.projectToHeuristicSpace(c_coord,dp);
     if(dp[0] > sizex_ || dp[1] > sizey_){
-      ROS_WARN("edge at id %d out of bounds (%d, %d), (sizex_, sizey_) = %d, %d ", eg_->id2vertex[i]->id, dp[0], dp[1], sizex_, sizey_);
+      ROS_WARN("edge at id %d out of bounds (%d, %d), (sizex_, sizey_) = %d, %d ",
+		 eg_->id2vertex[i]->id, dp[0], dp[1], sizex_, sizey_);
       continue;
     }
     //ROS_INFO("size of coord %d",dp.size());
@@ -147,7 +139,7 @@ void EGraphMAS2dGridHeuristic::resetShortcuts(){
 }
 
 void EGraphMAS2dGridHeuristic::setGoal(const vector<int>& goal){
-  ROS_INFO("Setting goal to (%d, %d)", goal[0], goal[1]);
+  ROS_INFO("heur: Setting goal to (%d, %d)", goal[0], goal[1]);
   //ROS_ERROR("begin setGoal");
   iteration_++;
   
@@ -196,7 +188,7 @@ void EGraphMAS2dGridHeuristic::setGoal(const vector<int>& goal){
   shortcut_cache_.resize(eg_->getNumComponents(), NULL);
 }
 
-#define HEUR_SUCCESSOR(offset){                           \
+#define HEUR_SUCCESSOR(offset){ 			  \
   if(heur[id + (offset)].cost != -1){                     \
     if(heur[id + (offset)].open_iteration != iteration_){ \
       heur[id + (offset)].open_iteration = iteration_;    \
@@ -214,22 +206,38 @@ void EGraphMAS2dGridHeuristic::setGoal(const vector<int>& goal){
 
 int EGraphMAS2dGridHeuristic::getHeuristic(const vector<int>& coord){
   if(coord[0] > sizex_ || coord[1] > sizey_){
-    ROS_ERROR("out of bounds heuristic request: %d %d -> %d\n",coord[0],coord[1],HEUR_XY2ID(coord[0],coord[1]));
+    ROS_ERROR("out of bounds heuristic request: %d %d -> %d\n", 
+	      coord[0],coord[1],HEUR_XY2ID(coord[0],coord[1]));
     exit(1);
     return INFINITECOST;
   }
 
   EGraphMAS2dGridHeuristicCell* cell = &heur[HEUR_XY2ID(coord[0],coord[1])];
+  //if((coord[0] == 260) && (coord[1] >=223) && (coord[1]<=232))
+  //  printf("Getting heur for (%d, %d) c = %d \n", coord[0], coord[1], cell->cost);
 
   if(cell->cost==-1)
     return INFINITECOST;
   
   vector<int> dp(2,0);
   CKey key;
+  //printf("cost of door cells: ");
+  int temp_ids[] = {67909, 68211, 68513, 68815, 69117, 69419};
+  //for(int i = 0; i < 6; i ++)
+  //  printf("%d ", heur[temp_ids[i]].cost);
+  //printf("\n");
   //compute distance from H to all cells and note for each cell, what node in H was the closest
   while(!heap.emptyheap() && cell->closed_iteration != iteration_){
     EGraphMAS2dGridHeuristicCell* state = (EGraphMAS2dGridHeuristicCell*)heap.deleteminheap();
     int id = state->id;
+    int* index = std::find(temp_ids, temp_ids+6, id);
+    int x = id%width_-1;
+    int y = (id-x)/width_ -1;
+    //if((x >= 251) && (x <= 268) && (y >= 223) && (y <= 232)){
+      //      printf("getheuristic:  (%d, %d) heur= %d state->cost = %d id = %d\n",x,y,
+      //	     heur[id].cost,  state->cost, id);
+    //}
+      
     state->closed_iteration = iteration_;
     int oldCost = state->cost;
     int currentCost = oldCost + inflated_cost_1_move_;
@@ -239,11 +247,13 @@ int EGraphMAS2dGridHeuristic::getHeuristic(const vector<int>& coord){
     HEUR_SUCCESSOR(1);                        //+x
     HEUR_SUCCESSOR(width_);                   //+y
     HEUR_SUCCESSOR(-1);                       //-x
+
     //HEUR_SUCCESSOR(-width_-1);                //-y-x
     //HEUR_SUCCESSOR(-width_+1);                //-y+x
     //HEUR_SUCCESSOR(width_+1);                 //+y+x
     //HEUR_SUCCESSOR(width_-1);                 //+y-x
     vector<double> c_coord;
+
     for(unsigned int i=0; i < state->egraph_vertices.size(); i++){
       for(unsigned int j=0; j < state->egraph_vertices[i]->neighbors.size(); j++){
         if(!state->egraph_vertices[i]->valid[j])
@@ -268,6 +278,7 @@ int EGraphMAS2dGridHeuristic::getHeuristic(const vector<int>& coord){
     }
   }
   //SBPL_INFO("Heuristic of [%d, %d] = %d",coord[0], coord[1], cell->cost);
+  //printf("heur = %d\n", cell->cost);
   return cell->cost;
 }
 

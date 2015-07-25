@@ -664,6 +664,7 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
   start_state->g = 0;
   //start_state->g_peragent = std::vector<int>(egraph_mgr_->egraph_env_->GetNumAgents(),0);
   ROS_INFO("start state heuristic is %d", start_state->h);
+  std::cin.get();
   assert(start_state->h >= 0);
   CKey key;
 

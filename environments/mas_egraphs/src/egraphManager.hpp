@@ -25,12 +25,12 @@ EGraphManager<HeuristicType>::EGraphManager(std::vector<EGraphPtr> egraphs,
   egraphperagent_.resize(numagents_);
   TSP_allagents_.reserve(numagents_);
   for(int agent_i = 0; agent_i < numagents_; agent_i++){
-    egraph_heurs_[agent_i].resize(numgoals_);
+    egraph_heurs_[agent_i].reserve(numgoals_);
     egraphperagent_[agent_i] = egraphs[agent_i];
     Matrix TSP_agenti(pow(2, numgoals_)-1);
     TSP_allagents_.push_back(TSP_agenti);
     for(int goal_i = 0; goal_i < numgoals_; goal_i++){
-      egraph_heurs_[agent_i][goal_i] = egraph_heurs[agent_i][goal_i];
+      egraph_heurs_[agent_i].push_back(egraph_heurs[agent_i][goal_i]);
       egraph_heurs_[agent_i][goal_i]->setAgentId(agent_i);
       i++;
     }
@@ -52,6 +52,7 @@ void EGraphManager<HeuristicType>::updateHeuristicGrids(const std::vector<std::v
       egraph_heurs_[agent_i][goal_i]->setGrid(grid);
       }
   }  
+  updateManager();
 }
 
 template <typename HeuristicType>
@@ -67,6 +68,7 @@ template <typename HeuristicType>
 void EGraphManager<HeuristicType>::updateManager(){
   setGoal();
   initEGraph(true);
+  validateEGraph(true);
   clock_t precomputeTSPcosts_t0 = clock();
   precomputeTSPcosts();
   precomputeTSPcostsClock += clock() - precomputeTSPcosts_t0;
@@ -517,7 +519,7 @@ void EGraphManager<HeuristicType>::validateEGraph(bool update_egraph){
         }
       }
     
-      for(size_t i=0; i < egraph_->id2vertex.size(); i++){
+      for(size_t i=0; i < egraphperagent_[agent_i]->id2vertex.size(); i++){
         EGraph::EGraphVertex* v = egraphperagent_[agent_i]->id2vertex[i];
 	std::vector<double> coord;
         egraphperagent_[agent_i]->discToCont(v,coord);
@@ -525,16 +527,17 @@ void EGraphManager<HeuristicType>::validateEGraph(bool update_egraph){
             egraphperagent_[agent_i]->invalidateVertex(v);
         }
       }
-    }
-    if (update_egraph){
-        egraph_->computeComponents();
+      
+      if (update_egraph){
+        egraphperagent_[agent_i]->computeComponents();
 	for(int agent_i = 0; agent_i < numagents_; agent_i++){
 	  for(int goal_i = 0; goal_i < numgoals_; goal_i++){
-	  egraph_heurs_[agent_i][goal_i]->runPrecomputations();
+	    egraph_heurs_[agent_i][goal_i]->runPrecomputations();
 	  }
 	}
+      }
     }
-
+    
     ROS_INFO("num invalid edges from full egraph check: %d", num_invalid_edges);
     stats_.egraph_validity_check_time = double(clock()-time)/CLOCKS_PER_SEC;
 }
@@ -959,12 +962,15 @@ void EGraphManager<HeuristicType>::storeLastPath(const std::vector<int>& path,
       full_path_allagents[agent_i].push_back(coord_agent);
     }
   }
+  std::vector<int> costs_per_agent = costs;
+  for(int i = 0; i < (int) costs_per_agent.size(); i++)
+    costs_per_agent[i] /= numagents_;
+
   update_eg_thread_data_.path_to_feedback.resize(numagents_);
   update_eg_thread_data_.costs.resize(numagents_);
   for(int agent_i = 0; agent_i < numagents_; agent_i++){
     update_eg_thread_data_.path_to_feedback[agent_i] = full_path_allagents[agent_i];
-    update_eg_thread_data_.costs[agent_i] = costs;
-    //todo: this will become cost per agent/ we just recompute
+    update_eg_thread_data_.costs[agent_i] = costs_per_agent;
   }
 }
 

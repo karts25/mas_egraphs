@@ -10,7 +10,7 @@
 //#include <geometry_msgs/Point32.h>
 //#include <sensor_msgs/ChannelFloat32.h>
 
-#define SENSOR_RADIUS 20 // 20 cells
+#define SENSOR_RADIUS 60 // in cells (=0.1m)
 
 class SensorNode{
  public:

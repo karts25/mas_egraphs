@@ -5,8 +5,8 @@ experiments:
     num_goals: 4
     start: 15.0 1.5 0.0 1.58
     start: 15.0 1.5 1.0 1.58
-    goal: 7.5 4.5 0  
-    goal: 7.5 13.5 0
-    goal: 22.5 4.5 0  
-    goal: 22.5 13.5 0
+    goal: 7.5 3.75 0  
+    goal: 7.5 11.25 0
+    goal: 22.5 3.75 0  
+    goal: 22.5 11.25 0
     

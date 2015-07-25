@@ -5,6 +5,8 @@ door_size = room_h/4;
 Map = ones(h, w);
 wall_w = 5;
 
+obstacle_cost = 0.4;
+
 % make border around map
 Map(1:h, 1:wall_w) = 0;
 Map(1:h, h-wall_w:w) = 0;
@@ -50,14 +52,32 @@ imwrite(Map,'office_known.pgm');
 
 %% make unknown map
 Map_unknown = Map;
-num_obstacles = 10;
-obstacles_w = 2;
-obstacles_h = 2;
-obstacles_x = h/2+randperm(h/2, num_obstacles);
-obstacles_y = 5+ randperm(w, num_obstacles);
-for i = 1:num_obstacles    
-    Map_unknown(obstacles_x(i)-obstacles_h:obstacles_x(i) + obstacles_h, obstacles_y(i) - obstacles_w:obstacles_y(i) + obstacles_w) = 0.4;    
+
+% close some doors at random
+horiz_doors_left = randperm(3);
+horiz_doors_right = randperm(3);
+for ctr = 1
+    % left room horizontal door    
+    i = horiz_doors_left(ctr);
+    Map_unknown(room_h*i:room_h*i+wall_w, ...
+        leftcorridor_x/2-door_size:leftcorridor_x/2) = obstacle_cost;
+
+    i = horiz_doors_right(ctr);
+    % right room horizontal door
+    Map_unknown(room_h*i:room_h*i+wall_w, ...
+            3*rightcorridor_x/2-door_size:3*rightcorridor_x/2) = obstacle_cost;
+
 end
+
+% add some random obstacles
+% num_obstacles = 10;
+% obstacles_w = door_size/4;
+% obstacles_h = 2;
+% obstacles_x = h/2+randperm(h/2, num_obstacles);
+% obstacles_y = 5+ randperm(w, num_obstacles);
+% for i = 1:num_obstacles
+%     Map_unknown(obstacles_x(i)-obstacles_h:obstacles_x(i) + obstacles_h, obstacles_y(i) - obstacles_w:obstacles_y(i) + obstacles_w) = obstacle_cost;
+% end
 figure(2);
 imshow(mat2gray(Map_unknown));
 imwrite(Map_unknown, 'office_unknown.pgm');
