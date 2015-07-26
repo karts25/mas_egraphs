@@ -111,8 +111,17 @@ unsigned char EGraphXYNode::costMapCostToSBPLCost(unsigned char newcost){
 }
 
 bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs){
-  if (!replan_required_)
-    return true;
+  EGraphReplanParams params_copy = params;
+  switch (replan_condition_)
+    {
+    case NOTREQ:
+      return true;
+      break;
+    case GLOBAL:
+      params_copy.use_egraph = false;
+      params_copy.epsE = 1;
+      params_copy.final_epsE = 1;
+    }
   printf("Agent %d starting plan with goalsVisited = ", agentID_);
   egraph_mgr_->printVector(belief_state_.goalsVisited);
   //printf("Enter any key to start planning\n");
@@ -127,14 +136,14 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
   
   // plan!
   solution_stateIDs.clear();
-  bool ret = planner_->replan(&solution_stateIDs, params);
+  bool ret = planner_->replan(&solution_stateIDs, params_copy);
   //env_->PrintTimingStats();
   //egraph_mgr_->printTimingStats();
 
   if(ret){
     visualizePath(solution_stateIDs);    
     // unset replan_required
-    replan_required_ = false;
+    replan_condition_ = NOTREQ;
     return true;
   }
   else 
@@ -250,7 +259,7 @@ void EGraphXYNode::startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& 
   params.use_egraph = msg->use_egraph;
   params.feedback_path = msg->feedback_path;
 
-  replan_required_ = true;
+  replan_condition_ = GLOBAL;
   bool ret = agentManager(params);  
 }
 
@@ -462,10 +471,10 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){
     // if old plan is invalid, we want to replan
     if(!env_->IsValidPlan(solution_stateIDs_V, step)){
       printf("Agent %d thinks plan is invalid\n", agentID_);
-      replan_required_ = true;
+      replan_condition_ = LOCAL;
     }
-    if(replan_required_){
-      printf("Agent %d: replan_required_ is true\n", agentID_);
+    if(replan_condition_ != NOTREQ){
+      printf("Agent %d: replan required\n", agentID_);
       return false;
     }
     printf("\n-------------------------\n");
@@ -622,7 +631,7 @@ void EGraphXYNode::receiveCommunication(const mas_egraphs::MasComm::ConstPtr& ms
   // register this packetID. 
   observed_state_.lastpacketID_V[msg->agentID] = msg->header.seq;
 
-  replan_required_ = true;
+  replan_condition_ = GLOBAL;
 }
 
 void EGraphXYNode::waitforReplies() const{

@@ -51,6 +51,13 @@ typedef struct
   int last_obst_markerID_;
 }viz_t;
 
+// we can replan in 3 situations:
+// NOT = no need to replan at all
+// LOCAL = use current plan as experience to replan. Used when the agent's current plan is invalid
+// GLOBAL = plan from scratch without experience. Used initially and after communication
+
+enum replan_t {NOTREQ, LOCAL, GLOBAL}; 
+
 class EGraphXYNode
 {
  public:
@@ -61,7 +68,8 @@ class EGraphXYNode
 
  private:
   int agentID_;
-  bool replan_required_; // true when we need to replan
+  replan_t replan_condition_; // true when we need to replan
+  
   belief_state_t belief_state_; 
   observed_state_t observed_state_;
   viz_t viz_;

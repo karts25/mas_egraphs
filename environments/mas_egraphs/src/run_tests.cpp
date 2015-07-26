@@ -15,10 +15,10 @@ int main(int argc, char** argv){
   mas_egraphs::GetXYThetaPlan plan_req_msg;
   //egraph and planner parameters
   int maxiters = 1;
-  double egraph_eps_values[] = {1};
+  double egraph_eps_values[] = {100};
   plan_req_msg.dec_egraph_eps = 0.0;
-  plan_req_msg.initial_eps = 3;
-  plan_req_msg.final_eps = 3;
+  plan_req_msg.initial_eps = 1.2;
+  plan_req_msg.final_eps = 1.2;
   plan_req_msg.dec_eps = 1;
   plan_req_msg.feedback_path = true;
   plan_req_msg.save_egraph = false;
