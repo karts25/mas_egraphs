@@ -7,8 +7,7 @@
 
 #include<mas_egraphs/key.h>
 #include<egraphs/egraph.h>
-#include<egraphs/egraphable.h>
-//#include<mas_egraphs/egraph_mas_2d_grid_heuristic.h>
+#include<mas_egraphs/egraphable.h>
 #include<egraphs/egraph_discretize.h>
 #include<sbpl/headers.h>
 #include<egraph_vis/egraph_visualizer.h>
