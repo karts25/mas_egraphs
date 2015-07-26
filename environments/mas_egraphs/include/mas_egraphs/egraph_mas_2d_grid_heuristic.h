@@ -5,14 +5,15 @@
 #define ROS
 #endif
 
-#include<egraphs/egraph_heuristic.h>
-#include<egraphs/egraph.h>
-#include<sbpl/headers.h>
-#include<map>
+#include <egraphs/egraph_heuristic.h>
+#include <mas_egraphs/egraph_xy.h>
+#include <egraphs/egraph.h>
+#include <sbpl/headers.h>
+#include <map>
 
 class EGraphMAS2dGridHeuristic : public EGraphHeuristic<std::vector<int> >{
   public:
-  EGraphMAS2dGridHeuristic(const EGraphable<std::vector<int> >& env, 
+  EGraphMAS2dGridHeuristic(const EGraphXY& env, 
 			   int size_x, int size_y, int move_cost);
   void setAgentId(int agentid);
   void setGrid(const std::vector<std::vector<bool> >& grid);
@@ -60,7 +61,7 @@ class EGraphMAS2dGridHeuristic : public EGraphHeuristic<std::vector<int> >{
     std::vector<EGraph::EGraphVertex*> shortcut_cache_;
     std::vector<EGraphMAS2dGridHeuristicCell> heur;
     std::vector<EGraphMAS2dGridHeuristicCell> sc;
-    const EGraphable<std::vector<int> >& env_;
+    const EGraphXY& env_;
 };
 
 #endif

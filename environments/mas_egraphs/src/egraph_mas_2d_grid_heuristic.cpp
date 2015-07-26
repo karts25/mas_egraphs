@@ -4,7 +4,7 @@ using namespace std;
 
 #define HEUR_XY2ID(x,y) ((y + 1) * width_ + (x + 1))
 
-EGraphMAS2dGridHeuristic::EGraphMAS2dGridHeuristic(const EGraphable<vector<int> >& env, 
+EGraphMAS2dGridHeuristic::EGraphMAS2dGridHeuristic(const EGraphXY& env, 
 					 int size_x, int size_y, int move_cost): env_(env){
   sizex_ = size_x;
   sizey_ = size_y;

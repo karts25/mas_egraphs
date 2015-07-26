@@ -8,14 +8,13 @@
 #include<mas_egraphs/key.h>
 #include<egraphs/egraph.h>
 #include<egraphs/egraphable.h>
-#include<mas_egraphs/egraph_mas_2d_grid_heuristic.h>
+//#include<mas_egraphs/egraph_mas_2d_grid_heuristic.h>
 #include<egraphs/egraph_discretize.h>
 #include<sbpl/headers.h>
 #include<egraph_vis/egraph_visualizer.h>
 #include<mas_egraphs/environment_xy.h>
 
-class EGraphXY:public Environment_xy, public EGraphable<std::vector<double> >,
-  public EGraphDiscretize{
+class EGraphXY:public Environment_xy, public EGraphDiscretize{
  public:
   EGraphXY();
   bool collisionCheckPose(int x, int y, int z, int theta, int& cost);
@@ -23,8 +22,8 @@ class EGraphXY:public Environment_xy, public EGraphable<std::vector<double> >,
   virtual bool getCoord(int id, std::vector<double>& coord);
   virtual int getStateID(const std::vector<double>& coord);
   virtual bool isGoal(int id);
-    //virtual int GetNumGoals() const;
-    //virtual int GetNumAgents() const;
+  //virtual int GetNumGoals() const;
+  //virtual int GetNumAgents() const;
   void projectToHeuristicSpace(const std::vector<double>& coord, std::vector<int>& dp) const; 
   void projectGoalToHeuristicSpace(std::vector<int>& dp) const; 
   void contToDisc (const std::vector<double>& c, std::vector<int>& d);

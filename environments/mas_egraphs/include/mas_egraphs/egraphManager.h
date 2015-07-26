@@ -7,7 +7,6 @@
 
 #include <ros/ros.h>
 #include <egraphs/egraph.h>
-#include <egraphs/egraphable.h>
 #include <egraphs/egraph_heuristic.h>
 #include <boost/thread/condition_variable.hpp>
 #include <vector>
@@ -18,6 +17,7 @@
 #include <limits>
 #include <numeric>
 #include <mas_egraphs/planner_state.h>
+#include <mas_egraphs/egraph_mas_2d_grid_heuristic.h>
 
 typedef EGraph* EGraphPtr;
 typedef std::vector<std::vector<double> > EGraphPath;
@@ -71,7 +71,7 @@ struct UpdateEGThreadData {
 template <typename HeuristicType>
 class EGraphManager {
  public:
-        typedef EGraphable<HeuristicType>* EGraphablePtr;
+        typedef EGraphXY* EGraphablePtr;
         typedef EGraphMAS2dGridHeuristic* EGraphHeuristicPtr;
 	typedef std::vector<std::vector<int> > Matrix;
 	EGraphManager(std::vector<EGraphPtr> egraphs, EGraphablePtr egraph_env, 

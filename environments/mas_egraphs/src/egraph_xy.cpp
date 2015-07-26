@@ -154,21 +154,19 @@ void EGraphXY::discToCont(const vector<int>& d, vector<double>& c){
 
 bool EGraphXY::isValidEdge(const vector<double>& coord, const vector<double>& coord2,
 			   bool& change_cost, int& cost){
-  //return isValidEdge(0, coord, coord2, change_cost, cost);
-  return true;
+  return isValidEdge(0, coord, coord2, change_cost, cost);
 }
 
-//bool EGraphXY::isValidEdge(int agentID, const vector<double>& coord, const vector<double>& coord2,
-//			   bool& change_cost, int& cost){
+bool EGraphXY::isValidEdge(int agentID, const vector<double>& coord, const vector<double>& coord2,
+			   bool& change_cost, int& cost){
   /*
    we assume that an edge cost will change only if either vertex becomes invalid. 
    TODO:
    We cannot directly invoke getsuccs because our egraphs are formed by splitting up a plan into its multiple agents. Which means we cannot recompute the ID given coord for just one agent. We should keep track of ids while creating the egraph, and then use GetSuccsForAgent to recompute the cost.
   */
-  
-			     //  return (isValidVertex(agentID, coord) && isValidVertex(agentID, coord2));    
-			     //}
-			     /*
+  return (isValidVertex(agentID, coord) && isValidVertex(agentID, coord2));    
+}
+			     
 bool EGraphXY::isValidVertex(int agentID, const vector<double>& coord){
   vector<int> d_coord;
   contToDisc(coord, d_coord);
@@ -179,11 +177,10 @@ bool EGraphXY::isValidVertex(int agentID, const vector<double>& coord){
   d_pose.z = d_coord[2];
   d_pose.theta = d_coord[3];
   return IsValidPose(agentID, d_pose);
-}*/
+}
 
 bool EGraphXY::isValidVertex(const vector<double>& coord){
-  return true;
-  //  return isValidVertex(0, coord);
+  return isValidVertex(0, coord);
 }
 
 void EGraphXY::getAssignments(int solution_stateID, std::vector<int>& assignments) const{
