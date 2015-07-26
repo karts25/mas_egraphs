@@ -23,32 +23,10 @@ bool EGraphXY::InitializeEnv(int width, int height,
 					   goaltol_x, goaltol_y, goaltol_theta, perimeterptsV,
 					   cellsize_m, time_per_action, sMotPrimFiles,
 					   costmapOriginX, costmapOriginY);
+
   return ret;
   
 }
-/*
-int EGraphXY::GetNumGoals() const
-{
-  return EnvXYCfg.numGoals;
-}
-
-int EGraphXY::GetNumAgents() const
-{
-  return EnvXYCfg.numAgents;
-}
-*/
-
-bool EGraphXY::collisionCheckPose(int x, int y, int z, int theta, int& cost){
-  if(!IsValidCell(x, y))
-    return false;
-
-  if(EnvXYCfg.Grid2D[x][y] >= EnvXYCfg.obsthresh)
-    return false;
-
-  cost = EnvXYCfg.Grid2D[x][y]; 
-  return true;
-}
-
 
 bool EGraphXY::snap(const vector<double>& from, const vector<double>& to, int& id, int& cost){
   return false;
@@ -174,131 +152,43 @@ void EGraphXY::discToCont(const vector<int>& d, vector<double>& c){
   }
 }
 
-bool EGraphXY::isValidEdge(const vector<double>& coord, const vector<double>& coord2, bool& change_cost, int& cost){
-  return true; // assume static environment
-  int id1 = getStateID(coord);
-  int id2 = getStateID(coord2);
-
-  vector<int> children;
-  vector<int> costs;
-
-  GetSuccs(id1, &children, &costs);
-  for(unsigned int i=0; i<children.size(); i++){
-    if(children[i]==id2){
-      change_cost = true;
-      cost = costs[i];
-      return true;
-    }
-  }
-
-  GetSuccs(id2, &children, &costs);
-  for(unsigned int i=0; i<children.size(); i++){
-    if(children[i]==id1){
-      change_cost = true;
-      cost = costs[i];
-      return true;
-    }
-  }
-
-  int id;
-  if(snap(coord, coord2, id, cost)){
-    change_cost = true;
-    return true;
-  }
-
-  change_cost = false;
-  return false;
+bool EGraphXY::isValidEdge(const vector<double>& coord, const vector<double>& coord2,
+			   bool& change_cost, int& cost){
+  //return isValidEdge(0, coord, coord2, change_cost, cost);
+  return true;
 }
+
+//bool EGraphXY::isValidEdge(int agentID, const vector<double>& coord, const vector<double>& coord2,
+//			   bool& change_cost, int& cost){
+  /*
+   we assume that an edge cost will change only if either vertex becomes invalid. 
+   TODO:
+   We cannot directly invoke getsuccs because our egraphs are formed by splitting up a plan into its multiple agents. Which means we cannot recompute the ID given coord for just one agent. We should keep track of ids while creating the egraph, and then use GetSuccsForAgent to recompute the cost.
+  */
+  
+			     //  return (isValidVertex(agentID, coord) && isValidVertex(agentID, coord2));    
+			     //}
+			     /*
+bool EGraphXY::isValidVertex(int agentID, const vector<double>& coord){
+  vector<int> d_coord;
+  contToDisc(coord, d_coord);
+  int temp_cost;
+  pose_disc_t d_pose;
+  d_pose.x = d_coord[0];
+  d_pose.y = d_coord[1];
+  d_pose.z = d_coord[2];
+  d_pose.theta = d_coord[3];
+  return IsValidPose(agentID, d_pose);
+}*/
 
 bool EGraphXY::isValidVertex(const vector<double>& coord){
-  vector<int> d_coord;
-  contToDisc(coord,d_coord);
-  int temp_cost;
-  return collisionCheckPose(d_coord[0],d_coord[1], d_coord[2], d_coord[3], temp_cost);
+  return true;
+  //  return isValidVertex(0, coord);
 }
 
-//TODO: This can be made much faster by just changing goalsVisited to a vector of assignment ints
 void EGraphXY::getAssignments(int solution_stateID, std::vector<int>& assignments) const{
   std::vector<pose_disc_t> poses;
   std::vector<bool> activeAgents;
   GetCoordFromState(solution_stateID, poses, assignments, activeAgents);
-
-  /*  assignments.clear();
-  assignments.resize(EnvXYCfg.numGoals, -1);
-  std::vector<bool> goalsVisited(EnvXYCfg.numGoals, false);
-  std::vector<bool> activeAgents(EnvXYCfg.numAgents, false);
-  for(unsigned int i = 0; i < solution_stateIDs_V.size(); i++){
-    std::vector<pose_disc_t> poses;
-    GetCoordFromState(solution_stateIDs_V[i], poses, goalsVisited, activeAgents);
-    for(unsigned int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
-      int x = poses[agent_i].x;
-      int y = poses[agent_i].y;
-      for(unsigned int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i++){
-	if((assignments[goal_i] == -1) && (x == EnvXYCfg.goal[goal_i].x) && (y == EnvXYCfg.goal[goal_i].y)){
-	  //SBPL_INFO("Assigning goal %d to agent %d", goal_i, agent_i);
-	  assignments[goal_i] = agent_i;
-	}
-      }
-    }
-  }
-  */
 }
 
-visualization_msgs::MarkerArray EGraphXY::stateToVisualizationMarker(vector<double> coord){
-  // coord looks like [x1,y1,theta1,x2,y2,theta2....]
-  visualization_msgs::MarkerArray ma;
-  for(unsigned int i = 0; i < coord.size(); i+=2)
-    {
-      visualization_msgs::Marker marker;
-      marker.header.frame_id = "map";
-      marker.type = visualization_msgs::Marker::SPHERE;
-      marker.pose.position.x = coord[i]; 
-      marker.pose.position.y = coord[i+1]; 
-      marker.pose.position.z = 0;
-      marker.pose.orientation.w = 1.0;
-      marker.scale.x = 0.02;
-      marker.scale.y = 0.02;
-      marker.scale.z = 0.02;
-      marker.color.r = 0.0f;
-      marker.color.g = 0.0f;
-      marker.color.b = 1.0f;
-      marker.color.a = 1.0;
-
-      ma.markers.push_back(marker);
-    }
-  return ma;
-}
-
-
-visualization_msgs::MarkerArray EGraphXY::stateToDetailedVisualizationMarker(vector<double> coord){
-  return stateToVisualizationMarker(coord);
-}
-
-
-
-visualization_msgs::MarkerArray EGraphXY::edgeToVisualizationMarker(vector<double> coord, vector<double> coord2){
-  visualization_msgs::MarkerArray ma;
-  for(unsigned int i = 0; i < coord.size(); i+=2)
-    {
-      visualization_msgs::Marker marker;
-      marker.header.frame_id = "map";
-      marker.type = visualization_msgs::Marker::LINE_LIST;
-      marker.scale.x = 0.01;
-      marker.color.r = 1.0f;
-      marker.color.g = 0.0f;
-      marker.color.b = 0.0f;
-      marker.color.a = 1.0;
-      geometry_msgs::Point p;
-      p.x = coord[i];
-      p.y = coord[i+1];
-      p.z = 0;
-      marker.points.push_back(p);
-      p.x = coord2[i];
-      p.y = coord2[i+1];
-      marker.points.push_back(p);
-
-      ma.markers.push_back(marker);
-    }
-  return ma;
-}
-   

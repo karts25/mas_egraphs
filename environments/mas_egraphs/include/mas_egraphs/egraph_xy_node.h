@@ -92,6 +92,7 @@ class EGraphXYNode
   ros::Publisher plan_pub_; // publish plan for Rviz
   //  ros::Publisher footprint_pub_; // publish footprint for Rviz
   ros::Publisher comm_pub_;  // publish communication packet for other robots
+  ros::Publisher sensor_pub_; // publish pointcloud from sensor
   
   //ros::ServiceServer plan_service_;
   ros::ServiceClient sensorupdate_client_;

@@ -52,7 +52,7 @@ void EGraphManager<HeuristicType>::updateHeuristicGrids(const std::vector<std::v
       egraph_heurs_[agent_i][goal_i]->setGrid(grid);
       }
   }  
-  updateManager();
+  //updateManager();
 }
 
 template <typename HeuristicType>
@@ -477,14 +477,6 @@ int EGraphManager<HeuristicType>::solveTSP(int agent_i, std::vector<int>& goalin
 }
 */
 
-template <typename HeuristicType>
-void EGraphManager<HeuristicType>::segmentEGraph()
-{
-  //TODO: Split egraph by agent. for now just return egraph
-  egraphperagent_.clear();
-  for(int i = 0; i < numagents_; i++)
-    egraphperagent_.push_back(egraph_);
-}
 
 // goes through each vertex in the egraph and makes sure it has valid
 // edges. if update_egraph=true, it recomputes the egraph components
@@ -493,7 +485,7 @@ void EGraphManager<HeuristicType>::validateEGraph(bool update_egraph){
     clock_t time = clock();
     int num_invalid_edges = 0;
 
-    for(int agent_i = 0; agent_i < numagents_;agent_i++){
+    for(int agent_i = 0; agent_i < numagents_; agent_i++){
       for(size_t i=0; i < egraphperagent_[agent_i]->id2vertex.size(); i++){
         EGraph::EGraphVertex* v = egraphperagent_[agent_i]->id2vertex[i];
 	std::vector<double> coord;
@@ -539,6 +531,8 @@ void EGraphManager<HeuristicType>::validateEGraph(bool update_egraph){
     }
     
     ROS_INFO("num invalid edges from full egraph check: %d", num_invalid_edges);
+    //    printf("Hit any key to continue");
+    //std::cin.get();
     stats_.egraph_validity_check_time = double(clock()-time)/CLOCKS_PER_SEC;
 }
 

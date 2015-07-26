@@ -10,7 +10,7 @@
         <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
         <rosparam file="$(find mas_egraphs)/config/sim_costmap_params.yaml" command="load" />
   </node>
-  <node name="egraphXYNode" pkg="mas_egraphs" type="egraphXYNode" output="screen" launch-prefix="gdb -ex run --args">
+  <node name="egraphXYNode" pkg="mas_egraphs" type="egraphXYNode" output="screen">
     <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
     <rosparam file="$(find mas_egraphs)/config/global_costmap_params.yaml" command="load" />
     <param name="num_agents" type="int" value="1" />			   

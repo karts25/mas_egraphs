@@ -20,9 +20,9 @@ int main(int argc, char** argv){
   plan_req_msg.initial_eps = 3;
   plan_req_msg.final_eps = 3;
   plan_req_msg.dec_eps = 1;
-  plan_req_msg.feedback_path = true;
+  plan_req_msg.feedback_path = false;
   plan_req_msg.save_egraph = false;
-  plan_req_msg.use_egraph = true;
+  plan_req_msg.use_egraph = false;
   
   //ros::service::waitForService("/sbpl_planning/plan_path",10);
   //ros::ServiceClient planner = ros::NodeHandle().serviceClient<mas_egraphs::GetXYThetaPlan>("/sbpl_planning/plan_path", true);

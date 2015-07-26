@@ -234,8 +234,8 @@ int EGraphMAS2dGridHeuristic::getHeuristic(const vector<int>& coord){
     int x = id%width_-1;
     int y = (id-x)/width_ -1;
     //if((x >= 251) && (x <= 268) && (y >= 223) && (y <= 232)){
-      //      printf("getheuristic:  (%d, %d) heur= %d state->cost = %d id = %d\n",x,y,
-      //	     heur[id].cost,  state->cost, id);
+      //printf("getheuristic:  (%d, %d) heur= %d state->cost = %d id = %d\n",x,y,
+      //heur[id].cost,  state->cost, id);
     //}
       
     state->closed_iteration = iteration_;

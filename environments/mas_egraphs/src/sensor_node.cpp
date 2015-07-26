@@ -2,14 +2,16 @@
 SensorNode::SensorNode(costmap_2d::Costmap2DROS* costmap_ros){
   ros::NodeHandle private_nh("~");
   ros::NodeHandle nh;
-  
   numgoals_ = 1;
   numagents_ = 1;
   costmap_ros_ = costmap_ros;
   costmap_ros_->clearRobotFootprint();
   costmap_ros_->getCostmapCopy(cost_map_);
+
+  printf("SensorNode: inflation radius is %f\n", cost_map_.getInflationRadius());
   sensor_update_service_ = nh.advertiseService("/mas_egraphs/sensor", 
 					       &SensorNode::sensor_update, this);
+  
 }
 
 void SensorNode::setNumAgents(int numagents){

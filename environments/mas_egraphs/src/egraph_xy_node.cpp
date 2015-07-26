@@ -83,6 +83,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
 
   plan_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/mas_egraphs/mas_plan", 1);
   comm_pub_ = nh.advertise<mas_egraphs::MasComm>("/mas_egraphs/mas_comm", 1);
+  sensor_pub_ = nh.advertise<sensor_msgs::PointCloud>("/mas_egraphs/sensor", 1);
   viz_.last_plan_markerID_ = 0;
   //footprint_pub_ = nh.advertise<geometry_msgs::PolygonStamped>("footprint", 10);
 
@@ -383,6 +384,8 @@ void EGraphXYNode::visualizePath(std::vector<int>& solution_stateIDs){
 }
 
 bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){  
+  printf("Hit any key to excecute!");
+  std::cin.get();
   for(unsigned int step = 0; step < solution_stateIDs_V.size(); step++){
     visualizeCommPackets();
     printf("Agent %d: Executing step %d\n------------------\n", 
@@ -424,8 +427,9 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){
     req.theta = belief_state_.poses[agentID_].theta;
     //printf("Getting sensor info\n");
     sensorupdate_client_.call(req, res);
-    //printf("Got sensor info\n");
+    printf("Got sensor info for %d points \n", res.pointcloud.points.size());
     // update costs according to new sensor information
+    sensor_pub_.publish(res.pointcloud);
     updatelocalMap(res.pointcloud);    
 #endif
     visualizePoses();
@@ -505,8 +509,9 @@ void EGraphXYNode::updatelocalMap(sensor_msgs::PointCloud& pointcloud){
     int y = (int) pointcloud.points[i].y;
     unsigned char c = costMapCostToSBPLCost(pointcloud.channels[0].values[i]); 
     if(c >= inscribed_inflated_obstacle_){
+      printf("new obstacle at (%d, %d) with cost %d\n", x,y, (int) c);
       if (!heur_grid_[x][y]){ // new obstacle
-	//printf("new obstacle at (%d, %d) with cost %d\n", x,y, (int) c);
+	printf("new obstacle at (%d, %d) with cost %d\n", x,y, (int) c);
 	std::vector<int> obstacle(2);
 	obstacle[1] = x;
 	obstacle[2] = y;
