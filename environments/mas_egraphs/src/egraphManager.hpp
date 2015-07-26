@@ -497,7 +497,7 @@ void EGraphManager<HeuristicType>::validateEGraph(bool update_egraph){
 	    egraphperagent_[agent_i]->discToCont(u,coord2);
 	    int cost = v->costs[j];
 	    bool change_cost;
-	    bool valid = egraph_env_->isValidEdge(coord,coord2,change_cost,cost);
+	    bool valid = egraph_env_->isValidEdge(agent_i, coord,coord2,change_cost,cost);
 	    if (!valid){
 	      num_invalid_edges++;
 	    }
@@ -515,7 +515,7 @@ void EGraphManager<HeuristicType>::validateEGraph(bool update_egraph){
         EGraph::EGraphVertex* v = egraphperagent_[agent_i]->id2vertex[i];
 	std::vector<double> coord;
         egraphperagent_[agent_i]->discToCont(v,coord);
-        if (!egraph_env_->isValidVertex(coord)){
+        if (!egraph_env_->isValidVertex(agent_i, coord)){
             egraphperagent_[agent_i]->invalidateVertex(v);
         }
       }

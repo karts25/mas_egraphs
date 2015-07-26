@@ -162,7 +162,9 @@ bool EGraphXY::isValidEdge(int agentID, const vector<double>& coord, const vecto
   /*
    we assume that an edge cost will change only if either vertex becomes invalid. 
    TODO:
-   We cannot directly invoke getsuccs because our egraphs are formed by splitting up a plan into its multiple agents. Which means we cannot recompute the ID given coord for just one agent. We should keep track of ids while creating the egraph, and then use GetSuccsForAgent to recompute the cost.
+   We cannot directly invoke getsuccs because our egraphs are formed by splitting up a plan into its multiple agents. 
+   Which means we cannot recompute the ID given coord for just one agent. We should keep track of ids while creating the egraph,
+   and then use GetSuccsForAgent to recompute the cost.
   */
   return (isValidVertex(agentID, coord) && isValidVertex(agentID, coord2));    
 }

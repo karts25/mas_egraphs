@@ -2,29 +2,20 @@
 SensorNode::SensorNode(costmap_2d::Costmap2DROS* costmap_ros){
   ros::NodeHandle private_nh("~");
   ros::NodeHandle nh;
-  numgoals_ = 1;
-  numagents_ = 1;
   costmap_ros_ = costmap_ros;
   costmap_ros_->clearRobotFootprint();
   costmap_ros_->getCostmapCopy(cost_map_);
 
-  printf("SensorNode: inflation radius is %f\n", cost_map_.getInflationRadius());
   sensor_update_service_ = nh.advertiseService("/mas_egraphs/sensor", 
 					       &SensorNode::sensor_update, this);
-  
-}
-
-void SensorNode::setNumAgents(int numagents){
-  numagents_ = numagents;
-}
-
-void SensorNode::setNumGoals(int numgoals){
-  numgoals_ = numgoals;
+  sensor_radius_ = (int) std::ceil(SENSOR_RADIUS/cost_map_.getResolution());
+  inflated_radius_ = sensor_radius_ + 
+    (int) std::ceil(cost_map_.getInflationRadius()/cost_map_.getResolution());
+  printf("SensorNode: sensor_r = %d, inflated_r = %d resolution = %f \n", sensor_radius_, inflated_radius_, cost_map_.getResolution());
 }
 
 bool SensorNode::sensor_update(mas_egraphs::GetSensorUpdate::Request& req,
 			       mas_egraphs::GetSensorUpdate::Response& res){	
-
   int x = req.x;
   int y = req.y;
   int z = req.z;
@@ -41,18 +32,37 @@ bool SensorNode::sensor_update(mas_egraphs::GetSensorUpdate::Request& req,
   int id = 0;
   sensor_msgs::ChannelFloat32 channel;
   channel.name = "intensity";
-  for(unsigned int ix = std::max(0, x - SENSOR_RADIUS);
-      ix < std::min((int) cost_map_.getSizeInCellsX(), x + SENSOR_RADIUS); ix++){
-    for(unsigned int iy = std::max(0, y - SENSOR_RADIUS); 
-	iy < std::min((int) cost_map_.getSizeInCellsY(), y + SENSOR_RADIUS); iy++){
-      geometry_msgs::Point32 point;
-      point.x = ix;
-      point.y = iy;
-      point.z = z;	
-      
+  for(unsigned int ix = std::max(0, x - sensor_radius_);
+      ix < std::min((int) cost_map_.getSizeInCellsX(), x + sensor_radius_); ix++){
+    for(unsigned int iy = std::max(0, y - sensor_radius_); 
+	iy < std::min((int) cost_map_.getSizeInCellsY(), y + sensor_radius_); iy++){
       double cost = cost_map_.getCost(ix, iy);
-      channel.values.push_back(cost);
-      res.pointcloud.points.push_back(point);
+      if(cost >= costmap_2d::LETHAL_OBSTACLE){
+	channel.values.push_back(cost);
+	geometry_msgs::Point32 point;
+	point.x = ix;
+	point.y = iy;
+	point.z = z;	
+	res.pointcloud.points.push_back(point);
+      }
+    }
+  }
+  
+  // now get all inflated costs in the sensed region
+  for(unsigned int ix = std::max(0, x - inflated_radius_);
+      ix < std::min((int) cost_map_.getSizeInCellsX(), x + inflated_radius_); ix++){
+    for(unsigned int iy = std::max(0, y - inflated_radius_); 
+	iy < std::min((int) cost_map_.getSizeInCellsY(), y + inflated_radius_); iy++){      	
+      double cost = cost_map_.getCost(ix, iy);
+      if((cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) && 
+	 (cost < costmap_2d::LETHAL_OBSTACLE)){	 
+	channel.values.push_back(cost);
+	geometry_msgs::Point32 point;
+	point.x = ix;
+	point.y = iy;
+	point.z = z;
+	res.pointcloud.points.push_back(point);
+      }
     }
   }
   res.pointcloud.channels.push_back(channel);

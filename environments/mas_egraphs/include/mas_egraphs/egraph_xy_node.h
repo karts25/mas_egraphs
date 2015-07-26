@@ -113,6 +113,7 @@ class EGraphXYNode
   bool execute(const std::vector<int>& solution_stateIDs_V);
   // publish this agent's belief of the world
   void visualizeCommPackets() const;
+  void visualizeSensor(const sensor_msgs::PointCloud& pointcloud) const;
   void visualizePoses() const;
   void visualizePath(std::vector<int>& solution_stateIDs);
   void contPosetoGUIPose(const pose_cont_t& pose, visualization_msgs::Marker& GUIMarker) const;

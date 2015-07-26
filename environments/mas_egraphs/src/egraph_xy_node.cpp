@@ -83,7 +83,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
 
   plan_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/mas_egraphs/mas_plan", 1);
   comm_pub_ = nh.advertise<mas_egraphs::MasComm>("/mas_egraphs/mas_comm", 1);
-  sensor_pub_ = nh.advertise<sensor_msgs::PointCloud>("/mas_egraphs/sensor", 1);
+  sensor_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/mas_egraphs/sensor", 1);
   viz_.last_plan_markerID_ = 0;
   //footprint_pub_ = nh.advertise<geometry_msgs::PolygonStamped>("footprint", 10);
 
@@ -254,6 +254,31 @@ void EGraphXYNode::startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& 
   bool ret = agentManager(params);  
 }
 
+void EGraphXYNode::visualizeSensor(const sensor_msgs::PointCloud& pointcloud) const{
+  visualization_msgs::MarkerArray obstacles;
+  for(int i = 0; i < (int) pointcloud.points.size(); i++){
+    pose_cont_t pose;
+    ros::Time time = ros::Time::now();  
+    env_->PoseDiscToCont(pointcloud.points[i].x, pointcloud.points[i].y, pointcloud.points[i].z,
+			0, pose.x, pose.y, pose.z, pose.theta);    
+    visualization_msgs::Marker marker;
+    marker.ns = std::to_string(agentID_);
+    marker.id = i;
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.1;
+    marker.scale.z = 0;
+    marker.color.b = agentID_%2;
+    marker.color.r = (agentID_+1)%2;
+    marker.color.a = 1;
+    contPosetoGUIPose(pose, marker);
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.header.stamp = time;
+    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+
+    obstacles.markers.push_back(marker);
+  }
+  sensor_pub_.publish(obstacles);
+}
 
 void EGraphXYNode::visualizePoses() const{
   visualization_msgs::MarkerArray gui_path;
@@ -326,6 +351,7 @@ void EGraphXYNode::visualizeCommPackets() const{
   // publish path
   plan_pub_.publish(gui_path);
 }
+
 
 void EGraphXYNode::visualizePath(std::vector<int>& solution_stateIDs){
   // ids [0: (numgoals_ -1)] used to publish goals
@@ -429,7 +455,7 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){
     sensorupdate_client_.call(req, res);
     printf("Got sensor info for %d points \n", res.pointcloud.points.size());
     // update costs according to new sensor information
-    sensor_pub_.publish(res.pointcloud);
+    //visualizeSensor(res.pointcloud);
     updatelocalMap(res.pointcloud);    
 #endif
     visualizePoses();
@@ -508,10 +534,9 @@ void EGraphXYNode::updatelocalMap(sensor_msgs::PointCloud& pointcloud){
     int x = (int) pointcloud.points[i].x;
     int y = (int) pointcloud.points[i].y;
     unsigned char c = costMapCostToSBPLCost(pointcloud.channels[0].values[i]); 
-    if(c >= inscribed_inflated_obstacle_){
-      printf("new obstacle at (%d, %d) with cost %d\n", x,y, (int) c);
+    if(c >= inscribed_inflated_obstacle_){     
       if (!heur_grid_[x][y]){ // new obstacle
-	printf("new obstacle at (%d, %d) with cost %d\n", x,y, (int) c);
+	printf("new obstacle at (%d, %d) = %d ", x, y, (int) c);
 	std::vector<int> obstacle(2);
 	obstacle[1] = x;
 	obstacle[2] = y;
@@ -521,6 +546,7 @@ void EGraphXYNode::updatelocalMap(sensor_msgs::PointCloud& pointcloud){
     }
 
   }
+  printf("\n");
 }
 
 
