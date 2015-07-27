@@ -172,7 +172,6 @@ bool EGraphXY::isValidEdge(int agentID, const vector<double>& coord, const vecto
 bool EGraphXY::isValidVertex(int agentID, const vector<double>& coord){
   vector<int> d_coord;
   contToDisc(coord, d_coord);
-  int temp_cost;
   pose_disc_t d_pose;
   d_pose.x = d_coord[0];
   d_pose.y = d_coord[1];

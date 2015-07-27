@@ -40,8 +40,6 @@
 #include <mas_egraphs/planner_state.h>
 #include <vector>
 
-//class LazyAEGListElement;
-
 class EGraphReplanParams : public ReplanParams{
   public:
     EGraphReplanParams(double time):ReplanParams(time) {
@@ -51,6 +49,7 @@ class EGraphReplanParams : public ReplanParams{
       feedback_path = true;
       use_egraph = true;
       use_lazy_validation = true;
+      update_stats = true;
     };
     double epsE;
     double final_epsE;
@@ -60,6 +59,13 @@ class EGraphReplanParams : public ReplanParams{
     bool update_stats;
     bool use_lazy_validation;
     bool validate_during_planning;
+    void print(){
+      printf("\nReplan Params: \n");
+      printf("epsE           %f\n", epsE);
+      printf("feedback_path  %d\n", feedback_path);
+      printf("use_egraph     %d\n", use_egraph);
+      printf("initial eps    %f\n", initial_eps);
+    };
 };
 
 template <typename HeuristicType>

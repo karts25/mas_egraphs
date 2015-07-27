@@ -24,8 +24,6 @@ int main(int argc, char** argv){
   plan_req_msg.save_egraph = false;
   plan_req_msg.use_egraph = true;
   
-  //ros::service::waitForService("/sbpl_planning/plan_path",10);
-  //ros::ServiceClient planner = ros::NodeHandle().serviceClient<mas_egraphs::GetXYThetaPlan>("/sbpl_planning/plan_path", true);
   ros::Publisher plan_req_pub = nh.advertise<mas_egraphs::GetXYThetaPlan>("mas_egraphs/mas_plan_req", 1);
   sleep(1);
 

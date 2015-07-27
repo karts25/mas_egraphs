@@ -1129,7 +1129,6 @@ void Environment_xy::GetSuccsForAgent(int SourceStateID, int agentID, pose_disc_
   newPosesV.clear();
   newPosesV.reserve(robotConfig.actionwidth + 1);
   int cost;
-  int retirementcost = INFINITECOST;
 
   for(int action_i = 0; action_i < robotConfig.actionwidth; action_i++){
     pose_disc_t newPose = pose;    

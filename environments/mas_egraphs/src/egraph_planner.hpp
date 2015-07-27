@@ -42,7 +42,7 @@ template <typename HeuristicType>
 LazyAEGPlanner<HeuristicType>::LazyAEGPlanner(DiscreteSpaceInformation* environment, 
 					      bool bSearchForward,
 					      EGraphManagerPtr egraph_mgr) :
-  params(0.0), egraph_mgr_(egraph_mgr){ //, goal_state(NULL) {
+  params(0.0), egraph_mgr_(egraph_mgr) {
   //bforwardsearch = bSearchForward;
   if(!bSearchForward)
     ROS_WARN("backward search not supported. setting to run forward search.");
@@ -442,7 +442,7 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
     return 0;//solution does not exist
   if(!heap.emptyheap() && goal_state.g > min_key.key[0])
     return 2; //search exited because it ran out of time
-  printf("search exited with a solution for eps=%.2f\n", eps*params.epsE);
+  //printf("search exited with a solution for eps=%.2f\n", eps*params.epsE);
 #ifdef DEBUG_PLANNER
   printf("Goal State is: \n");
   environment_->PrintState(goal_state.id, true);
@@ -707,7 +707,7 @@ bool LazyAEGPlanner<HeuristicType>::Search(vector<int>& pathIds, int& PathCost){
 
     //print the bound, expands, and time for that iteration
     printf("bound=%f expands=%d cost=%d time=%.2f\n", 
-        eps_satisfied*params.epsE, delta_expands, goal_state.g, delta_time);
+	   eps_satisfied*params.epsE, delta_expands, goal_state.g, delta_time);
 
     //update stats
     totalExpands += delta_expands;

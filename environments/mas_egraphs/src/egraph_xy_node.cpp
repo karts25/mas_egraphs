@@ -111,7 +111,7 @@ unsigned char EGraphXYNode::costMapCostToSBPLCost(unsigned char newcost){
 }
 
 bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs){
-  EGraphReplanParams params_copy = params;
+  EGraphReplanParams params_copy(params);
   int startstate_id;
   printf("\n\nAgent %d starting plan with condition = ", agentID_); 
   switch (replan_condition_)
@@ -121,6 +121,7 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
       break;
     case GLOBAL:
       printf("GLOBAL\n");
+      egraph_mgr_->clearEGraphs();
       params_copy.use_egraph = false;
       params_copy.epsE = 1;
       params_copy.final_epsE = 1;
@@ -138,9 +139,10 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
     return false;
   }
 
-  env_->PrintState(startstate_id,true);
-  printf("Hit any key to start planning\n");
-  std::cin.get();
+  //env_->PrintState(startstate_id,true);
+  //params_copy.print();
+  //printf("Hit any key to start planning\n");
+  //std::cin.get();
   egraph_mgr_->updateHeuristicGrids(heur_grid_);
   
   // plan!
@@ -151,6 +153,8 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
 
   if(ret){
     visualizePath(solution_stateIDs);        
+    //if(replan_condition_ == GLOBAL)
+    //  std::cin.get();
     return true;
   }
   else 
@@ -194,8 +198,8 @@ void EGraphXYNode::startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& 
     visualization_msgs::Marker marker;
     marker.id = id; 
     id++;
-    marker.scale.x = 0.4;
-    marker.scale.y = 0.4;
+    marker.scale.x = cost_map_.getInflationRadius();
+    marker.scale.y = cost_map_.getInflationRadius();
     marker.scale.z = 0;
     marker.color.g = 1;
     marker.color.a = 1;
@@ -275,163 +279,6 @@ void EGraphXYNode::startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& 
   bool ret = agentManager(params);  
 }
 
-void EGraphXYNode::visualizeSensor(const sensor_msgs::PointCloud& pointcloud) const{
-  visualization_msgs::MarkerArray obstacles;
-  for(int i = 0; i < (int) pointcloud.points.size(); i++){
-    if(heur_grid_[pointcloud.points[i].x][pointcloud.points[i].y])
-      return;      
-    pose_cont_t pose;
-    ros::Time time = ros::Time::now();  
-    env_->PoseDiscToCont(pointcloud.points[i].x, pointcloud.points[i].y, pointcloud.points[i].z,
-			0, pose.x, pose.y, pose.z, pose.theta);    
-    visualization_msgs::Marker marker;
-    marker.ns = std::to_string(agentID_);
-    marker.id = i;
-    marker.scale.x = 0.1;
-    marker.scale.y = 0.1;
-    marker.scale.z = 0;
-    marker.color.b = agentID_%2;
-    marker.color.r = (agentID_+1)%2;
-    marker.color.a = 1;
-    contPosetoGUIPose(pose, marker);
-    marker.type = visualization_msgs::Marker::SPHERE;
-    marker.header.stamp = time;
-    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
-
-    obstacles.markers.push_back(marker);
-  }
-  sensor_pub_.publish(obstacles);
-}
-
-void EGraphXYNode::visualizePoses() const{
-  visualization_msgs::MarkerArray gui_path;
-  ros::Time time = ros::Time::now();  
-  int id = numgoals_;
-  for(int agent_i = 0; agent_i < numagents_; agent_i++){
-    visualization_msgs::Marker marker;
-    marker.ns = std::to_string(agentID_); 
-    marker.id = id;
-    id++;
-    marker.scale.x = 0.5;
-    marker.scale.y = 0.5;
-    marker.scale.z = 0;
-    marker.color.b = agentID_%2;
-    marker.color.r = (agentID_+1)%2;
-    if(agent_i == agentID_)
-      marker.color.a = 1;
-    else
-      marker.color.a = 0.5;
-    marker.type = visualization_msgs::Marker::ARROW;
-    marker.header.stamp = time;
-    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
-    contPosetoGUIPose(belief_state_.poses[agent_i], marker); 
-    gui_path.markers.push_back(marker);
-  }
-  plan_pub_.publish(gui_path);
-}
-
-void EGraphXYNode::contPosetoGUIPose(const pose_cont_t& pose, 
-				     visualization_msgs::Marker& GUIMarker) const{
-  GUIMarker.pose.position.x = pose.x + cost_map_.getOriginX();
-  GUIMarker.pose.position.y = pose.y + cost_map_.getOriginY();
-  GUIMarker.pose.position.z = pose.z;
-  
-  tf::Quaternion temp;
-  temp.setEulerZYX(pose.theta, 0, 0);
-  GUIMarker.pose.orientation.x = temp.getX();
-  GUIMarker.pose.orientation.y = temp.getY();
-  GUIMarker.pose.orientation.z = temp.getZ();
-  GUIMarker.pose.orientation.w = temp.getW();
-}
-
-void EGraphXYNode::visualizeCommPackets() const{
-  visualization_msgs::MarkerArray gui_path;
-  vector<double> coord;
-  int id = numgoals_ + numagents_;
-  // publish number of packets sent so far
-  visualization_msgs::Marker marker;
-  ros::Time plan_time = ros::Time::now();  
-  marker.id = id;
-  marker.header.stamp = plan_time;
-  marker.header.frame_id = costmap_ros_->getGlobalFrameID();
-  marker.ns = std::to_string(agentID_);
-  id++;
-  marker.scale.z = 1;
-  marker.color.r = 1;
-  marker.color.a = 1;
-  marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-  marker.text = std::to_string(observed_state_.lastpacketID_V[agentID_]+1);
-  marker.pose.position.x = 1+agentID_ + cost_map_.getOriginX();
-  marker.pose.position.y = -1 + cost_map_.getOriginY();
-  marker.pose.position.z = 1;
-  tf::Quaternion temp;
-  temp.setEulerZYX(0, 0, 0);
-  marker.pose.orientation.x = temp.getX();
-  marker.pose.orientation.y = temp.getY();
-  marker.pose.orientation.z = temp.getZ();
-  marker.pose.orientation.w = temp.getW();
-  gui_path.markers.push_back(marker);
-  // publish path
-  plan_pub_.publish(gui_path);
-}
-
-
-void EGraphXYNode::visualizePath(std::vector<int>& solution_stateIDs){
-  // ids [0: (numgoals_ -1)] used to publish goals
-  // ids [numgoals_ : (numgoals_:numagents_-1)] used to publish start poses
-  // id numgoals_+numagents_ used to publish number of packets sent by this agent
-  
-  visualization_msgs::MarkerArray gui_path;
-  vector<double> coord;
-  int id = numgoals_ + numagents_+1;
-  ros::Time plan_time = ros::Time::now();  
-
-  for(int agent_i = 0; agent_i < numagents_; agent_i++){
-      for(unsigned int i=0; i < solution_stateIDs.size(); i++){    
-	coord.clear();
-       	env_->getCoord(solution_stateIDs[i], coord);       
-
-	visualization_msgs::Marker marker;
-	marker.id = id; 
-	marker.ns = std::to_string(agentID_);
-	id++;
-	marker.scale.x = 0.1; 
-	marker.scale.y = 0.1;       
-	marker.scale.z = 0;
-	marker.color.b = agentID_%2;
-	marker.color.r = (agentID_+1)%2;
-	if(agent_i == agentID_)
-	  marker.color.a = 1;
-	else
-	  marker.color.a = 0.5;
-	marker.type = visualization_msgs::Marker::ARROW;
-	marker.header.stamp = plan_time;
-	marker.header.frame_id = costmap_ros_->getGlobalFrameID();
-
-	pose_cont_t pose;
-	pose.x = coord[4*agent_i];
-	pose.y = coord[4*agent_i+1];
-	pose.z = coord[4*agent_i+2];
-	pose.theta = coord[4*agent_i+3];
-
-	contPosetoGUIPose(pose, marker);
-	gui_path.markers.push_back(marker);
-      }
-    }
-
-  // delete extra markers from previous round
-  for(int erase_id = id; erase_id <= viz_.last_plan_markerID_; erase_id++){
-    visualization_msgs::Marker marker;
-    marker.id = erase_id;
-    marker.ns = std::to_string(agentID_);
-    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
-    marker.action = visualization_msgs::Marker::DELETE;
-    gui_path.markers.push_back(marker);
-  }
-  plan_pub_.publish(gui_path);
-  viz_.last_plan_markerID_ = id-1;
-}
-
 bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){  
   for(unsigned int step = 0; step < solution_stateIDs_V.size(); step++){
     visualizeCommPackets();
@@ -453,15 +300,17 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){
     
 #ifdef SIM
     // localize current agent
-    observed_state_.poses[agentID_].x = coord[4*agentID_];
-    observed_state_.poses[agentID_].y = coord[4*agentID_+1];
-    observed_state_.poses[agentID_].z = coord[4*agentID_+2];
-    observed_state_.poses[agentID_].theta = coord[4*agentID_+3];
+    belief_state_.poses[agentID_].x = coord[4*agentID_];
+    belief_state_.poses[agentID_].y = coord[4*agentID_+1];
+    belief_state_.poses[agentID_].z = coord[4*agentID_+2];
+    belief_state_.poses[agentID_].theta = coord[4*agentID_+3];
     
     // update goals that we know were visited by this agent
+    /*
     for(int goal_i = 0; goal_i < numgoals_; goal_i++)
       if(belief_state_.goalsVisited[goal_i]==agentID_)
 	observed_state_.goalsVisited[goal_i] = agentID_;
+    */
 
     // get sensor reading for current agent position
     mas_egraphs::GetSensorUpdate::Request req;
@@ -521,7 +370,14 @@ bool EGraphXYNode::agentManager(EGraphReplanParams& params){
     //printf("Hit any key to start executing\n");
     //std::cin.get();
     bool isComplete = execute(solution_stateIDs);
-    
+
+    int most_recent_packetID = *std::max_element(observed_state_.lastpacketID_V.begin(), 
+						 observed_state_.lastpacketID_V.end());
+    // Initiate communication because we have not replied to a message sent by another agent
+    if(observed_state_.lastpacketID_V[agentID_] < most_recent_packetID){
+      sendCommunication();
+    }
+
     // if we "know" all goals have been visited, we are done
     if (std::all_of(observed_state_.goalsVisited.begin(),
 		    observed_state_.goalsVisited.end(), 
@@ -530,12 +386,6 @@ bool EGraphXYNode::agentManager(EGraphReplanParams& params){
 
     // if we "believe" all goals have been visited, communicate
     if(isComplete){
-      sendCommunication();
-    }
-    int most_recent_packetID = *std::max_element(observed_state_.lastpacketID_V.begin(), 
-						 observed_state_.lastpacketID_V.end());
-    // Initiate communication because we have not replied to a message sent by another agent
-    if(observed_state_.lastpacketID_V[agentID_] < most_recent_packetID){
       sendCommunication();
     }
     ros::Duration(0.1).sleep();    
@@ -602,7 +452,7 @@ void EGraphXYNode::sendCommunication(){
   }
   printf("Agent %d sending message number %d=%d with %d obstacles \n", agentID_, 
 	 observed_state_.lastpacketID_V[agentID_],
-	 comm_msg.header.seq, comm_msg.obstacles_x.size());
+	 comm_msg.header.seq, (int)comm_msg.obstacles_x.size());
   comm_pub_.publish(comm_msg);
   
   // clear new obtacles
@@ -682,6 +532,162 @@ void EGraphXYNode::receiveCommunication(const mas_egraphs::MasComm::ConstPtr& ms
     footprint_pub_.publish(PolygonStamped);
   }
 }*/
+
+void EGraphXYNode::visualizeSensor(const sensor_msgs::PointCloud& pointcloud) const{
+  visualization_msgs::MarkerArray obstacles;
+  for(int i = 0; i < (int) pointcloud.points.size(); i++){
+    if(heur_grid_[pointcloud.points[i].x][pointcloud.points[i].y])
+      return;      
+    pose_cont_t pose;
+    ros::Time time = ros::Time::now();  
+    env_->PoseDiscToCont(pointcloud.points[i].x, pointcloud.points[i].y, pointcloud.points[i].z,
+			0, pose.x, pose.y, pose.z, pose.theta);    
+    visualization_msgs::Marker marker;
+    marker.ns = std::to_string(agentID_);
+    marker.id = i;
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.1;
+    marker.scale.z = 0;
+    marker.color.b = agentID_%2;
+    marker.color.r = (agentID_+1)%2;
+    marker.color.a = 1;
+    contPosetoGUIPose(pose, marker);
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.header.stamp = time;
+    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+
+    obstacles.markers.push_back(marker);
+  }
+  sensor_pub_.publish(obstacles);
+}
+
+void EGraphXYNode::visualizePoses() const{
+  visualization_msgs::MarkerArray gui_path;
+  ros::Time time = ros::Time::now();  
+  int id = numgoals_;
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    visualization_msgs::Marker marker;
+    marker.ns = std::to_string(agentID_); 
+    marker.id = id;
+    id++;
+    marker.scale.x = cost_map_.getInflationRadius();
+    marker.scale.y = cost_map_.getInflationRadius();
+    marker.scale.z = 0;
+    marker.color.b = agentID_%2;
+    marker.color.r = (agentID_+1)%2;
+    if(agent_i == agentID_)
+      marker.color.a = 1;
+    else
+      marker.color.a = 0.5;
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.header.stamp = time;
+    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+    contPosetoGUIPose(belief_state_.poses[agent_i], marker); 
+    gui_path.markers.push_back(marker);
+  }
+  plan_pub_.publish(gui_path);
+}
+
+void EGraphXYNode::contPosetoGUIPose(const pose_cont_t& pose, 
+				     visualization_msgs::Marker& GUIMarker) const{
+  GUIMarker.pose.position.x = pose.x + cost_map_.getOriginX();
+  GUIMarker.pose.position.y = pose.y + cost_map_.getOriginY();
+  GUIMarker.pose.position.z = pose.z;
+  
+  tf::Quaternion temp;
+  temp.setEulerZYX(pose.theta, 0, 0);
+  GUIMarker.pose.orientation.x = temp.getX();
+  GUIMarker.pose.orientation.y = temp.getY();
+  GUIMarker.pose.orientation.z = temp.getZ();
+  GUIMarker.pose.orientation.w = temp.getW();
+}
+
+void EGraphXYNode::visualizeCommPackets() const{
+  visualization_msgs::MarkerArray gui_path;
+  vector<double> coord;
+  int id = numgoals_ + numagents_;
+  // publish number of packets sent so far
+  visualization_msgs::Marker marker;
+  ros::Time plan_time = ros::Time::now();  
+  marker.id = id;
+  marker.header.stamp = plan_time;
+  marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+  marker.ns = std::to_string(agentID_);
+  id++;
+  marker.scale.z = 1;
+  marker.color.r = 1;
+  marker.color.a = 1;
+  marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+  marker.text = std::to_string(observed_state_.lastpacketID_V[agentID_]+1);
+  marker.pose.position.x = 1+agentID_ + cost_map_.getOriginX();
+  marker.pose.position.y = -1 + cost_map_.getOriginY();
+  marker.pose.position.z = 1;
+  tf::Quaternion temp;
+  temp.setEulerZYX(0, 0, 0);
+  marker.pose.orientation.x = temp.getX();
+  marker.pose.orientation.y = temp.getY();
+  marker.pose.orientation.z = temp.getZ();
+  marker.pose.orientation.w = temp.getW();
+  gui_path.markers.push_back(marker);
+  // publish path
+  plan_pub_.publish(gui_path);
+}
+
+void EGraphXYNode::visualizePath(std::vector<int>& solution_stateIDs){
+  // ids [0: (numgoals_ -1)] used to publish goals
+  // ids [numgoals_ : (numgoals_:numagents_-1)] used to publish start poses
+  // id numgoals_+numagents_ used to publish number of packets sent by this agent
+  
+  visualization_msgs::MarkerArray gui_path;
+  vector<double> coord;
+  int id = numgoals_ + numagents_+1;
+  ros::Time plan_time = ros::Time::now();  
+
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+      for(unsigned int i=0; i < solution_stateIDs.size(); i++){    
+	coord.clear();
+       	env_->getCoord(solution_stateIDs[i], coord);       
+
+	visualization_msgs::Marker marker;
+	marker.id = id; 
+	marker.ns = std::to_string(agentID_);
+	id++;
+	marker.scale.x = 0.1; 
+	marker.scale.y = 0.1;       
+	marker.scale.z = 0;
+	marker.color.b = agentID_%2;
+	marker.color.r = (agentID_+1)%2;
+	if(agent_i == agentID_)
+	  marker.color.a = 1;
+	else
+	  marker.color.a = 0.5;
+	marker.type = visualization_msgs::Marker::ARROW;
+	marker.header.stamp = plan_time;
+	marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+
+	pose_cont_t pose;
+	pose.x = coord[4*agent_i];
+	pose.y = coord[4*agent_i+1];
+	pose.z = coord[4*agent_i+2];
+	pose.theta = coord[4*agent_i+3];
+
+	contPosetoGUIPose(pose, marker);
+	gui_path.markers.push_back(marker);
+      }
+    }
+
+  // delete extra markers from previous round
+  for(int erase_id = id; erase_id <= viz_.last_plan_markerID_; erase_id++){
+    visualization_msgs::Marker marker;
+    marker.id = erase_id;
+    marker.ns = std::to_string(agentID_);
+    marker.header.frame_id = costmap_ros_->getGlobalFrameID();
+    marker.action = visualization_msgs::Marker::DELETE;
+    gui_path.markers.push_back(marker);
+  }
+  plan_pub_.publish(gui_path);
+  viz_.last_plan_markerID_ = id-1;
+}
 
 int main(int argc, char** argv){
   ros::init(argc, argv, "mas_egraphs_node");

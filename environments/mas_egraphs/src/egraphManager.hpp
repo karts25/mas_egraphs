@@ -14,11 +14,7 @@ EGraphManager<HeuristicType>::EGraphManager(std::vector<EGraphPtr> egraphs,
 					    std::vector<std::vector<EGraphHeuristicPtr> > egraph_heurs,
 					    int numgoals, int numagents):
   egraph_env_(egraph_env), numgoals_(numgoals), numagents_(numagents){
-  //numgoals_  = numgoals; 
-  //  numagents_ = numagents; 
-  
-  params_.feedback_path = true;
-  params_.update_stats = true;
+  params_.update_stats = false;
  
   int i = 0;
   egraph_heurs_.resize(numagents_);
@@ -1080,12 +1076,18 @@ bool EGraphManager<HeuristicType>::reconstructComboSnapShortcut(LazyAEGState* su
 }
 
 template <typename HeuristicType>
+void EGraphManager<HeuristicType>::clearEGraphs(){
+  for(int agent_i = 0; agent_i < numagents_; agent_i++){
+    // only store last path as experience
+    egraphperagent_[agent_i]->clearEGraph();
+  }
+}
+
+template <typename HeuristicType>
 void EGraphManager<HeuristicType>::feedbackLastPath(){
 
     double t0 = ros::Time::now().toSec();
     for(int agent_i = 0; agent_i < numagents_; agent_i++){
-      // only store last path as experience
-      egraphperagent_[agent_i]->clearEGraph();
       egraphperagent_[agent_i]->search_iteration_ = 0;
       if(params_.update_stats){
         egraphperagent_[agent_i]->recordStats(update_eg_thread_data_.path_to_feedback[agent_i]);

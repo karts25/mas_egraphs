@@ -118,6 +118,7 @@ class EGraphManager {
                                           std::vector<int>* wholePathIds, std::vector<int>* costs, 
                                           int goal_id);
         void storeLastPath(const std::vector<int>& path, const std::vector<int>& costs);
+	void clearEGraphs();
         void feedbackLastPath();
         EGraphStats getStats(){ return stats_; };
         void save(std::string filename){ egraph_->save(filename); };
