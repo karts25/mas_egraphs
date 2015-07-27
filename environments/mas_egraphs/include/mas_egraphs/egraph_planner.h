@@ -168,7 +168,6 @@ class LazyAEGPlanner : public SBPLPlanner{
         virtual int ImprovePath();
 
         virtual std::vector<int> GetSearchPath(int& solcost);
-
         virtual bool outOfTime();
         virtual void initializeSearch();
         virtual void prepareNextSearchIteration();

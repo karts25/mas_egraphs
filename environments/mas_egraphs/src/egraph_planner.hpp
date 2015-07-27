@@ -663,8 +663,7 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
   //put start state in the heap
   start_state->g = 0;
   //start_state->g_peragent = std::vector<int>(egraph_mgr_->egraph_env_->GetNumAgents(),0);
-  ROS_INFO("start state heuristic is %d\n Hit any key to continue\n", start_state->h);
-  std::cin.get();
+  ROS_INFO("start state heuristic is %d\n", start_state->h);
   assert(start_state->h >= 0);
   CKey key;
 
@@ -813,7 +812,6 @@ int LazyAEGPlanner<HeuristicType>::replan(int start, vector<int>* solution_state
 template <typename HeuristicType>
 int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGraphReplanParams p, int* solcost){
   clock_t replan_t0 = clock();
-  printf("planner: replan called\n");
   params = p;
   use_repair_time = params.repair_time >= 0;
   interruptFlag = false;
@@ -857,6 +855,7 @@ int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGra
           totalPlanTime, totalPlanTime-feedbackPathTime);
   printf("total expands=%d solution cost=%d\n", 
           totalExpands, goal_state.g);
+  /*
   printf("time breakdown: heuristic set goal  = %.2f\n", heuristicSetGoalTime);
   printf("                heuristic           = %.2f\n", double(heuristicClock)/CLOCKS_PER_SEC);
   printf("                generate successors = %.2f\n", double(succsClock)/CLOCKS_PER_SEC);
@@ -882,7 +881,7 @@ int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGra
   stat_map_["percent_from_shortcuts"] = percentFromShortcuts;
   //stat_map_["shortcut_bfs"] = egraph_mgr_->getStats().get_direct_shortcut_time;
   //stat_map_["egraph_dijkstra"] = egraph_mgr_->getStats().shortest_path_time;
-         
+  */     
   return (int)solnFound;
 }
 
@@ -917,8 +916,7 @@ int LazyAEGPlanner<HeuristicType>::set_start(int id){
 #ifdef DEBUG_PLANNER
   SBPL_INFO("Setting start state");
 #endif
-  environment_->PrintState(id,true);
-    start_state_id = id;
+  start_state_id = id;
   //else
     //goal_state_id = id;
   return 1;

@@ -34,6 +34,8 @@ typedef struct
 // elements in this struct are always true
 typedef struct
 {
+  //poses of all agents
+  std::vector<pose_cont_t> poses;
   //id of last packet sent by all agents (fully observed)
   std::vector<int> lastpacketID_V;
   //obstacle locations seen by this agent since last communication (fully observed)

@@ -139,7 +139,7 @@ void EGraphMAS2dGridHeuristic::resetShortcuts(){
 }
 
 void EGraphMAS2dGridHeuristic::setGoal(const vector<int>& goal){
-  ROS_INFO("heur: Setting goal to (%d, %d)", goal[0], goal[1]);
+  //ROS_INFO("heur: Setting goal to (%d, %d)", goal[0], goal[1]);
   //ROS_ERROR("begin setGoal");
   iteration_++;
   

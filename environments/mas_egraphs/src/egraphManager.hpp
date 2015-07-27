@@ -366,11 +366,10 @@ int EGraphManager<HeuristicType>::bruteforceHeuristicPerAgent(int agent_i,
   unsigned long int TSPindex = TSP_i_vertices.to_ulong();
   const std::vector<int>* TSPcosts_pergoal = &TSP_allagents_[agent_i][TSPindex-1]; 
   int bestheursofar = std::numeric_limits<int>::max();
-  // for each goal, run 2d bfs
   /*
-#ifdef DEBUG_HEUR
-  printf("Agent %d\n", agent_i);
-#endif
+    #ifdef DEBUG_HEUR
+    printf("Agent %d\n", agent_i);
+    #endif
   */
   for(int goal_i = 1; goal_i <= goalindices[0]; goal_i++){
   // TSPcosts_pergoal only has entries for goals in this assignment
@@ -530,7 +529,7 @@ void EGraphManager<HeuristicType>::validateEGraph(bool update_egraph){
       }
     }
     
-    ROS_INFO("num invalid edges from full egraph check: %d", num_invalid_edges);
+    //ROS_INFO("num invalid edges from full egraph check: %d", num_invalid_edges);
     //    printf("Hit any key to continue");
     //std::cin.get();
     stats_.egraph_validity_check_time = double(clock()-time)/CLOCKS_PER_SEC;
@@ -940,31 +939,39 @@ void EGraphManager<HeuristicType>::fillInDirectShortcut (int parent_id, int shor
 
 template <typename HeuristicType>
 void EGraphManager<HeuristicType>::storeLastPath(const std::vector<int>& path, 
-                                  const std::vector<int>& costs){
+						 const std::vector<int>& costs){
   std::vector<EGraphPath> full_path_allagents(numagents_);
+  std::vector<std::vector<int> > costs_per_agent(numagents_);
   assert(path.size()-1 == costs.size());
+  int cost_i = 0;
+  int isActive_offset = 4*numagents_ + numgoals_; // see env_->getCoord()
   for (auto& state_id : path){
     ContState coord;
     egraph_env_->getCoord(state_id, coord);
     //printVector(coord);
+    int numActiveAgents = std::accumulate(coord.begin() + isActive_offset, 
+					  coord.begin() + isActive_offset + numagents_, 0);
     for(int agent_i = 0; agent_i < numagents_; agent_i++){
-      ContState coord_agent;
-      coord_agent.push_back(coord[4*agent_i]);
-      coord_agent.push_back(coord[4*agent_i + 1]);
-      coord_agent.push_back(coord[4*agent_i + 2]);
-      coord_agent.push_back(coord[4*agent_i + 3]);
-      full_path_allagents[agent_i].push_back(coord_agent);
+      // only push back experiences for active agents
+      if(coord[isActive_offset + agent_i]){
+	ContState coord_agent;
+	coord_agent.push_back(coord[4*agent_i]);
+	coord_agent.push_back(coord[4*agent_i + 1]);
+	coord_agent.push_back(coord[4*agent_i + 2]);
+	coord_agent.push_back(coord[4*agent_i + 3]);
+	full_path_allagents[agent_i].push_back(coord_agent);
+	if(cost_i >= 1)
+	  costs_per_agent[agent_i].push_back(costs[cost_i-1]/numActiveAgents);
+      }
     }
+    cost_i++;
   }
-  std::vector<int> costs_per_agent = costs;
-  for(int i = 0; i < (int) costs_per_agent.size(); i++)
-    costs_per_agent[i] /= numagents_;
 
   update_eg_thread_data_.path_to_feedback.resize(numagents_);
   update_eg_thread_data_.costs.resize(numagents_);
   for(int agent_i = 0; agent_i < numagents_; agent_i++){
     update_eg_thread_data_.path_to_feedback[agent_i] = full_path_allagents[agent_i];
-    update_eg_thread_data_.costs[agent_i] = costs_per_agent;
+    update_eg_thread_data_.costs[agent_i] = costs_per_agent[agent_i];
   }
 }
 

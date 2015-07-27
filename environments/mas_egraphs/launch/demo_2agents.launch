@@ -1,11 +1,15 @@
 <launch>
-
   <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 map base_link 10" />
-  <node name="map_server" pkg="map_server" type="map_server" args="$(find mas_egraphs)/maps/office.png 0.1" />
-  <node name="sensorNode" pkg = "mas_egraphs" type="sensorNode" output = "screen">
-     <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
-     <rosparam file="$(find mas_egraphs)/config/global_costmap_params.yaml" command="load" />
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find mas_egraphs)/maps/office_known.pgm 0.1">
   </node>
+  <node name="unknown_map_server" pkg="map_server" type="map_server" args="$(find mas_egraphs)/maps/office_unknown.pgm 0.1">
+  <remap from="map" to="map_unknown"/>
+  </node>
+  <node name="sensorNode" pkg = "mas_egraphs" type="sensorNode" output = "screen">
+        <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+        <rosparam file="$(find mas_egraphs)/config/sim_costmap_params.yaml" command="load" />
+  </node>
+
   <node name="egraphXYNode_0" pkg="mas_egraphs" type="egraphXYNode" output="screen">
     <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
     <rosparam file="$(find mas_egraphs)/config/global_costmap_params.yaml" command="load" />
@@ -14,6 +18,7 @@
     <param name="primitive_filename_1" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />
     <param name="primitive_filename_2" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />	
   </node>
+
   <node name="egraphXYNode_1" pkg="mas_egraphs" type="egraphXYNode" output="screen">
     <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
     <rosparam file="$(find mas_egraphs)/config/global_costmap_params.yaml" command="load" />
@@ -21,6 +26,6 @@
     <param name="num_agents" type="int" value="2" />
     <param name="primitive_filename_1" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />
     <param name="primitive_filename_2" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />	
-  </node>
+  </node> 
 
 </launch>
