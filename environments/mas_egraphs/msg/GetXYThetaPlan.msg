@@ -11,14 +11,4 @@ float64[] goal_y
 float64[] goal_z
 float64[] goal_theta
 
-float64 egraph_eps
-float64 final_egraph_eps
-float64 dec_egraph_eps
-
-float64 initial_eps
-float64 final_eps
-float64 dec_eps
-
-bool feedback_path
-bool save_egraph
-bool use_egraph
+float64 eps_comm

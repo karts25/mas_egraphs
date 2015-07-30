@@ -64,9 +64,6 @@ class EGraphXYNode
 {
  public:
   EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros);
-  void startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& msg);
-  void receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg);
-  void sendCommunication();
 
  private:
   int agentID_;
@@ -97,7 +94,7 @@ class EGraphXYNode
   std::vector<std::vector<EGraphMAS2dGridHeuristic*> > heurs_;
   EGraphManager<std::vector<int> >* egraph_mgr_;
   LazyAEGPlanner<std::vector<int> >* planner_;
-  EGraphVisualizer* egraph_vis_;
+  //EGraphVisualizer* egraph_vis_;
   
   ros::Publisher plan_pub_; // publish plan for Rviz
   //  ros::Publisher footprint_pub_; // publish footprint for Rviz
@@ -114,20 +111,27 @@ class EGraphXYNode
   void updateCosts(int x, int y);
   void updateCosts(int x, int y, unsigned char c);
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
-  void publishfootprints(std::vector<pose_cont_t> poses) const;
   bool makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs);
-  
+  void startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& msg);
+  void receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg);
+  void sendCommunication();
+
+  void waitforReplies() const;
+
   // loops between execution and replanning until execute signals completion
   bool agentManager(EGraphReplanParams& params);
   // executes plan. returns true if plan executed to completion, else false
   bool execute(const std::vector<int>& solution_stateIDs_V);
-  // publish this agent's belief of the world
+  // fakes sensor data during simulation
+  void getSensorData(const std::vector<double>& coord);
+
+  // functions used for visualization
+  void publishfootprints(std::vector<pose_cont_t> poses) const;
   void visualizeCommPackets() const;
   void visualizeSensor(const sensor_msgs::PointCloud& pointcloud) const;
   void visualizePoses() const;
   void visualizePath(std::vector<int>& solution_stateIDs);
   void contPosetoGUIPose(const pose_cont_t& pose, visualization_msgs::Marker& GUIMarker) const;
-  void waitforReplies() const;
 };
 
 #endif

@@ -468,13 +468,14 @@ bool LazyAEGPlanner<HeuristicType>::reconstructSuccs(LazyAEGState* state,
     if(bforwardsearch)
       environment_->GetLazySuccsWithUniqueIds(state->expanded_best_parent->id, &SuccIDV, &CostV, &isTrueCost);
     else
-      environment_->GetLazyPredsWithUniqueIds(state->expanded_best_parent->id, &SuccIDV, &CostV, &isTrueCost);
+      environment_->GetLazyPredsWithUniqueIds(state->expanded_best_parent->id, &SuccIDV, &CostV, &isTrueCost);   
     int actioncost = INFINITECOST;
     //ROS_INFO("reconstruct with standard edge %d\n",state->expanded_best_parent->id);
     for(unsigned int i=0; i<SuccIDV.size(); i++){
-        //printf("  succ %d\n",SuccIDV[i]);
-        if(SuccIDV[i] == state->id && CostV[i]<actioncost)
-            actioncost = CostV[i];
+      if(SuccIDV[i] == state->id && CostV[i]<actioncost){
+	//printf("  succ %d cost %d \n",SuccIDV[i], CostV[i]);
+	actioncost = CostV[i];
+      }
     }
     if(actioncost == INFINITECOST){
         return false;
@@ -739,8 +740,8 @@ bool LazyAEGPlanner<HeuristicType>::Search(vector<int>& pathIds, int& PathCost){
   if(eps_satisfied == INFINITECOST)
     printf("WARNING: a solution was found but we don't have quality bound for it!\n");
 
-  printf("solution found\n");
   pathIds = GetSearchPath(PathCost);
+  printf("pathlength = %d\n", (int) pathIds.size());
   return true;
 }
 

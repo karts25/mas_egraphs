@@ -123,7 +123,6 @@ bool Environment_xy::InitializeEnv()
     state_pub_ = nh.advertise<visualization_msgs::MarkerArray>("mas_egraphs/expandedstates", 1);
     //initialized
     EnvXY.bInitialized = true;
-    
     return true;
 }
 
@@ -170,7 +169,7 @@ void Environment_xy::InitializeAgentConfig(int agentID,
   PrecomputeActionswithCompleteMotionPrimitive(agentID, motionprimitiveV);
 }
 
-bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* mapdata,
+bool Environment_xy::InitializeEnv(int agentID, int width, int height, const unsigned char* mapdata,
 				   int numagents,// int numgoals,
 				   double goaltol_x, double goaltol_y, double goaltol_theta,
 				   const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
@@ -183,7 +182,8 @@ bool Environment_xy::InitializeEnv(int width, int height, const unsigned char* m
     
     VizCfg.costmap_originX = costmapOriginX;
     VizCfg.costmap_originY = costmapOriginY;
-    SetConfiguration(width, height, mapdata, numagents, //start_disc, goal_disc,
+    VizCfg.vizmarker_id_ = 0;
+    SetConfiguration(agentID, width, height, mapdata, numagents, //start_disc, goal_disc,
                      cellsize_m, time_per_action, perimeterptsV,
 		     goaltol_x, goaltol_y, goaltol_theta);
 
@@ -507,7 +507,7 @@ void Environment_xy::PrecomputeActionswithCompleteMotionPrimitive(int agent_i,
       
       EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].cost = linear_time;
       */                                                                                                           
-      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].cost = EnvXYCfg.time_per_action * motionprimitiveV->at(mind).additionalactioncostmult;
+      EnvXYCfg.robotConfigV[agent_i].ActionsV[tind][aind].cost = EnvXYCfg.time_per_action;// * motionprimitiveV->at(mind).additionalactioncostmult;
       
       //now compute the intersecting cells for this motion (including ignoring the source footprint)                                                                                                   
       get_2d_motion_cells(EnvXYCfg.robotConfigV[agent_i].FootprintPolygon, 
@@ -585,51 +585,53 @@ unsigned char Environment_xy::GetMapCost(int x, int y) const
     return EnvXYCfg.Grid2D[x][y];
 }
 
-void Environment_xy::SetConfiguration(int width, int height, const unsigned char* mapdata,	    
+void Environment_xy::SetConfiguration(int agentID, int width, int height, 
+				      const unsigned char* mapdata,	    
 				      int numagents,
 				      double cellsize_m, double time_per_action,
 				      const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV,
 				      double goaltol_x, double goaltol_y, double goaltol_theta){
-    EnvXYCfg.EnvWidth_c = width;
-    EnvXYCfg.EnvHeight_c = height;
-    EnvXYCfg.numAgents = numagents;
-    EnvXYCfg.time_per_action = time_per_action;
-    EnvXYCfg.cellsize_m = cellsize_m;
-    EnvXYCfg.obsthresh = ENVXY_DEFAULTOBSTHRESH;
-    //allocate the 2D environment
-    EnvXYCfg.Grid2D = new unsigned char*[EnvXYCfg.EnvWidth_c];
-    for (int x = 0; x < EnvXYCfg.EnvWidth_c; x++) {
-        EnvXYCfg.Grid2D[x] = new unsigned char[EnvXYCfg.EnvHeight_c];
-    }
+  EnvXYCfg.agentID = agentID;
+  EnvXYCfg.EnvWidth_c = width;
+  EnvXYCfg.EnvHeight_c = height;
+  EnvXYCfg.numAgents = numagents;
+  EnvXYCfg.time_per_action = time_per_action;
+  EnvXYCfg.cellsize_m = cellsize_m;
+  EnvXYCfg.obsthresh = ENVXY_DEFAULTOBSTHRESH;
+  //allocate the 2D environment
+  EnvXYCfg.Grid2D = new unsigned char*[EnvXYCfg.EnvWidth_c];
+  for (int x = 0; x < EnvXYCfg.EnvWidth_c; x++) {
+    EnvXYCfg.Grid2D[x] = new unsigned char[EnvXYCfg.EnvHeight_c];
+  }
 
-    //environment:
-    if (0 == mapdata) {
-        for (int y = 0; y < EnvXYCfg.EnvHeight_c; y++) {
-            for (int x = 0; x < EnvXYCfg.EnvWidth_c; x++) {
-                EnvXYCfg.Grid2D[x][y] = 0;
-            }
-        }
+  //environment:
+  if (0 == mapdata) {
+    for (int y = 0; y < EnvXYCfg.EnvHeight_c; y++) {
+      for (int x = 0; x < EnvXYCfg.EnvWidth_c; x++) {
+	EnvXYCfg.Grid2D[x][y] = 0;
+      }
     }
-    else {
-        for (int y = 0; y < EnvXYCfg.EnvHeight_c; y++) {
-            for (int x = 0; x < EnvXYCfg.EnvWidth_c; x++) {
-                EnvXYCfg.Grid2D[x][y] = mapdata[x + y * width];
-            }
-        }
+  }
+  else {
+    for (int y = 0; y < EnvXYCfg.EnvHeight_c; y++) {
+      for (int x = 0; x < EnvXYCfg.EnvWidth_c; x++) {
+	EnvXYCfg.Grid2D[x][y] = mapdata[x + y * width];
+      }
     }
+  }
 
-    // crete vector of robot configuration params
-    EnvXYCfg.robotConfigV.resize(EnvXYCfg.numAgents);
-    for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
-      EnvXYCfg.robotConfigV[agent_i].FootprintPolygon = robot_perimeterV[agent_i];
-    }
+  // crete vector of robot configuration params
+  EnvXYCfg.robotConfigV.resize(EnvXYCfg.numAgents);
+  for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
+    EnvXYCfg.robotConfigV[agent_i].FootprintPolygon = robot_perimeterV[agent_i];
+  }
     
-    // set goal tolerances
-    EnvXYCfg.goaltol_x = 1 + CONTXY2DISC(goaltol_x, EnvXYCfg.cellsize_m);
-    EnvXYCfg.goaltol_y = 1 + CONTXY2DISC(goaltol_y, EnvXYCfg.cellsize_m);
-    //printf("Goal tolerances set to (%f, %f) = (%d, %d)\n", 
-    //goaltol_x, goaltol_y,
-    //EnvXYCfg.goaltol_x, EnvXYCfg.goaltol_y);
+  // set goal tolerances
+  EnvXYCfg.goaltol_x = 1 + CONTXY2DISC(goaltol_x, EnvXYCfg.cellsize_m);
+  EnvXYCfg.goaltol_y = 1 + CONTXY2DISC(goaltol_y, EnvXYCfg.cellsize_m);
+  //printf("Goal tolerances set to (%f, %f) = (%d, %d)\n", 
+  //goaltol_x, goaltol_y,
+  //EnvXYCfg.goaltol_x, EnvXYCfg.goaltol_y);
 }
 
 bool Environment_xy::UpdateCost(int x, int y, unsigned char newcost)
@@ -1323,16 +1325,25 @@ bool Environment_xy::GetFakePlan(int startstateID, std::vector<int>& solutionsta
   return true;
 }
 
-void Environment_xy::VisualizeState(const int stateID) const{
+void Environment_xy::VisualizeState(const int stateID) {
+  if(EnvXYCfg.agentID == 0)
+    return;
+  if(VizCfg.vizmarker_id_ > 1000){
+    //printf("Hit a key to continue search\n");
+    //std::cin.get();
+    VizCfg.vizmarker_id_ = 0;
+  }
   EnvXYHashEntry_t* HashEntry = StateID2CoordTable[stateID];
   visualization_msgs::MarkerArray agentmarkers;
   for(int agent_i=0; agent_i < EnvXYCfg.numAgents; agent_i++){
     visualization_msgs::Marker marker;
     pose_disc_t pose = HashEntry->poses[agent_i];
-    marker.id = stateID; //stateID*EnvXYCfg.numAgents + agent_i; 
+    //vizmarker_id_ = stateID;
+    marker.id = VizCfg.vizmarker_id_; //stateID*EnvXYCfg.numAgents + agent_i; 
+    VizCfg.vizmarker_id_++;
     marker.ns = std::to_string(agent_i);
-    marker.scale.x = 0.5;
-    marker.scale.y = 0.5;
+    marker.scale.x = 0.2;
+    marker.scale.y = 0.2;
     marker.scale.z = 0;
     marker.color.g = 1;
     marker.color.b = 1;

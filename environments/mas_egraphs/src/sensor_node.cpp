@@ -11,7 +11,7 @@ SensorNode::SensorNode(costmap_2d::Costmap2DROS* costmap_ros){
   sensor_radius_ = (int) std::ceil(SENSOR_RADIUS/cost_map_.getResolution());
   inflated_radius_ = sensor_radius_ + 
     (int) std::ceil(cost_map_.getInflationRadius()/cost_map_.getResolution());
-  printf("SensorNode: sensor_r = %d, inflated_r = %d resolution = %f \n", sensor_radius_, inflated_radius_, cost_map_.getResolution());
+  //  printf("SensorNode: sensor_r = %d, inflated_r = %d resolution = %f \n", sensor_radius_, inflated_radius_, cost_map_.getResolution());
 }
 
 bool SensorNode::sensor_update(mas_egraphs::GetSensorUpdate::Request& req,

@@ -57,32 +57,35 @@ Map_unknown = Map;
 horiz_doors_left = randperm(3);
 horiz_doors_right = randperm(3);
 
-for ctr = 1:2
+for ctr = 1:3
     % left room horizontal door    
     i = horiz_doors_left(ctr);
     Map_unknown(room_h*i:room_h*i+wall_w, ...
         leftcorridor_x/2-door_size:leftcorridor_x/2) = obstacle_cost;
-
-    i = horiz_doors_right(ctr);
-    % right room horizontal door
-    Map_unknown(room_h*i:room_h*i+wall_w, ...
-            3*rightcorridor_x/2-door_size:3*rightcorridor_x/2) = obstacle_cost;        
 end
+
+%for ctr = 1:3
+%     right room horizontal door
+%     i = 3; %horiz_doors_right(ctr);
+%     Map_unknown(room_h*i:room_h*i+wall_w, ...
+%             3*rightcorridor_x/2-door_size:3*rightcorridor_x/2) = obstacle_cost;        
+% end
 
 vert_doors_left = randperm(4);
 vert_doors_right = randperm(4);
 
-for ctr = 1
-    i = vert_doors_left(ctr);
-    % left room vertical door
-    Map_unknown(room_h*i - (room_h/2) - door_size: room_h*i - (room_h/2),...
-        leftcorridor_x:leftcorridor_x+wall_w) = obstacle_cost;
-    
-    i = vert_doors_right(ctr);
-    % right room vertical door
-    Map_unknown(room_h*i - (room_h/2) - door_size: room_h*i - (room_h/2),...
-        rightcorridor_x:rightcorridor_x+wall_w) = obstacle_cost;
-end
+% for ctr = 1:0
+%     i = vert_doors_left(ctr);
+%     % left room vertical door
+%     Map_unknown(room_h*i - (room_h/2) - door_size: room_h*i - (room_h/2),...
+%         leftcorridor_x:leftcorridor_x+wall_w) = obstacle_cost;
+%     
+%     i = vert_doors_right(ctr);
+%     % right room vertical door
+%     Map_unknown(room_h*i - (room_h/2) - door_size: room_h*i - (room_h/2),...
+%         rightcorridor_x:rightcorridor_x+wall_w) = obstacle_cost;
+% end
+
 % add some random obstacles
 % num_obstacles = 10;
 % obstacles_w = door_size/4;
@@ -94,4 +97,4 @@ end
 % end
 figure(2);
 imshow(mat2gray(Map_unknown));
-imwrite(Map_unknown, 'office_unknown.pgm');
+imwrite(Map_unknown, 'office_unknown2.pgm');

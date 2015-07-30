@@ -6,8 +6,8 @@
 #endif 
 
 #include <ros/ros.h>
-#include <egraphs/egraph.h>
-#include <egraphs/egraph_heuristic.h>
+#include <mas_egraphs/mas_egraph.h>
+#include <mas_egraphs/egraph_heuristic.h>
 #include <boost/thread/condition_variable.hpp>
 #include <vector>
 #include <bitset>
@@ -153,7 +153,7 @@ class EGraphManager {
 	std::vector<std::vector<EGraphHeuristicPtr> > egraph_heurs_;
         UpdateEGThreadData update_eg_thread_data_;
         EGraphStats stats_;
-
+	
 	// timing information
 	clock_t getHeuristicBFSClock;
 	clock_t bruteforceHeuristicClock;
@@ -165,7 +165,7 @@ class EGraphManager {
 
 	// helper function that returns the coords of goal # i
 	void getGoalCoord(int i, std::vector<int>& coord);
-	void computeDistanceBetweenGoals(int agent_i, std::vector<std::vector<int> > & goalDistances);
+	void computeDistanceBetweenGoals(int agent_i, Matrix& goalDistances);
 	void segmentEGraph();
 
 	void primAllocationHeuristic(std::vector<double>& cont_state,

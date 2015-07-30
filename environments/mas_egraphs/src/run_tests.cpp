@@ -14,16 +14,6 @@ int main(int argc, char** argv){
   //mas_egraphs::GetXYThetaPlan::Response res;
   mas_egraphs::GetXYThetaPlan plan_req_msg;
   //egraph and planner parameters
-  int maxiters = 1;
-  double egraph_eps_values[] = {100};
-  plan_req_msg.dec_egraph_eps = 0.0;
-  plan_req_msg.initial_eps = 4;
-  plan_req_msg.final_eps = 2;
-  plan_req_msg.dec_eps = 1;
-  plan_req_msg.feedback_path = true;
-  plan_req_msg.save_egraph = false;
-  plan_req_msg.use_egraph = true;
-  
   ros::Publisher plan_req_pub = nh.advertise<mas_egraphs::GetXYThetaPlan>("mas_egraphs/mas_plan_req", 1);
   sleep(1);
 
@@ -34,7 +24,6 @@ int main(int argc, char** argv){
   }
   fscanf(fin,"experiments:\n\n");
 
-  bool first = true;
   double start_x, start_y, start_z, start_theta, goal_x, goal_y, goal_z, goal_theta;
   while(1){
     plan_req_msg.start_x.clear();
@@ -48,12 +37,13 @@ int main(int argc, char** argv){
     int test_num = 0;
     if(fscanf(fin,"  - test: test_%d\n", &test_num) <= 0)
       break;
+    if(fscanf(fin,"    eps_comm: %lf\n", &plan_req_msg.eps_comm) <= 0)
+      break;
     if(fscanf(fin,"    num_agents: %d\n", &plan_req_msg.num_agents) <=0)
       break;
     if(fscanf(fin,"    num_goals: %d\n", &plan_req_msg.num_goals) <=0)
       break;
-    
-    printf("num_agents %d num_goals %d\n", plan_req_msg.num_agents, plan_req_msg.num_goals);
+    printf("num_agents %d num_goals %d eps_comm %f \n", plan_req_msg.num_agents, plan_req_msg.num_goals, plan_req_msg.eps_comm);
     for(int agent_i = 0; agent_i < plan_req_msg.num_agents; agent_i++){
       if(fscanf(fin,"    start: %lf %lf %lf %lf\n", 
 		&start_x, &start_y, &start_z, &start_theta) <= 0)
@@ -72,16 +62,10 @@ int main(int argc, char** argv){
       plan_req_msg.goal_z.push_back(goal_z);
       plan_req_msg.goal_theta.push_back(goal_theta);
     }
-    for(int iteration = 0; iteration < maxiters; iteration++){ 
-      ROS_INFO("EGRAPH EPS = %f", egraph_eps_values[iteration]);
-      plan_req_msg.egraph_eps = egraph_eps_values[iteration];
-      plan_req_msg.final_egraph_eps = egraph_eps_values[iteration];
-	
-      plan_req_pub.publish(plan_req_msg);
-	//EGraphStatWriter::writeStatsToFile("mas_egraphs_stats.csv", first, res.stat_names, res.stat_values);
-      first = false;
-    }
+    plan_req_pub.publish(plan_req_msg);
+    //EGraphStatWriter::writeStatsToFile("mas_egraphs_stats.csv", first, res.stat_names, res.stat_values);
   }
+  
   ros::spin();
   return 0;
 }

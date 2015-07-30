@@ -5,9 +5,9 @@
 #define ROS
 #endif
 
-#include <egraphs/egraph_heuristic.h>
+#include <mas_egraphs/egraph_heuristic.h>
 #include <mas_egraphs/egraph_xy.h>
-#include <egraphs/egraph.h>
+#include <mas_egraphs/mas_egraph.h>
 #include <sbpl/headers.h>
 #include <map>
 

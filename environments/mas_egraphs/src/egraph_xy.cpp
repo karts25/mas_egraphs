@@ -7,18 +7,15 @@ EGraphXY::EGraphXY(){
 }
 
 
-bool EGraphXY::InitializeEnv(int width, int height,
+bool EGraphXY::InitializeEnv(int agentID, int width, int height,
 			     const unsigned char* mapdata,
-			     int numagents, //int numgoals,
-			     //std::vector<pose_cont_t> start,
-			     //std::vector<pose_cont_t> goal,				  
+			     int numagents, 
 			     double goaltol_x, double goaltol_y, double goaltol_theta,
 			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 			     double cellsize_m, double time_per_action,
 			     const std::vector<std::string> sMotPrimFiles,
 			     double costmapOriginX, double costmapOriginY){
-
-  bool ret = Environment_xy::InitializeEnv(width, height, mapdata, numagents, 
+  bool ret = Environment_xy::InitializeEnv(agentID, width, height, mapdata, numagents, 
 					   //numgoals,  start, goal,
 					   goaltol_x, goaltol_y, goaltol_theta, perimeterptsV,
 					   cellsize_m, time_per_action, sMotPrimFiles,
@@ -32,12 +29,11 @@ bool EGraphXY::snap(const vector<double>& from, const vector<double>& to, int& i
   return false;
 }
 
-
 //requires a getCoord function which takes a state id (the ids the environment uses) and returns a vector with the coordinate so we can look for shortcuts in the e-graph
 //-we will never call getCoord on the goal (because it is possible we don't know what the goal state looks like)
 
 // Coord now looks like [agent1.x agent1.y agent1.z agent1.theta ........ goal1 goal2.. isactive1 isactive2....]
-bool EGraphXY::getCoord(int id, vector<double>& coord){
+bool EGraphXY::getCoord(int id, vector<double>& coord) const {
   coord.clear();
   EnvXYHashEntry_t* hashEntry = StateID2CoordTable[id];
   vector<int> d_coord_agent(4,0);
@@ -65,6 +61,16 @@ bool EGraphXY::getCoord(int id, vector<double>& coord){
   }
   return true;
 }
+
+bool EGraphXY::isActive(const int stateID, const int agentID) const{
+  std::vector<double> coord;
+  getCoord(stateID, coord);
+  if(coord[4*EnvXYCfg.numAgents + EnvXYCfg.numGoals + agentID])
+    return true;
+  else
+    return false;
+}
+
 
 int EGraphXY::getStateID(const vector<double>& coord){
   return 0;
@@ -96,6 +102,7 @@ int EGraphXY::getStateID(const vector<double>& coord){
 
   return GetStateFromCoord(poses, goalsVisited, activeAgents); 
 }
+
 
 bool EGraphXY::isGoal(int id){
   return Environment_xy::isGoal(id);
@@ -134,7 +141,7 @@ void EGraphXY::projectGoalToHeuristicSpace(vector<int>& dp) const{
     dp.push_back(1);
 }
 
-void EGraphXY::contToDisc(const vector<double>& c, vector<int>& d){
+void EGraphXY::contToDisc(const vector<double>& c, vector<int>& d) const{
   d.resize(c.size());
   int i;
   //SBPL_INFO("in conttodisc with (%f %f)", c[0],c[1]) ;
@@ -143,7 +150,7 @@ void EGraphXY::contToDisc(const vector<double>& c, vector<int>& d){
   }
 }
 
-void EGraphXY::discToCont(const vector<int>& d, vector<double>& c){
+void EGraphXY::discToCont(const vector<int>& d, vector<double>& c) const{
   c.resize(d.size());
   int i;
   //SBPL_INFO("in disctocont with (%d %d)", d[0],d[1]) ;

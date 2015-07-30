@@ -125,6 +125,7 @@ typedef struct
 
 typedef struct ENV_XY_CONFIG
 {
+  int agentID;
   int numAgents;
   int numGoals;
   int EnvWidth_c;
@@ -146,6 +147,7 @@ typedef struct VIZ_CONFIG
 {
   double costmap_originX;
   double costmap_originY;
+  unsigned int vizmarker_id_;
 }VizConfig_t;
 
 /*
@@ -186,7 +188,7 @@ class Environment_xy: public DiscreteSpaceInformation
   
   virtual bool InitializeEnv(const char* sEnvFile);
 
-  virtual bool InitializeEnv(int width, int height, const unsigned char* mapdata, 
+  virtual bool InitializeEnv(int agentID, int width, int height, const unsigned char* mapdata, 
 			     int numagents,
 			     double goaltol_x, double goaltol_y, double goaltol_theta,
 			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
@@ -199,7 +201,7 @@ class Environment_xy: public DiscreteSpaceInformation
   bool InitGeneral(std::vector<std::vector<SBPL_xytheta_mprimitive> >*
 				   motionprimitiveV);
 
-  void SetConfiguration(int width, int height, const unsigned char* mapdata,
+  void SetConfiguration(int agefntID, int width, int height, const unsigned char* mapdata,
 			//std::vector<pose_disc_t> start, std::vector<pose_disc_t> goal,
 			int numagents,
 			double cellsize_m, double time_per_action,
@@ -318,7 +320,7 @@ class Environment_xy: public DiscreteSpaceInformation
     
     virtual void PrintState(const int stateID, bool bVerbose, FILE* fOut = NULL);
     void PrintTimingStats();
-    void VisualizeState(const int stateID) const;
+    void VisualizeState(const int stateID);
     /**
      * \brief returns the cost corresponding to the cell <x,y>
      */

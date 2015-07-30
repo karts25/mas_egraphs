@@ -46,11 +46,11 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   }
   bool ret;
   try{
-    ret = env_->InitializeEnv(costmap_ros_->getSizeInCellsX(), // width
+    ret = env_->InitializeEnv(agentID_, costmap_ros_->getSizeInCellsX(), // width
 			      costmap_ros_->getSizeInCellsY(), // height
 			      0, // mapdata
 			      numagents_, // numAgents
-			      0.5, 0.5, 0, //goal tolerance of 50 cm
+			      0, 0, 0, //goal tolerance of 50 cm
 			      perimeterptsV,
     			      costmap_ros_->getResolution(), time_per_action_,
 			      primitive_filenames_,
@@ -113,23 +113,26 @@ unsigned char EGraphXYNode::costMapCostToSBPLCost(unsigned char newcost){
 bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs){
   EGraphReplanParams params_copy(params);
   int startstate_id;
-  printf("\n\nAgent %d starting plan with condition = ", agentID_); 
   switch (replan_condition_)
     {
     case NOTREQ:
       return true;
       break;
     case GLOBAL:
-      printf("GLOBAL\n");
+      printf("\n\nAgent %d starting plan with condition = GLOBAL", agentID_);   
       egraph_mgr_->clearEGraphs();
+      params_copy.feedback_path = true;
       params_copy.use_egraph = false;
+      params_copy.return_first_solution = true;
       params_copy.epsE = 1;
       params_copy.final_epsE = 1;
       startstate_id = env_->SetStart(observed_state_.poses, observed_state_.goalsVisited);
       break;
     case LOCAL:
-      printf("LOCAL\n");
+      printf("\n\nAgent %d starting plan with condition = LOCAL", agentID_);   
+      params_copy.return_first_solution = true;
       params_copy.feedback_path = false; // local plans do not update the experience
+      params_copy.use_egraph = true;
       startstate_id = env_->SetStart(belief_state_.poses, belief_state_.goalsVisited);
       break;
     }
@@ -138,8 +141,7 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
     ROS_ERROR("ERROR: failed to set start state\n");
     return false;
   }
-
-  //env_->PrintState(startstate_id,true);
+  env_->PrintState(startstate_id,true);
   //params_copy.print();
   //printf("Hit any key to start planning\n");
   //std::cin.get();
@@ -265,28 +267,24 @@ void EGraphXYNode::startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& 
   }
   
   EGraphReplanParams params(10.0);
-  params.initial_eps = msg->initial_eps;
-  params.dec_eps = msg->dec_eps;
-  params.final_eps = msg->final_eps;
-  params.epsE = msg->egraph_eps;
-  params.dec_epsE = msg->dec_egraph_eps;
-  params.final_epsE = msg->final_egraph_eps;
-  params.return_first_solution = false;
-  params.use_egraph = msg->use_egraph;
-  params.feedback_path = msg->feedback_path;
-
+  params.initial_eps = 1.5;
+  params.dec_eps = 0;
+  params.final_eps = 1.5;
+  params.epsE = msg->eps_comm;
+  printf("epsE is %f", params.epsE);
+  params.final_epsE = msg->eps_comm;
+  params.return_first_solution = true;
   replan_condition_ = GLOBAL;
   bool ret = agentManager(params);  
 }
 
 bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){  
   for(unsigned int step = 0; step < solution_stateIDs_V.size(); step++){
-    visualizeCommPackets();
     //printf("Agent %d: Executing step %d\n------------------\n", 
     //agentID_, (int)step);
     std::vector<double> coord;
     env_->getCoord(solution_stateIDs_V[step], coord);
-
+    
     for(int agent_i = 0; agent_i < numagents_; agent_i++){
       belief_state_.poses[agent_i].x = coord[4*agent_i];
       belief_state_.poses[agent_i].y = coord[4*agent_i+1];
@@ -299,35 +297,9 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){
     }
     
 #ifdef SIM
-    // localize current agent
-    belief_state_.poses[agentID_].x = coord[4*agentID_];
-    belief_state_.poses[agentID_].y = coord[4*agentID_+1];
-    belief_state_.poses[agentID_].z = coord[4*agentID_+2];
-    belief_state_.poses[agentID_].theta = coord[4*agentID_+3];
-    
-    // update goals that we know were visited by this agent
-    /*
-    for(int goal_i = 0; goal_i < numgoals_; goal_i++)
-      if(belief_state_.goalsVisited[goal_i]==agentID_)
-	observed_state_.goalsVisited[goal_i] = agentID_;
-    */
-
-    // get sensor reading for current agent position
-    mas_egraphs::GetSensorUpdate::Request req;
-    mas_egraphs::GetSensorUpdate::Response res;
-    req.agentID = agentID_;
-    pose_cont_t pose = belief_state_.poses[agentID_];
-    int theta;
-    env_->PoseContToDisc(pose.x, pose.y, pose.z, pose.theta,
-			 req.x, req.y, req.z, theta);
-    req.theta = belief_state_.poses[agentID_].theta;
-    //printf("Getting sensor info\n");
-    sensorupdate_client_.call(req, res);
-    //printf("Got sensor info for %d points \n", res.pointcloud.points.size());
-    // update costs according to new sensor information
-    //visualizeSensor(res.pointcloud);
-    updatelocalMap(res.pointcloud);    
+    getSensorData(coord);
 #endif
+
     visualizePoses();
     // if old plan is invalid, we want to replan
     if(!env_->IsValidPlan(solution_stateIDs_V, step)){
@@ -338,20 +310,31 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){
       printf("Agent %d: replan required\n", agentID_);
       return false;
     }
+
+    // agent has retired
+    if(!coord[4*numagents_ + numgoals_ + agentID_])
+      break;
+
     //printf("\n-------------------------\n");
     ros::Duration(0.5).sleep();    
   }
+  // if agent is done with its task, communicate and return
+  sendCommunication();
   return true;
 }
 
+// TODO: this should really be a Finite State Machine
 bool EGraphXYNode::agentManager(EGraphReplanParams& params){
   std::vector<int> solution_stateIDs;
-  bool InitialPlan = true;
   while(true){    
-    bool PlanExists = makePlan(params, solution_stateIDs);
-    
+    while(replan_condition_ == NOTREQ)
+      ros::Duration(0.1).sleep();     
+    visualizeCommPackets();
+    bool planExists = makePlan(params, solution_stateIDs);
+    //printf("Hit any key to execute");
+    //std::cin.get();
     // if the plan doesn't exist, return false
-    if(!PlanExists)
+    if(!planExists)
       return false;    
 
     std::vector<int> new_assignments;
@@ -366,10 +349,11 @@ bool EGraphXYNode::agentManager(EGraphReplanParams& params){
 
     //Initiate communication if goal assignments have switched,    
     observed_state_.assignments = new_assignments;
-    InitialPlan = false;
-    //printf("Hit any key to start executing\n");
-    //std::cin.get();
-    bool isComplete = execute(solution_stateIDs);
+
+    // If this agent has something to do, execute
+    bool isComplete;
+    if(env_->isActive(solution_stateIDs[1], agentID_))
+      isComplete = execute(solution_stateIDs);
 
     int most_recent_packetID = *std::max_element(observed_state_.lastpacketID_V.begin(), 
 						 observed_state_.lastpacketID_V.end());
@@ -378,16 +362,17 @@ bool EGraphXYNode::agentManager(EGraphReplanParams& params){
       sendCommunication();
     }
 
+    //if we "believe" all goals have been visited, communicate
+    /*if(isComplete){
+      sendCommunication();
+      }*/
+
     // if we "know" all goals have been visited, we are done
     if (std::all_of(observed_state_.goalsVisited.begin(),
 		    observed_state_.goalsVisited.end(), 
 		    [](int i){return i >= 0;}))
       break;
 
-    // if we "believe" all goals have been visited, communicate
-    if(isComplete){
-      sendCommunication();
-    }
     ros::Duration(0.1).sleep();    
   }  
   printf("Agent %d is done\n", agentID_);
@@ -454,10 +439,11 @@ void EGraphXYNode::sendCommunication(){
 	 observed_state_.lastpacketID_V[agentID_],
 	 comm_msg.header.seq, (int)comm_msg.obstacles_x.size());
   comm_pub_.publish(comm_msg);
-  
   // clear new obtacles
-  observed_state_.new_obstacles.clear();
-  
+  observed_state_.new_obstacles.clear();  
+
+  visualizeCommPackets();
+
   // wait for replies
   waitforReplies();
 }
@@ -474,7 +460,7 @@ void EGraphXYNode::waitforReplies() const{
     //if((*std::min_element(observed_state_.goalsVisited.begin(),
     //observed_state_.goalsVisited.end())) > -1)
     //  break;
-    ros::Duration(1).sleep();
+    ros::Duration(0.5).sleep();
   }
   printf("Agent %d got all replies: ", agentID_);
   egraph_mgr_->printVector(observed_state_.lastpacketID_V);
@@ -532,6 +518,29 @@ void EGraphXYNode::receiveCommunication(const mas_egraphs::MasComm::ConstPtr& ms
     footprint_pub_.publish(PolygonStamped);
   }
 }*/
+void EGraphXYNode::getSensorData(const std::vector<double>& coord){
+  // localize current agent
+  belief_state_.poses[agentID_].x = coord[4*agentID_];
+  belief_state_.poses[agentID_].y = coord[4*agentID_+1];
+  belief_state_.poses[agentID_].z = coord[4*agentID_+2];
+  belief_state_.poses[agentID_].theta = coord[4*agentID_+3];
+
+  // get sensor reading for current agent position
+  mas_egraphs::GetSensorUpdate::Request req;
+  mas_egraphs::GetSensorUpdate::Response res;
+  req.agentID = agentID_;
+  pose_cont_t pose = belief_state_.poses[agentID_];
+  int theta;
+  env_->PoseContToDisc(pose.x, pose.y, pose.z, pose.theta,
+		       req.x, req.y, req.z, theta);
+  req.theta = belief_state_.poses[agentID_].theta;
+  //printf("Getting sensor info\n");
+  sensorupdate_client_.call(req, res);
+  //printf("Got sensor info for %d points \n", res.pointcloud.points.size());
+  // update costs according to new sensor information
+  //visualizeSensor(res.pointcloud);
+  updatelocalMap(res.pointcloud);    
+}
 
 void EGraphXYNode::visualizeSensor(const sensor_msgs::PointCloud& pointcloud) const{
   visualization_msgs::MarkerArray obstacles;
@@ -697,9 +706,9 @@ int main(int argc, char** argv){
   costmap->pause();
 
   EGraphXYNode xy(costmap);
-
-  //ros::spin();
-  ros::MultiThreadedSpinner spinner(3);//need 2 threads to catch the interrupt
+  // 1 thread to plan, execute and send communication; 1 thread to receive communication; 1 thread
+  // to catch the interrupts
+  ros::MultiThreadedSpinner spinner(3);
   spinner.spin();
 }
 

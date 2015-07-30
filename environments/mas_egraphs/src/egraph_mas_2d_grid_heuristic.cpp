@@ -255,6 +255,7 @@ int EGraphMAS2dGridHeuristic::getHeuristic(const vector<int>& coord){
     vector<double> c_coord;
 
     for(unsigned int i=0; i < state->egraph_vertices.size(); i++){
+      //printf("state has %d vertices\n", (int) state->egraph_vertices[i]->neighbors.size());
       for(unsigned int j=0; j < state->egraph_vertices[i]->neighbors.size(); j++){
         if(!state->egraph_vertices[i]->valid[j])
           continue;
@@ -262,6 +263,11 @@ int EGraphMAS2dGridHeuristic::getHeuristic(const vector<int>& coord){
         env_.projectToHeuristicSpace(c_coord, dp);
         EGraphMAS2dGridHeuristicCell* cell = &heur[HEUR_XY2ID(dp[0],dp[1])];
         int newCost = oldCost + state->egraph_vertices[i]->costs[j];
+	/*printf("cost from (%d, %d) to (%d, %d) = %d\n", 
+	       state->egraph_vertices[i]->coord[0], state->egraph_vertices[i]->coord[1],
+	       state->egraph_vertices[i]->neighbors[j]->coord[0],
+	       state->egraph_vertices[i]->neighbors[j]->coord[1], 
+	       state->egraph_vertices[i]->costs[j]); */
         if(cell->open_iteration != iteration_){ 
           cell->open_iteration = iteration_;
           cell->cost = newCost;
