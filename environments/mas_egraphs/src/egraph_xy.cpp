@@ -1,6 +1,4 @@
 #include<mas_egraphs/egraph_xy.h>
-#include<mas_egraphs/environment_xy.h>
-
 using namespace std;
 
 EGraphXY::EGraphXY(){
@@ -14,12 +12,14 @@ bool EGraphXY::InitializeEnv(int agentID, int width, int height,
 			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 			     double cellsize_m, double time_per_action,
 			     const std::vector<std::string> sMotPrimFiles,
-			     double costmapOriginX, double costmapOriginY){
+			     double costmapOriginX, double costmapOriginY,
+			     mas_config::costfunc costfunc){
   bool ret = Environment_xy::InitializeEnv(agentID, width, height, mapdata, numagents, 
 					   //numgoals,  start, goal,
 					   goaltol_x, goaltol_y, goaltol_theta, perimeterptsV,
 					   cellsize_m, time_per_action, sMotPrimFiles,
-					   costmapOriginX, costmapOriginY);
+					   costmapOriginX, costmapOriginY,
+					   costfunc);
 
   return ret;
   
@@ -73,7 +73,7 @@ bool EGraphXY::isActive(const int stateID, const int agentID) const{
 
 
 int EGraphXY::getStateID(const vector<double>& coord){
-  return 0;
+  return -1;
   vector<int> d_coord;
   contToDisc(coord,d_coord);
   std::vector<pose_disc_t> poses;

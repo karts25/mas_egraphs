@@ -14,6 +14,7 @@
 #include <string>
 #include <ros/ros.h>
 #include <costmap_2d/costmap_2d_ros.h>
+#include <mas_egraphs/mas_config.h>
 #include <mas_egraphs/egraph_xy.h>
 #include <mas_egraphs/egraphManager.h>
 #include <mas_egraphs/egraph_planner.h>
@@ -68,7 +69,7 @@ class EGraphXYNode
  private:
   int agentID_;
   replan_t replan_condition_; // true when we need to replan
-  
+  mas_config::costfunc costfunc_;
   belief_state_t belief_state_; 
   observed_state_t observed_state_;
   viz_t viz_;

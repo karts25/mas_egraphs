@@ -1,7 +1,7 @@
 experiments:
 
   - test: test_1
-    eps_comm: 1
+    eps_comm: 5
     num_agents: 2
     num_goals: 8
     start: 15.0 2.0 0.0 1.58

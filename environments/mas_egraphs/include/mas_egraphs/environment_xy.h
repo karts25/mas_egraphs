@@ -40,6 +40,7 @@
 //#include <sbpl/discrete_space_information/environment.h>
 #include <sbpl/utils/utils.h>
 #include <string>
+#include <mas_egraphs/mas_config.h>
 #include <geometry_msgs/PolygonStamped.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -128,6 +129,7 @@ typedef struct ENV_XY_CONFIG
   int agentID;
   int numAgents;
   int numGoals;
+  mas_config::costfunc costfunc;
   int EnvWidth_c;
   int EnvHeight_c;
   int NumThetaDirs;
@@ -150,20 +152,6 @@ typedef struct VIZ_CONFIG
   unsigned int vizmarker_id_;
 }VizConfig_t;
 
-/*
-class EnvXY_InitParms
-{
-public:
-  unsigned int numAgents;
-  const unsigned char* mapdata;
-  std::vector<pose_disc_t> start;
-  std::vector<pose_disc_t> goal;
-  double goaltol_x;
-  double goaltol_y;
-  double goaltol_theta;
-};*/
-
-
 class Environment_xy: public DiscreteSpaceInformation
 {
  public:
@@ -171,10 +159,10 @@ class Environment_xy: public DiscreteSpaceInformation
    * \brief mapping from hashentry stateID (used in environment to contain                                                                                                                       
    *        the coordinates of a state, say x,y or x,y,theta)                                                                                                                                    
    *        to an array of state indices used in searches.                                                                                                                                       
-   * If a single search is done, then it is a single entry.  So                                                                                                                                  
-   * StateID2IndexMapping[100][0] = 5 means that hashentry with stateID 100                                                                                                                      
-   * is mapped onto search index = 5 in search 0 The value of -1 means that                                                                                                                      
-   * no search state has been created yet for this hashentry                                                                                                                                     
+   * If a single search is done, then it is a single entry.  So                                                                                                                    
+   * StateID2IndexMapping[100][0] = 5 means that hashentry with stateID 100                                                                                           
+   * is mapped onto search index = 5 in search 0 The value of -1 means that                                
+   * no search state has been created yet for this hashentry                                                                                           
    */
   std::vector<int*> StateID2IndexMapping;
 
@@ -194,7 +182,8 @@ class Environment_xy: public DiscreteSpaceInformation
 			     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 			     double cellsize_m, double time_per_action,
 			     const std::vector<std::string> sMotPrimFiles,
-			     double costmapOriginX, double costmapOriginY);
+			     double costmapOriginX, double costmapOriginY,
+			     mas_config::costfunc costfunc);
 
   void InitializeAgentConfig(int agentID, std::vector<SBPL_xytheta_mprimitive>* motionprimitiveV);
 
@@ -206,7 +195,8 @@ class Environment_xy: public DiscreteSpaceInformation
 			int numagents,
 			double cellsize_m, double time_per_action,
 			const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV,
-			double goaltol_x, double goaltol_y, double goaltol_theta);
+			double goaltol_x, double goaltol_y, double goaltol_theta,
+			mas_config::costfunc costfunc);
 
   bool ReadMotionPrimitive_agent(FILE* fMotPrims, int agentId);
   bool ReadinMotionPrimitive(SBPL_xytheta_mprimitive* pMotPrim,
@@ -286,8 +276,7 @@ class Environment_xy: public DiscreteSpaceInformation
      * \brief sets goal in meters/radians
      */
     virtual int SetGoal(std::vector<pose_cont_t> goal);
-    
-    virtual bool GetFakePlan(int startstateID, std::vector<int>& solutionstateIDs);
+   
    
     /**
      * \brief gets number of goals

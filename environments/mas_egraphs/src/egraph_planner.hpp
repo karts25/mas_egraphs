@@ -30,11 +30,11 @@
 #include <algorithm>
 #include <numeric>
 
-/*
+
 #ifndef DEBUG_PLANNER
 #define DEBUG_PLANNER
 #endif
-*/
+
 
 using namespace std;
 
@@ -100,8 +100,9 @@ LazyAEGState* LazyAEGPlanner<HeuristicType>::GetState(int id){
       SBPL_INFO("Planner: Heuristic for id %d = %d", s->id, heurs[0]);
 #endif
       */
-      for(unsigned int i = 1; i < heurs.size(); i++){
-	s->h_peragent.push_back(heurs[i]); 
+      s->h_peragent.resize(heurs.size()-1);
+      for(unsigned int i = 0; i < heurs.size()-1; i++){
+	s->h_peragent[i] = heurs[i+1]; 
 	/*
 #ifdef DEBUG_PLANNER
 	SBPL_INFO("Planner: h for agent %d is %d", i-1, heurs[i]);
@@ -326,14 +327,14 @@ void LazyAEGPlanner<HeuristicType>::putStateInHeap(LazyAEGState* state){
     CKey key;
     key.key[0] = state->g + int(eps * state->h);
     key.key[1] = state->h;
-    /*for(unsigned int agent_i = 0; agent_i < state->h_peragent.size(); agent_i++){
+    for(unsigned int agent_i = 0; agent_i < state->h_peragent.size(); agent_i++){
       key.key[2+agent_i] = state->h_peragent[agent_i];
-      }*/
+    }
     
     if(print){
       printf("inserting state with f = %ld h = %d ", key.key[0], state->h);
       //for(int agent_i = 0; agent_i < state->h_peragent.size(); agent_i++){
-      //intf("%d ", state->h_peragent[agent_i]);
+      //printf("%d ", state->h_peragent[agent_i]);
       //
       printf("\n");
     }
@@ -388,8 +389,8 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
     printf("[Egraph_planner]: Expanding:\n");
     environment_->PrintState(state->id, true);
     printf("f = %d g = %d h = %d\n", min_key.key[0], state->g, state->h);
-    /*for(int i = 0; i < (int) state->h_peragent.size(); i++)
-      SBPL_INFO("h for agent %d is %d", i, state->h_peragent[i]); */
+    for(int i = 0; i < (int) state->h_peragent.size(); i++)
+      SBPL_INFO("h for agent %d is %d", i, state->h_peragent[i]); 
 #endif
     
     if(state->v == state->g){
@@ -664,19 +665,19 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
   //put start state in the heap
   start_state->g = 0;
   //start_state->g_peragent = std::vector<int>(egraph_mgr_->egraph_env_->GetNumAgents(),0);
-  ROS_INFO("start state heuristic is %d\n", start_state->h);
+  printf("start state heuristic is %d | heur_per_agent: ", start_state->h);
+  for(int i = 0; i < (int) start_state->h_peragent.size(); i++)
+    printf("%d ", start_state->h_peragent[i]);
+  printf("\n");
   assert(start_state->h >= 0);
   CKey key;
 
   key.key[0] = eps*start_state->h;
   key.key[1] = start_state->h;
-  /*
-  for(int i = 0; i < egraph_mgr_->egraph_env_->GetNumAgents(); i ++){
-#ifdef DEBUG_PLANNER
-    SBPL_INFO("start state h per agent is %d", start_state->h_peragent[i]);
-#endif
+  
+  for(int i = 0; i < egraph_mgr_->egraph_env_->GetNumAgents(); i++){
     key.key[i+2] = start_state->h_peragent[i];
-    }*/
+  }
   heap.insertheap(start_state, key);
   //ensure heuristics are up-to-date
   //environment_->EnsureHeuristicsUpdated((bforwardsearch==true));
@@ -761,13 +762,11 @@ void LazyAEGPlanner<HeuristicType>::prepareNextSearchIteration(){
     s->in_incons = false;
     key.key[0] = s->g + int(eps * s->h);
     key.key[1] = s->h;
-    /*  
+    
     for(unsigned int i = 0; i < s->h_peragent.size(); i++){
       key.key[i+2] = s->h_peragent[i];  
-#ifdef DEBUG_PLANNER
-      SBPL_INFO("Planner:preparenextsearchiteration: Inserting h_peragent for agent %d = %d", i, s->h_peragent[i]);
-#endif
-}*/
+    }
+
 #ifdef DEBUG_PLANNER
     SBPL_INFO("Planner:preparenextsearchiteration: Inserting s into heap");
 #endif      
@@ -780,10 +779,9 @@ void LazyAEGPlanner<HeuristicType>::prepareNextSearchIteration(){
     LazyAEGState* state = (LazyAEGState*)heap.heap[i].heapstate;
     heap.heap[i].key.key[0] = state->g + int(eps * state->h);
     heap.heap[i].key.key[1] = state->h;
-    /*for(unsigned int j = 0; j < state->h_peragent.size(); j++)
-      heap.heap[j].key.key[j+2] = state->h_peragent[j];
-    */
-  }
+    for(unsigned int j = 0; j < state->h_peragent.size(); j++)
+      heap.heap[j].key.key[j+2] = state->h_peragent[j];    
+   }
   heap.makeheap();
   
   search_iteration++;

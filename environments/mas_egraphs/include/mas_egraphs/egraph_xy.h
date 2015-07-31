@@ -41,7 +41,8 @@ class EGraphXY:public Environment_xy, public EGraphDiscretize{
 		     const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 		     double cellsize_m, double time_per_action,
 		     const std::vector<std::string> sMotPrimFiles,
-		     double costmapOriginX, double costmapOriginY);
+		     double costmapOriginX, double costmapOriginY,
+		     mas_config::costfunc costfunc);
 
 };
 

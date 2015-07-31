@@ -6,12 +6,12 @@
 #include <sbpl/utils/key.h>
 
 using namespace std;
+
 /*
 #ifndef DEBUG_ENV
 #define DEBUG_ENV
 #endif
 */
-
 
 #ifndef VIZ_EXPANSIONS
 #define VIZ_EXPANSIONS
@@ -108,8 +108,6 @@ unsigned int Environment_xy::GETHASHBIN(std::vector<pose_disc_t> poses,
 bool Environment_xy::InitializeEnv()
 {
     ros::NodeHandle nh;
-    SBPL_INFO("environment stores states in hashtable\n");
-    
     //initialize the map from Coord to StateID
     HashTableSize = 4 * 1024 * 1024; //should be power of two
     Coord2StateIDHashTable = new vector<EnvXYHashEntry_t*> [HashTableSize];
@@ -175,7 +173,8 @@ bool Environment_xy::InitializeEnv(int agentID, int width, int height, const uns
 				   const std::vector<std::vector<sbpl_2Dpt_t> > & perimeterptsV,
 				   double cellsize_m, double time_per_action,
 				   const std::vector<std::string> sMotPrimFiles,
-				   double costmapOriginX, double costmapOriginY){
+				   double costmapOriginX, double costmapOriginY,
+				   mas_config::costfunc costfunc){
     SBPL_INFO("env: initialize with width=%d height=%d "
                 "cellsize=%.3f timeperaction=%.3f\n",
                 width, height, cellsize_m, time_per_action);
@@ -185,7 +184,8 @@ bool Environment_xy::InitializeEnv(int agentID, int width, int height, const uns
     VizCfg.vizmarker_id_ = 0;
     SetConfiguration(agentID, width, height, mapdata, numagents, //start_disc, goal_disc,
                      cellsize_m, time_per_action, perimeterptsV,
-		     goaltol_x, goaltol_y, goaltol_theta);
+		     goaltol_x, goaltol_y, goaltol_theta,
+		     costfunc);
 
     for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
       FILE* fMotPrim = fopen(sMotPrimFiles[agent_i].c_str(), "r");
@@ -213,7 +213,7 @@ bool Environment_xy::ReadMotionPrimitive_agent(FILE* fMotPrims, int agentId)
   int dTemp;
   int totalNumofActions = 0;
 
-  SBPL_INFO("Reading in motion primitives for agent %d", agentId);
+  //SBPL_INFO("Reading in motion primitives for agent %d", agentId);
 
   //read in the resolution                                                                          
   strcpy(sExpected, "resolution_m:");
@@ -261,7 +261,6 @@ bool Environment_xy::ReadMotionPrimitive_agent(FILE* fMotPrims, int agentId)
       return false;
     EnvXYCfg.robotConfigV[agentId].mprimV.push_back(motprim);
   }
-  SBPL_INFO("done");
   return true;
 }
 
@@ -590,7 +589,8 @@ void Environment_xy::SetConfiguration(int agentID, int width, int height,
 				      int numagents,
 				      double cellsize_m, double time_per_action,
 				      const std::vector<std::vector<sbpl_2Dpt_t> >& robot_perimeterV,
-				      double goaltol_x, double goaltol_y, double goaltol_theta){
+				      double goaltol_x, double goaltol_y, double goaltol_theta,
+				      mas_config::costfunc costfunc){
   EnvXYCfg.agentID = agentID;
   EnvXYCfg.EnvWidth_c = width;
   EnvXYCfg.EnvHeight_c = height;
@@ -598,6 +598,7 @@ void Environment_xy::SetConfiguration(int agentID, int width, int height,
   EnvXYCfg.time_per_action = time_per_action;
   EnvXYCfg.cellsize_m = cellsize_m;
   EnvXYCfg.obsthresh = ENVXY_DEFAULTOBSTHRESH;
+  EnvXYCfg.costfunc = costfunc;
   //allocate the 2D environment
   EnvXYCfg.Grid2D = new unsigned char*[EnvXYCfg.EnvWidth_c];
   for (int x = 0; x < EnvXYCfg.EnvWidth_c; x++) {
@@ -779,7 +780,7 @@ int Environment_xy::SetGoal(std::vector<pose_cont_t> goal_m)
   for (int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i ++)
     {
       PoseContToDisc(goal_m[goal_i].x, goal_m[goal_i].y, goal_m[goal_i].z, goal_m[goal_i].theta,  x, y, z, theta);
-      //SBPL_INFO("env: setting goal to %.3f %.3f %0.3f %0.3f (%d %d %d %d)", goal_m[goal_i].x, goal_m[goal_i].y, goal_m[goal_i].z, goal_m[goal_i].theta, x, y, z, theta);
+      SBPL_INFO("env: setting goal to %.3f %.3f %0.3f %0.3f (%d %d %d %d)", goal_m[goal_i].x, goal_m[goal_i].y, goal_m[goal_i].z, goal_m[goal_i].theta, x, y, z, theta);
 
       if (!IsWithinMapCell(x, y)) {
         SBPL_ERROR("ERROR: trying to set a goal cell %d %d that is outside of map\n", x, y);
@@ -1004,7 +1005,7 @@ void Environment_xy::GetSuccs(int SourceStateID,
 {
   clock_t GetSuccs_t0 = clock();
 #ifdef DEBUG_ENV
-  SBPL_INFO("[Environment]: In GetSuccs");
+  printf("\n[Environment]: In GetSuccs\n");
 #endif
   //clear the successor array
   SuccIDV->clear();
@@ -1022,6 +1023,10 @@ void Environment_xy::GetSuccs(int SourceStateID,
   VisualizeState(SourceStateID);
 #endif
 
+  // We want only as many active agents as there are unvisited goals in the parent state
+  int numgoals_unvisited_parent = std::count(HashEntry->goalsVisited.begin(), 
+					     HashEntry->goalsVisited.end(), -1);
+    
   // find number and indices of active agents
   std::vector<int> activeAgents_indices;
   for(int i = 0; i < EnvXYCfg.numAgents; i++)
@@ -1052,6 +1057,7 @@ void Environment_xy::GetSuccs(int SourceStateID,
   std::vector<pose_disc_t> poses(EnvXYCfg.numAgents);
   std::vector<bool> activeAgents(EnvXYCfg.numAgents, false);
 
+
   // Make successors from all possible combinations of active agents and actions
   // We have [agent1.actionwidth*agent2.actionwidth ....]  primitives
   SuccIDV->reserve(numPrimitives);
@@ -1066,12 +1072,21 @@ void Environment_xy::GetSuccs(int SourceStateID,
       int numActions = EnvXYCfg.robotConfigV[agent_ctr].actionwidth+1;
       int action_i = index % numActions;
       index = (int) index/numActions;	
-      cost += allnewCosts[agent_ctr][action_i]; 
+      switch(EnvXYCfg.costfunc)
+	{
+	case mas_config::MAX:
+	  cost = std::max(cost, allnewCosts[agent_ctr][action_i]);
+	  break;
+	case mas_config::SUM:
+	  cost += allnewCosts[agent_ctr][action_i];
+	  break;
+	}
       int agent_index = activeAgents_indices[agent_ctr];
       poses[agent_index] = allnewPoses[agent_ctr][action_i];
-      if (action_i == numActions-1){ // last action is always to retire agent
-	  activeAgents[agent_index] = 0;
-	}
+      if (action_i == numActions-1){ 
+	// last action is always to retire agent
+	activeAgents[agent_index] = 0;
+      }
     }
 
     clock_t GetSuccsPruning_t0 = clock();
@@ -1080,19 +1095,21 @@ void Environment_xy::GetSuccs(int SourceStateID,
   
     std::vector<int> goalsVisited = HashEntry->goalsVisited;
     getGoalsVisited(poses, goalsVisited);
-    int numgoals_unvisited = std::count(goalsVisited.begin(), goalsVisited.end(), -1);
-    // don't want all robots retired as an action except at end
-    if (numgoals_unvisited > 0 && 
-	std::all_of(activeAgents.begin(), activeAgents.end(), [](bool v){return !v;})) 
-      continue;
     
-    // don't want more active robots than unvisited goals except at the end
-    if(numgoals_unvisited > 0 &&
-       std::count(activeAgents.begin(), activeAgents.end(), 1) > numgoals_unvisited)
+    int numActiveAgents_successor = std::accumulate(activeAgents.begin(),
+						    activeAgents.end(),
+						    0);
+    // don't want all robots retired as an action
+    if(numActiveAgents_successor == 0)
       continue;
-    // don't want all robots stopped as an action
-    if(IsEqualHashEntry(HashEntry, poses, goalsVisited, activeAgents))
+   
+    // don't want more agents active than the number of goals unvisited by parent
+    // Note: we need to compare against parent since "retiring" is an action like any other 
+    // primitive. This means that if the agent reaches a goal in a successor state of 
+    // sourcestateID, it can only retire at the next successor state. 
+    if (numgoals_unvisited_parent < numActiveAgents_successor)
       continue;
+
     clock_t GetSuccsPruning_t1 = clock();
     GetSuccsPruningClock += GetSuccsPruning_t1 - GetSuccsPruning_t0;
     clock_t CreateHashEntry_t0 = clock();
@@ -1105,18 +1122,10 @@ void Environment_xy::GetSuccs(int SourceStateID,
     CostV->push_back(cost);
     clock_t CreateHashEntry_t1 = clock();
     CreateHashEntryClock += CreateHashEntry_t1 - CreateHashEntry_t0;
-#ifdef DEBUG_ENV
-    PrintState(OutHashEntry->stateID, true);
+#ifdef DEBUG_ENV    
+    PrintState(OutHashEntry->stateID, true);    
 #endif
   }
-#ifdef DEBUG_ENV
-  std::cin.get();
-  printf("\n[Env Get Succs]: Numsuccessors = %d out of %d \n CostV: ", CostV->size(), numPrimitives);
-  for(int i = 0; i < CostV->size(); i++){
-    printf("%d ", CostV->at(i));
-  }
-  printf("\n");
-#endif
   clock_t GetSuccs_t1 = clock();
   GetSuccsClock += GetSuccs_t1 - GetSuccs_t0;
 }
@@ -1145,7 +1154,7 @@ void Environment_xy::GetSuccsForAgent(int SourceStateID, int agentID, pose_disc_
       cost = action->cost;
     
     newPosesV.push_back(newPose);
-    costV.push_back(cost);
+    costV.push_back(cost);   
   }
   // allow agent to retire with 0 cost if agent is at a goal or state is the starting state
   if((SourceStateID == EnvXY.startstateid) || isAGoal(pose)){
@@ -1165,11 +1174,11 @@ void Environment_xy::getGoalsVisited(const std::vector<pose_disc_t>& poses,
   for(int agent_i = 0; agent_i < EnvXYCfg.numAgents; agent_i++){
     int x = poses[agent_i].x;
     int y = poses[agent_i].y;
-    for(int j = 0; j < EnvXYCfg.numGoals; j++){
+    for(int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i++){
 	// if goal is unvisited so far, and a robot is at the goal, record its index
-      if((goalsVisited[j] == -1) && (abs(x - EnvXYCfg.goal[j].x) <= EnvXYCfg.goaltol_x)
-	 && (abs(y - EnvXYCfg.goal[j].y) <= EnvXYCfg.goaltol_y))
-	  goalsVisited[j] = agent_i;
+      if((goalsVisited[goal_i] == -1) && (abs(x - EnvXYCfg.goal[goal_i].x) <= EnvXYCfg.goaltol_x)
+	 && (abs(y - EnvXYCfg.goal[goal_i].y) <= EnvXYCfg.goaltol_y))
+	  goalsVisited[goal_i] = agent_i;
       }
   }
 }
@@ -1303,32 +1312,9 @@ bool Environment_xy::SetEnvParameter(const char* parameter, int value)
     return true;
 }
 
-bool Environment_xy::GetFakePlan(int startstateID, std::vector<int>& solutionstateIDs)
-{
-  // apply motion primitives
-  std::vector<int> CostV;
-  std::vector<int> SuccIDV;
-  std::vector<bool> isTrueCost;
-  int id = startstateID;
-  for(int i = 0; i < 50; i++){
-    //PrintState(id, true);
-    solutionstateIDs.push_back(id);
-    GetLazySuccsWithUniqueIds(id, &SuccIDV, &CostV, &isTrueCost);
-    int newsucc_i = rand() % SuccIDV.size(); 
-    for(unsigned int j = 0; j < SuccIDV.size(); j++){
-	SBPL_INFO("Successor %d cost %d\n", j, CostV[j]);
-	PrintState(SuccIDV[j],true);
-	solutionstateIDs.push_back(SuccIDV[j]);
-      }
-    id = SuccIDV[newsucc_i];
-  }
-  return true;
-}
-
 void Environment_xy::VisualizeState(const int stateID) {
-  if(EnvXYCfg.agentID == 0)
-    return;
-  if(VizCfg.vizmarker_id_ > 1000){
+
+  if(VizCfg.vizmarker_id_ > 5000){
     //printf("Hit a key to continue search\n");
     //std::cin.get();
     VizCfg.vizmarker_id_ = 0;
@@ -1407,7 +1393,7 @@ void Environment_xy::PrintState(const int stateID, bool bVerbose, FILE* fOut /*=
 		(int) HashEntry->poses[i].theta, (int) HashEntry->activeAgents[i]);
     }
     printf("Goals Visited: ");
-    for(int i = 0; i < EnvXYCfg.numGoals; i++)
+    for(int i = 0; i < (int) HashEntry->goalsVisited.size(); i++)
       printf("%d ", (int) HashEntry->goalsVisited[i]);
-    printf("\n");
+    printf("\n\n");
 }

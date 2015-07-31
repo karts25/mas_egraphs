@@ -8,7 +8,10 @@
 #include <ros/ros.h>
 #include <mas_egraphs/mas_egraph.h>
 #include <mas_egraphs/egraph_heuristic.h>
+#include <mas_egraphs/mas_config.h>
 #include <boost/thread/condition_variable.hpp>
+#include <mas_egraphs/planner_state.h>
+#include <mas_egraphs/egraph_mas_2d_grid_heuristic.h>
 #include <vector>
 #include <bitset>
 #include <map>
@@ -16,11 +19,10 @@
 #include <string>
 #include <limits>
 #include <numeric>
-#include <mas_egraphs/planner_state.h>
-#include <mas_egraphs/egraph_mas_2d_grid_heuristic.h>
 
 typedef EGraph* EGraphPtr;
 typedef std::vector<std::vector<double> > EGraphPath;
+typedef std::vector<std::vector<int> > Matrix;
 typedef std::vector<int> EGraphCosts;
 typedef std::vector<double> ContState;
 typedef std::vector<int> DiscState;
@@ -73,10 +75,10 @@ class EGraphManager {
  public:
         typedef EGraphXY* EGraphablePtr;
         typedef EGraphMAS2dGridHeuristic* EGraphHeuristicPtr;
-	typedef std::vector<std::vector<int> > Matrix;
 	EGraphManager(std::vector<EGraphPtr> egraphs, EGraphablePtr egraph_env, 
 		      std::vector<std::vector<EGraphHeuristicPtr> > egraph_heur, 
-		      int numgoals, int numagents);
+		      int numgoals, int numagents,
+		      mas_config::costfunc costfunc);
 	void setEpsE(double epsE);
 	bool setGoal();
 	void updateManager();
@@ -153,7 +155,8 @@ class EGraphManager {
 	std::vector<std::vector<EGraphHeuristicPtr> > egraph_heurs_;
         UpdateEGThreadData update_eg_thread_data_;
         EGraphStats stats_;
-	
+	mas_config::costfunc costfunc_;
+
 	// timing information
 	clock_t getHeuristicBFSClock;
 	clock_t bruteforceHeuristicClock;
