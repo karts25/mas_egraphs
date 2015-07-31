@@ -30,11 +30,11 @@
 #include <algorithm>
 #include <numeric>
 
-
+/*
 #ifndef DEBUG_PLANNER
 #define DEBUG_PLANNER
 #endif
-
+*/
 
 using namespace std;
 

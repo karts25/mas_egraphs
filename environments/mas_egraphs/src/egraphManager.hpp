@@ -116,11 +116,10 @@ std::vector<int> EGraphManager<HeuristicType>::getHeuristic(int state_id){
   ContState cont_state;
   egraph_env_->getCoord(state_id, cont_state); // TODO: We'd like getcoord to return pose, goalsvisited
   
-  //#ifdef DEBUG_HEUR  
+#ifdef DEBUG_HEUR  
     printf("[egraphManager]: \nComputing heuristic for state %d\n", state_id);
-    egraph_env_->PrintState(state_id, true);
-    
-    //  #endif   
+    egraph_env_->PrintState(state_id, true);    
+#endif   
   
   // find number and indices of active agents
   std::vector<int> activeAgents_indices;
@@ -131,8 +130,12 @@ std::vector<int> EGraphManager<HeuristicType>::getHeuristic(int state_id){
   clock_t bruteforceHeuristic_t0 = clock();
   bruteforceHeuristic(cont_state, activeAgents_indices, heurs);
   bruteforceHeuristicClock += clock() - bruteforceHeuristic_t0;
+
+#ifdef DEBUG_HEUR
   printf("heurs = ");
   printVector(heurs);
+#endif 
+
   return heurs;
 }
 

@@ -18,13 +18,14 @@
     <param name="primitive_filename_1" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />
     <param name="primitive_filename_2" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />	
   </node>
-<!--<node name="egraphXYNode_1" pkg="mas_egraphs" type="egraphXYNode" output="screen">
+
+<node name="egraphXYNode_1" pkg="mas_egraphs" type="egraphXYNode" output="screen">
     <rosparam file="$(find mas_egraphs)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
     <rosparam file="$(find mas_egraphs)/config/global_costmap_params.yaml" command="load" />
     <param name="agentID" type="int" value="1"/>
     <param name="num_agents" type="int" value="2" />
     <param name="primitive_filename_1" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />
     <param name="primitive_filename_2" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />	
-  </node> -->
+</node>  
 
 </launch>

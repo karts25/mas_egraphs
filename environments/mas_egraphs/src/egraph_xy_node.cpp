@@ -6,7 +6,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
   ros::NodeHandle private_nh("~");
   ros::NodeHandle nh;
 
-  costfunc_ = mas_config::MAX;
+  costfunc_ = mas_config::SUM;
   private_nh.param("num_agents", numagents_, 1);
   private_nh.param("agentID", agentID_, 1);
   primitive_filenames_.reserve(numagents_);
