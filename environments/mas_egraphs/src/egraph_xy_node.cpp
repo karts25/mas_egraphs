@@ -237,12 +237,8 @@ void EGraphXYNode::startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& 
    observed_state_.new_obstacles.clear();
    observed_state_.goalsVisited.resize(numgoals_, -1);
    observed_state_.assignments.resize(numgoals_, -1);
-   observed_state_.poses.resize(numagents_);
    for(int agent_i=0; agent_i < numagents_; agent_i++){
-     observed_state_.poses[agent_i].x = msg->start_x[agent_i] - cost_map_.getOriginX();
-     observed_state_.poses[agent_i].y = msg->start_y[agent_i] - cost_map_.getOriginY();
-     observed_state_.poses[agent_i].z = msg->start_z[agent_i];
-     observed_state_.poses[agent_i].theta = msg->start_theta[agent_i];
+     observed_state_.poses = belief_state_.poses;
    }
    egraph_mgr_ = new EGraphManager<std::vector<int> > (egraphs_, env_, heurs_,
 						       msg->num_goals, numagents_,
@@ -307,6 +303,7 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V){
       printf("Agent %d thinks plan is invalid\n", agentID_);
       replan_condition_ = LOCAL;
     }
+
     if(replan_condition_ != NOTREQ){
       printf("Agent %d: replan required\n", agentID_);
       return false;
@@ -452,12 +449,6 @@ void EGraphXYNode::waitforReplies() const{
   while((observed_state_.lastpacketID_V[agentID_] > 
 	    *std::min_element(observed_state_.lastpacketID_V.begin(), 
 			      observed_state_.lastpacketID_V.end()))){
-    //printf("\nAgent %d waiting for replies: ", agentID_);
-    //egraph_mgr_->printVector(observed_state_.lastpacketID_V);
-    // if this agent is done, then don't wait!
-    //if((*std::min_element(observed_state_.goalsVisited.begin(),
-    //observed_state_.goalsVisited.end())) > -1)
-    //  break;
     ros::Duration(0.5).sleep();
   }
   egraph_mgr_->printVector(observed_state_.lastpacketID_V);
@@ -465,8 +456,9 @@ void EGraphXYNode::waitforReplies() const{
 
 
 void EGraphXYNode::receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg){
-  //ignore what we sent ourselves
   printf("Agent %d received message #%d with pose (%f, %f)  from Agent %d\n", agentID_, msg->header.seq, msg->x, msg->y, msg->agentID);
+  // TODO: Add locking
+
   // update robot pose
   observed_state_.poses[msg->agentID].x = msg->x;
   observed_state_.poses[msg->agentID].y = msg->y;

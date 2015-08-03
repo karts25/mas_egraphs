@@ -1,0 +1,11 @@
+experiments:
+
+  - test: test_1
+    eps_comm: 1
+    num_agents: 1
+    num_goals: 2
+    start: 15 2 0.0 1.58
+    goal: 5.5 11.75 0  
+    goal: 24.5 11.75 0  
+
+   
