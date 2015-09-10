@@ -144,7 +144,7 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
         ROS_ERROR("ERROR: failed to set start state\n");
         return false;
     }
-    env_->PrintState(startstate_id, true);
+    //env_->PrintState(startstate_id, true);
     //params_copy.print();
     //printf("Hit any key to start planning\n");
     egraph_mgr_->updateHeuristicGrids(heur_grid_);
@@ -309,7 +309,7 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V, int& cos
         }
 
         if(replan_condition_ != NOTREQ){
-            printf("Agent %d: replan condition is %d,  replan required\n", agentID_, replan_condition_);
+            //printf("Agent %d: replan condition is %d,  replan required\n", agentID_, replan_condition_);
             return false;
         }
 
@@ -318,7 +318,7 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V, int& cos
             break;
 
         //printf("\n-------------------------\n");
-        ros::Duration(0.5).sleep();    
+        ros::Duration(0.25).sleep();    
     }
     // if agent is done with its task, communicate and return
     sendCommunication();
@@ -336,7 +336,10 @@ bool EGraphXYNode::agentManager(EGraphReplanParams& params){
         bool planExists = makePlan(params, solution_stateIDs, cost_plan_local_i);   
         if (replan_condition_ == GLOBAL){
             cost_plan_global_i = cost_plan_local_i;
+            cost_traversed_i = 0;
         }
+        //printf("cost_local %d cost_global %d cost_traversed %d epsComm %f eps %f\n", cost_plan_local_i, cost_plan_global_i, cost_traversed_i,
+        //       params.epsE, params.final_eps);
         //printf("Hit any key to execute");
         //std::cin.get();
         // if the plan doesn't exist, return false
@@ -356,7 +359,8 @@ bool EGraphXYNode::agentManager(EGraphReplanParams& params){
             // Initiate communication if deviation is too large
             if(cost_plan_local_i >= 
                params.epsE*(cost_plan_global_i - params.final_eps*cost_traversed_i)){
-                printf("Agent %d initiating communication because deviation is too large", agentID_);
+                printf("LHS %f RHS %f\n", (float) cost_plan_local_i, params.epsE*((cost_plan_global_i - params.final_eps*cost_traversed_i)));
+                printf("Agent %d initiating communication because deviation is too large\n", agentID_);                
                 sendCommunication();
             }
         }
@@ -450,9 +454,9 @@ void EGraphXYNode::sendCommunication(){
         if(belief_state_.goalsVisited[goal_i] == agentID_)
             comm_msg.goalsVisited.push_back(goal_i);
     }
-    printf("Agent %d sending message number %d=%d with %d obstacles \n", agentID_, 
-           observed_state_.lastpacketID_V[agentID_],
-           comm_msg.header.seq, (int)comm_msg.obstacles_x.size());
+    //printf("Agent %d sending message number %d=%d with %d obstacles \n", agentID_, 
+    //       observed_state_.lastpacketID_V[agentID_],
+    //       comm_msg.header.seq, (int)comm_msg.obstacles_x.size());
     comm_pub_.publish(comm_msg);
     // clear new obtacles
     observed_state_.new_obstacles.clear();  
@@ -475,7 +479,7 @@ void EGraphXYNode::waitforReplies() const{
 
 
 void EGraphXYNode::receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg){
-    printf("Agent %d received message #%d with pose (%f, %f)  from Agent %d\n", agentID_, msg->header.seq, msg->x, msg->y, msg->agentID);
+    //printf("Agent %d received message #%d with pose (%f, %f)  from Agent %d\n", agentID_, msg->header.seq, msg->x, msg->y, msg->agentID);
     // TODO: Add locking
 
     // update robot pose

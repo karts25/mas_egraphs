@@ -845,15 +845,17 @@ int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGra
   clock_t replan_t1 = clock();
   totalPlanTime = double(replan_t1-replan_t0)/CLOCKS_PER_SEC;
 
+  /*
   printf("\n---------------------------------------------------------------\n");
   if(solnFound)
-    printf("Solution found!\n");
+      printf("Solution found!\n");
   else
     printf("Solution not found...\n");
   printf("total time=%.2f total time without counting adding new path=%.2f\n", 
           totalPlanTime, totalPlanTime-feedbackPathTime);
   printf("total expands=%d solution cost=%d\n", 
           totalExpands, goal_state.g);
+  */
   return (int)solnFound;
 }
 
