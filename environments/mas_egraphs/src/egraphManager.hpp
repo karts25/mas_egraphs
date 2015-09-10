@@ -205,7 +205,7 @@ void EGraphManager<HeuristicType>::bruteforceHeuristic(std::vector<double>& cont
   egraph_env_->projectToHeuristicSpace(cont_state, heur_coord);    
 
   bruteforceHeuristicCtr ++;
-
+  
   int numActiveAgents = activeAgents_indices.size();
   // look at all possible assignments of goals to agents
   int numassignments = pow(numActiveAgents, numgoals_);

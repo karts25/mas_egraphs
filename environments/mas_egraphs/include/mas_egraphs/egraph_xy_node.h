@@ -63,10 +63,10 @@ enum replan_t {NOTREQ, LOCAL, GLOBAL};
 
 class EGraphXYNode
 {
- public:
+public:
   EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros);
 
- private:
+private:
   int agentID_;
   replan_t replan_condition_; // true when we need to replan
   mas_config::costfunc costfunc_;
@@ -112,7 +112,8 @@ class EGraphXYNode
   void updateCosts(int x, int y);
   void updateCosts(int x, int y, unsigned char c);
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
-  bool makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs);
+  bool makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs, 
+                int& solution_cost_i);
   void startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& msg);
   void receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg);
   void sendCommunication();
@@ -122,7 +123,7 @@ class EGraphXYNode
   // loops between execution and replanning until execute signals completion
   bool agentManager(EGraphReplanParams& params);
   // executes plan. returns true if plan executed to completion, else false
-  bool execute(const std::vector<int>& solution_stateIDs_V);
+  bool execute(const std::vector<int>& solution_stateIDs_V, int& cost_traversed_i);
   // fakes sensor data during simulation
   void getSensorData(const std::vector<double>& coord);
 

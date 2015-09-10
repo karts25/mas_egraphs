@@ -854,34 +854,25 @@ int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGra
           totalPlanTime, totalPlanTime-feedbackPathTime);
   printf("total expands=%d solution cost=%d\n", 
           totalExpands, goal_state.g);
-  /*
-  printf("time breakdown: heuristic set goal  = %.2f\n", heuristicSetGoalTime);
-  printf("                heuristic           = %.2f\n", double(heuristicClock)/CLOCKS_PER_SEC);
-  printf("                generate successors = %.2f\n", double(succsClock)/CLOCKS_PER_SEC);
-  printf("                shortcuts           = %.2f\n", double(shortcutClock)/CLOCKS_PER_SEC);
-  printf("                snaps               = %.2f\n", double(snapClock)/CLOCKS_PER_SEC);
-  printf("                path reconstruction = %.2f\n", reconstructTime);
-  printf("                feedback path       = %.2f\n", feedbackPathTime);
-  printf("---------------------------------------------------------------\n\n");
-
-  stat_map_["solution_found"] = solnFound;
-  stat_map_["solution_bound"] = params.epsE*params.initial_eps;
-  stat_map_["total_time"] = totalPlanTime;
-  stat_map_["total_time_without_feedback"] = totalPlanTime-feedbackPathTime;
-  stat_map_["expands"] = totalExpands;
-  stat_map_["solution_cost"] = goal_state.g;
-  stat_map_["heuristic_set_goal_time"] = heuristicSetGoalTime;
-  stat_map_["heuristic_time"] = double(heuristicClock)/CLOCKS_PER_SEC;
-  stat_map_["generate_successors_time"] = double(succsClock)/CLOCKS_PER_SEC;
-  stat_map_["shortcuts_time"] = double(shortcutClock)/CLOCKS_PER_SEC;
-  stat_map_["snap_time"] = double(snapClock)/CLOCKS_PER_SEC;
-  stat_map_["path_reconstruction_time"] = reconstructTime;
-  stat_map_["feedback_path_time"] = feedbackPathTime;
-  stat_map_["percent_from_shortcuts"] = percentFromShortcuts;
-  //stat_map_["shortcut_bfs"] = egraph_mgr_->getStats().get_direct_shortcut_time;
-  //stat_map_["egraph_dijkstra"] = egraph_mgr_->getStats().shortest_path_time;
-  */     
   return (int)solnFound;
+}
+
+template <typename HeuristicType>
+void LazyAEGPlanner<HeuristicType>::get_pathcost_per_agent(std::vector<int>& solution_stateIDs_V,
+                                                           std::vector<int>& pathcost_per_agent) const {
+    pathcost_per_agent.resize(egraph_mgr_->egraph_env_->GetNumAgents(), 0);
+    for(unsigned int i = 1; i < solution_stateIDs_V.size(); i++){
+        for(int agent_i = 0; agent_i < egraph_mgr_->egraph_env_->GetNumAgents(); agent_i++){
+            if(egraph_mgr_->egraph_env_->isActive(solution_stateIDs_V[i], agent_i) )
+                {
+                    pathcost_per_agent[agent_i] += egraph_mgr_->egraph_env_->GetPerActionCost();
+                }
+            else
+                {
+                    break;
+                }       
+        }
+    }
 }
 
 template <typename HeuristicType>

@@ -287,13 +287,14 @@ class Environment_xy: public DiscreteSpaceInformation
      * \brief gets number of agents
      */
     virtual int GetNumAgents() const;
-
+    //virtual int GetPerActionCost() const;
+    virtual int GetNumActiveAgents(int stateID) const;
     virtual bool isGoal(int id) const;
     // check if pose is a previously unvisited goal
     virtual bool isAGoal(const pose_disc_t& pose) const;
     
     virtual bool isStart(int id);
-
+    virtual bool isActive(const int stateID, const int agentID) const;
     virtual void GetSuccs(int SourceStateID, std::vector<int>* SuccIDV, std::vector<int>* CostV);
     virtual void GetSuccsForAgent(int SourceStateID, int agentID, pose_disc_t pose, 
 				  std::vector<pose_disc_t>& newPosesV,

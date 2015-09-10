@@ -25,6 +25,10 @@ bool EGraphXY::InitializeEnv(int agentID, int width, int height,
   
 }
 
+int EGraphXY::GetPerActionCost() const{
+    return EnvXYCfg.time_per_action;
+}
+
 bool EGraphXY::snap(const vector<double>& from, const vector<double>& to, int& id, int& cost){
   return false;
 }

@@ -19,6 +19,7 @@ class EGraphXY:public Environment_xy, public EGraphDiscretize{
   bool snap(const std::vector<double>& from, const std::vector<double>& to, int& id, int& cost);
   virtual bool getCoord(int id, std::vector<double>& coord) const;
   virtual int getStateID(const std::vector<double>& coord);
+  virtual int GetPerActionCost() const;
   virtual bool isGoal(int id);
   //virtual int GetNumGoals() const;
   //virtual int GetNumAgents() const;
