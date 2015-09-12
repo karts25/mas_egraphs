@@ -101,7 +101,7 @@ private:
   //  ros::Publisher footprint_pub_; // publish footprint for Rviz
   ros::Publisher comm_pub_;  // publish communication packet for other robots
   ros::Publisher sensor_pub_; // publish pointcloud from sensor
-  
+  ros::Publisher stats_pub_; // publish planning and execution stats
   //ros::ServiceServer plan_service_;
   ros::ServiceClient sensorupdate_client_;
   ros::Subscriber makeplan_sub_;
@@ -121,7 +121,7 @@ private:
   void waitforReplies() const;
 
   // loops between execution and replanning until execute signals completion
-  bool agentManager(EGraphReplanParams& params);
+  bool agentManager(EGraphReplanParams& params, std::vector<int>& plan_times_s);
   // executes plan. returns true if plan executed to completion, else false
   bool execute(const std::vector<int>& solution_stateIDs_V, int& cost_traversed_i);
   // fakes sensor data during simulation

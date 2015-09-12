@@ -86,6 +86,7 @@ EGraphXYNode::EGraphXYNode(costmap_2d::Costmap2DROS* costmap_ros) {
     plan_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/mas_egraphs/mas_plan", 1);
     comm_pub_ = nh.advertise<mas_egraphs::MasComm>("/mas_egraphs/mas_comm", 1);
     sensor_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/mas_egraphs/sensor", 1);
+    stats_pub_ = nh.advertise<mas_egraphs::Stats>("/mas_egraphs/mas_stats")
     viz_.last_plan_markerID_ = 0;
     //footprint_pub_ = nh.advertise<geometry_msgs::PolygonStamped>("footprint", 10);
 
@@ -272,7 +273,21 @@ void EGraphXYNode::startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& 
     params.final_epsE = msg->eps_comm;
     params.return_first_solution = true;
     replan_condition_ = GLOBAL;
-    bool ret = agentManager(params);  
+    double t_start = ros::Time::now().toSec();
+    int num_packets_peragent;
+    std::vector<double> plan_times_s;
+    bool ret = agentManager(params, plan_times_s);  
+    double t_end = ros::Time::now().toSec();
+    // construct stats message
+    mas_egraphs::MasStats mas_stats_msg;
+    mas_stats_msg.success = ret;
+    mas_stats_msg.total_time_s = t_end - t_start;
+    mas_stats_msg.num_packets_peragent = observed_state_.lastpacketID_V[0]+1;
+    mas_stats_msg.plan_times_s.clear();
+    for(unsigned int i = 0; i < plan_times_s.size(); i++){
+        mas_stats_msg.plan_times_s.push_back(plan_times_s[i]);
+    }   
+    stats_pub_.publish(mas_stats_msg);
 }
 
 bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V, int& cost_traversed_i){
@@ -325,15 +340,19 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V, int& cos
     return true;
 }
 
-// TODO: this should really be a Finite State Machine
-bool EGraphXYNode::agentManager(EGraphReplanParams& params){
+// TODO: this should really be a Finite State Machine. Currently super hacky.
+bool EGraphXYNode::agentManager(EGraphReplanParams& params, std::vector<int> &plan_times_s){
+    plan_times_s.clear();
     std::vector<int> solution_stateIDs;
     int cost_plan_local_i; // cost of new plan for this agent
     int cost_plan_global_i; // cost of last communicated plan for this agent
     int cost_traversed_i; // cost of path traversed so far for this agent
     while(true){    
         visualizeCommPackets();    
+        double plan_time_start = ros::Time::now().toSec();
         bool planExists = makePlan(params, solution_stateIDs, cost_plan_local_i);   
+        double plan_time_end = ros::Time::now().toSec();
+        plan_times_s.push_back(plan_times_end - plan_time_start);
         if (replan_condition_ == GLOBAL){
             cost_plan_global_i = cost_plan_local_i;
             cost_traversed_i = 0;

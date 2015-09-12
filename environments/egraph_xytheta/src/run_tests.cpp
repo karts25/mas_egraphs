@@ -14,11 +14,8 @@ int main(int argc, char** argv){
   egraph_xytheta::GetXYThetaPlan::Response res;
 
   //egraph and planner parameters
-  req.egraph_eps = 5.0;
-  req.final_egraph_eps = 5.0;
-  req.dec_egraph_eps = 1.0;
-  req.initial_eps = 2.0;
-  req.final_eps = 2.0;
+  req.initial_eps = 1.2;
+  req.final_eps = 1.2;
   req.dec_eps = 0.2;
   req.feedback_path = true;
   req.save_egraph = true;

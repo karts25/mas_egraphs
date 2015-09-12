@@ -7,7 +7,7 @@ int main(int argc, char** argv){
     printf("provide a path to a test file!\n");
     return 1;
   }
-  ros::init(argc,argv,"run_tests");
+  ros::init(argc, argv, "run_tests");
   ros::NodeHandle nh;
 
   //mas_egraphs::GetXYThetaPlan::Request req;
@@ -15,8 +15,10 @@ int main(int argc, char** argv){
   mas_egraphs::GetXYThetaPlan plan_req_msg;
   //egraph and planner parameters
   ros::Publisher plan_req_pub = nh.advertise<mas_egraphs::GetXYThetaPlan>("mas_egraphs/mas_plan_req", 1);
+  ros::Subscriber plan_stats_sub = nh.subscribe("/mas_egraphs/mas_stats", 1,
+                                                &writeStatsCallback, this);
   sleep(1);
-
+  
   FILE* fin = fopen(argv[1],"r");
   if(!fin){
     printf("file %s does not exist\n", argv[1]);
@@ -25,7 +27,7 @@ int main(int argc, char** argv){
   fscanf(fin,"experiments:\n\n");
 
   double start_x, start_y, start_z, start_theta, goal_x, goal_y, goal_z, goal_theta;
-  while(1){
+  while(1){  
     plan_req_msg.start_x.clear();
     plan_req_msg.start_y.clear();
     plan_req_msg.start_z.clear();
@@ -35,7 +37,7 @@ int main(int argc, char** argv){
     plan_req_msg.goal_z.clear();
     plan_req_msg.goal_theta.clear();
     int test_num = 0;
-    if(fscanf(fin,"  - test: test_%d\n", &test_num) <= 0)
+    if(fscanf(fin,"  - test: %d\n", &test_num) <= 0)
       break;
     if(fscanf(fin,"    eps_comm: %lf\n", &plan_req_msg.eps_comm) <= 0)
       break;
@@ -70,3 +72,7 @@ int main(int argc, char** argv){
   return 0;
 }
 
+
+void writeStatsToFile(const mas_egraphs::MasStats::ConstPtr &msg){
+    
+}
