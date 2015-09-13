@@ -150,21 +150,20 @@ void EGraphManager<HeuristicType>::getGoalCoord(int i, std::vector<int>& coord){
 
 template <typename HeuristicType>
 bool EGraphManager<HeuristicType>::setGoal(){
-  allgoals_coord_.clear();
-  egraph_env_->projectGoalToHeuristicSpace(allgoals_coord_);
-  stats_.heuristic_computation_time  = 0;
-  stats_.combo_time  = 0;
-  stats_.shortest_path_time  = 0;
-  stats_.get_direct_shortcut_time = 0;
-  stats_.shortcut_time = 0;
-  stats_.snap_time = 0;
-  stats_.num_snaps = 0;
-  //clock_t time = clock();
-  //ROS_INFO("egraph heuristic setGoal time %f", double(clock()-time)/CLOCKS_PER_SEC);
-  //snaps_.clear();
+    egraph_env_->projectGoalToHeuristicSpace(allgoals_coord_);
+    stats_.heuristic_computation_time  = 0;
+    stats_.combo_time  = 0;
+    stats_.shortest_path_time  = 0;
+    stats_.get_direct_shortcut_time = 0;
+    stats_.shortcut_time = 0;
+    stats_.snap_time = 0;
+    stats_.num_snaps = 0;
+    //clock_t time = clock();
+    //ROS_INFO("egraph heuristic setGoal time %f", double(clock()-time)/CLOCKS_PER_SEC);
+    //snaps_.clear();
   //snap_combo_cache_.clear();
   for(int agent_i = 0; agent_i < numagents_; agent_i++)
-    egraphperagent_[agent_i]->clearShortestPathCache();
+      egraphperagent_[agent_i]->clearShortestPathCache();
   return true;
 }
 

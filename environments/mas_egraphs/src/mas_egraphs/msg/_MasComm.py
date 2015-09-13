@@ -7,11 +7,12 @@ import struct
 import std_msgs.msg
 
 class MasComm(genpy.Message):
-  _md5sum = "3985a79748d1c75b2d22e6f90fc984c9"
+  _md5sum = "91a7c04ebc3f23a3cac94d6d27f53a86"
   _type = "mas_egraphs/MasComm"
   _has_header = True #flag to mark the presence of a Header object
   _full_text = """Header header
 int32 agentID
+int32 packetID
 float64[] obstacles_x
 float64[] obstacles_y
 float64 x
@@ -38,8 +39,8 @@ time stamp
 string frame_id
 
 """
-  __slots__ = ['header','agentID','obstacles_x','obstacles_y','x','y','z','theta','goalsVisited']
-  _slot_types = ['std_msgs/Header','int32','float64[]','float64[]','float64','float64','float64','float64','int32[]']
+  __slots__ = ['header','agentID','packetID','obstacles_x','obstacles_y','x','y','z','theta','goalsVisited']
+  _slot_types = ['std_msgs/Header','int32','int32','float64[]','float64[]','float64','float64','float64','float64','int32[]']
 
   def __init__(self, *args, **kwds):
     """
@@ -49,7 +50,7 @@ string frame_id
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       header,agentID,obstacles_x,obstacles_y,x,y,z,theta,goalsVisited
+       header,agentID,packetID,obstacles_x,obstacles_y,x,y,z,theta,goalsVisited
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -62,6 +63,8 @@ string frame_id
         self.header = std_msgs.msg.Header()
       if self.agentID is None:
         self.agentID = 0
+      if self.packetID is None:
+        self.packetID = 0
       if self.obstacles_x is None:
         self.obstacles_x = []
       if self.obstacles_y is None:
@@ -79,6 +82,7 @@ string frame_id
     else:
       self.header = std_msgs.msg.Header()
       self.agentID = 0
+      self.packetID = 0
       self.obstacles_x = []
       self.obstacles_y = []
       self.x = 0.
@@ -107,7 +111,8 @@ string frame_id
         _x = _x.encode('utf-8')
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
-      buff.write(_struct_i.pack(self.agentID))
+      _x = self
+      buff.write(_struct_2i.pack(_x.agentID, _x.packetID))
       length = len(self.obstacles_x)
       buff.write(_struct_I.pack(length))
       pattern = '<%sd'%length
@@ -147,9 +152,10 @@ string frame_id
         self.header.frame_id = str[start:end].decode('utf-8')
       else:
         self.header.frame_id = str[start:end]
+      _x = self
       start = end
-      end += 4
-      (self.agentID,) = _struct_i.unpack(str[start:end])
+      end += 8
+      (_x.agentID, _x.packetID,) = _struct_2i.unpack(str[start:end])
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -195,7 +201,8 @@ string frame_id
         _x = _x.encode('utf-8')
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
-      buff.write(_struct_i.pack(self.agentID))
+      _x = self
+      buff.write(_struct_2i.pack(_x.agentID, _x.packetID))
       length = len(self.obstacles_x)
       buff.write(_struct_I.pack(length))
       pattern = '<%sd'%length
@@ -236,9 +243,10 @@ string frame_id
         self.header.frame_id = str[start:end].decode('utf-8')
       else:
         self.header.frame_id = str[start:end]
+      _x = self
       start = end
-      end += 4
-      (self.agentID,) = _struct_i.unpack(str[start:end])
+      end += 8
+      (_x.agentID, _x.packetID,) = _struct_2i.unpack(str[start:end])
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -269,6 +277,6 @@ string frame_id
       raise genpy.DeserializationError(e) #most likely buffer underfill
 
 _struct_I = genpy.struct_I
-_struct_i = struct.Struct("<i")
-_struct_3I = struct.Struct("<3I")
 _struct_4d = struct.Struct("<4d")
+_struct_3I = struct.Struct("<3I")
+_struct_2i = struct.Struct("<2i")

@@ -137,12 +137,13 @@ void EGraphXY::projectToHeuristicSpace(const vector<double>& coord, vector<int>&
 
 void EGraphXY::projectGoalToHeuristicSpace(vector<int>& dp) const{
   // dp = [x1, y1, x2, y2 ... x_numgoals y_numgoals, 1 1 1 1... numgoals]
-  for(int i = 0; i < EnvXYCfg.numGoals; i ++){
-    dp.push_back(EnvXYCfg.goal[i].x);
-    dp.push_back(EnvXYCfg.goal[i].y);
-  }
-  for(int i = 0; i < EnvXYCfg.numGoals; i++)
-    dp.push_back(1);
+    dp.clear();
+    for(int i = 0; i < EnvXYCfg.numGoals; i ++){
+        dp.push_back(EnvXYCfg.goal[i].x);
+        dp.push_back(EnvXYCfg.goal[i].y);
+    }
+    for(int i = 0; i < EnvXYCfg.numGoals; i++)
+        dp.push_back(1);
 }
 
 void EGraphXY::contToDisc(const vector<double>& c, vector<int>& d) const{

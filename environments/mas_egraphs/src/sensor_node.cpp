@@ -70,7 +70,7 @@ bool SensorNode::sensor_update(mas_egraphs::GetSensorUpdate::Request& req,
 }
 
 int main(int argc, char** argv){
-  ros::init(argc, argv, "mas_egraphs_node");
+  ros::init(argc, argv, "mas_sensor_node");
 
   tf::TransformListener tf_;
   costmap_2d::Costmap2DROS* costmap = new costmap_2d::Costmap2DROS("global_costmap", tf_);

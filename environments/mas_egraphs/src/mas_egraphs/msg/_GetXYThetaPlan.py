@@ -6,11 +6,10 @@ import struct
 
 
 class GetXYThetaPlan(genpy.Message):
-  _md5sum = "b20fe22e63ede418d897c1895e7f7e34"
+  _md5sum = "494b12ccc63bc53bb2fdfa0aaea631da"
   _type = "mas_egraphs/GetXYThetaPlan"
   _has_header = False #flag to mark the presence of a Header object
-  _full_text = """int32 num_agents
-int32 num_goals
+  _full_text = """int32 num_goals
 
 float64[] start_x
 float64[] start_y
@@ -23,10 +22,9 @@ float64[] goal_z
 float64[] goal_theta
 
 float64 eps_comm
-
 """
-  __slots__ = ['num_agents','num_goals','start_x','start_y','start_z','start_theta','goal_x','goal_y','goal_z','goal_theta','eps_comm']
-  _slot_types = ['int32','int32','float64[]','float64[]','float64[]','float64[]','float64[]','float64[]','float64[]','float64[]','float64']
+  __slots__ = ['num_goals','start_x','start_y','start_z','start_theta','goal_x','goal_y','goal_z','goal_theta','eps_comm']
+  _slot_types = ['int32','float64[]','float64[]','float64[]','float64[]','float64[]','float64[]','float64[]','float64[]','float64']
 
   def __init__(self, *args, **kwds):
     """
@@ -36,7 +34,7 @@ float64 eps_comm
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       num_agents,num_goals,start_x,start_y,start_z,start_theta,goal_x,goal_y,goal_z,goal_theta,eps_comm
+       num_goals,start_x,start_y,start_z,start_theta,goal_x,goal_y,goal_z,goal_theta,eps_comm
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -45,8 +43,6 @@ float64 eps_comm
     if args or kwds:
       super(GetXYThetaPlan, self).__init__(*args, **kwds)
       #message fields cannot be None, assign default values for those that are
-      if self.num_agents is None:
-        self.num_agents = 0
       if self.num_goals is None:
         self.num_goals = 0
       if self.start_x is None:
@@ -68,7 +64,6 @@ float64 eps_comm
       if self.eps_comm is None:
         self.eps_comm = 0.
     else:
-      self.num_agents = 0
       self.num_goals = 0
       self.start_x = []
       self.start_y = []
@@ -92,8 +87,7 @@ float64 eps_comm
     :param buff: buffer, ``StringIO``
     """
     try:
-      _x = self
-      buff.write(_struct_2i.pack(_x.num_agents, _x.num_goals))
+      buff.write(_struct_i.pack(self.num_goals))
       length = len(self.start_x)
       buff.write(_struct_I.pack(length))
       pattern = '<%sd'%length
@@ -137,10 +131,9 @@ float64 eps_comm
     """
     try:
       end = 0
-      _x = self
       start = end
-      end += 8
-      (_x.num_agents, _x.num_goals,) = _struct_2i.unpack(str[start:end])
+      end += 4
+      (self.num_goals,) = _struct_i.unpack(str[start:end])
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -212,8 +205,7 @@ float64 eps_comm
     :param numpy: numpy python module
     """
     try:
-      _x = self
-      buff.write(_struct_2i.pack(_x.num_agents, _x.num_goals))
+      buff.write(_struct_i.pack(self.num_goals))
       length = len(self.start_x)
       buff.write(_struct_I.pack(length))
       pattern = '<%sd'%length
@@ -258,10 +250,9 @@ float64 eps_comm
     """
     try:
       end = 0
-      _x = self
       start = end
-      end += 8
-      (_x.num_agents, _x.num_goals,) = _struct_2i.unpack(str[start:end])
+      end += 4
+      (self.num_goals,) = _struct_i.unpack(str[start:end])
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -326,5 +317,5 @@ float64 eps_comm
       raise genpy.DeserializationError(e) #most likely buffer underfill
 
 _struct_I = genpy.struct_I
-_struct_2i = struct.Struct("<2i")
+_struct_i = struct.Struct("<i")
 _struct_d = struct.Struct("<d")

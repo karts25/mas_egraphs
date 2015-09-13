@@ -1,4 +1,3 @@
-int32 num_agents
 int32 num_goals
 
 float64[] start_x

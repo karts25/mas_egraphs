@@ -665,10 +665,10 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
   //put start state in the heap
   start_state->g = 0;
   //start_state->g_peragent = std::vector<int>(egraph_mgr_->egraph_env_->GetNumAgents(),0);
-  printf("start state heuristic is %d | heur_per_agent: ", start_state->h);
-  for(int i = 0; i < (int) start_state->h_peragent.size(); i++)
-    printf("%d ", start_state->h_peragent[i]);
-  printf("\n");
+  // printf("start state heuristic is %d | heur_per_agent: ", start_state->h);
+  //for(int i = 0; i < (int) start_state->h_peragent.size(); i++)
+  //  printf("%d ", start_state->h_peragent[i]);
+  //printf("\n");
   assert(start_state->h >= 0);
   CKey key;
 
@@ -708,8 +708,8 @@ bool LazyAEGPlanner<HeuristicType>::Search(vector<int>& pathIds, int& PathCost){
     double delta_time = double(clock()-before_time)/CLOCKS_PER_SEC;
 
     //print the bound, expands, and time for that iteration
-    printf("bound=%f expands=%d cost=%d time=%.2f\n", 
-	   eps_satisfied*params.epsE, delta_expands, goal_state.g, delta_time);
+    //printf("bound=%f expands=%d cost=%d time=%.2f\n", 
+	//   eps_satisfied*params.epsE, delta_expands, goal_state.g, delta_time);
 
     //update stats
     totalExpands += delta_expands;
@@ -742,7 +742,6 @@ bool LazyAEGPlanner<HeuristicType>::Search(vector<int>& pathIds, int& PathCost){
     printf("WARNING: a solution was found but we don't have quality bound for it!\n");
 
   pathIds = GetSearchPath(PathCost);
-  printf("pathlength = %d\n", (int) pathIds.size());
   return true;
 }
 
@@ -827,6 +826,7 @@ int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGra
  
   if (egraph_mgr_->egraph_env_->isGoal(start_state_id)){
     ROS_INFO("start state id is %d", start_state_id);
+    environment_->PrintState(start_state_id, true);
     ROS_WARN("start is goal! nothing interesting returned");
     return true;
   }

@@ -793,8 +793,10 @@ int Environment_xy::SetGoal(std::vector<pose_cont_t> goal_m)
     for (int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i ++)
         {
             PoseContToDisc(goal_m[goal_i].x, goal_m[goal_i].y, goal_m[goal_i].z, goal_m[goal_i].theta,  x, y, z, theta);
-            SBPL_INFO("env: setting goal to %.3f %.3f %0.3f %0.3f (%d %d %d %d)", goal_m[goal_i].x, goal_m[goal_i].y, goal_m[goal_i].z, goal_m[goal_i].theta, x, y, z, theta);
-
+            /*SBPL_INFO("env: setting goal to %.3f %.3f %0.3f %0.3f (%d %d %d %d)", 
+                      goal_m[goal_i].x, goal_m[goal_i].y, goal_m[goal_i].z, goal_m[goal_i].theta,
+                      x, y, z, theta);
+            */
             if (!IsWithinMapCell(x, y)) {
                 SBPL_ERROR("ERROR: trying to set a goal cell %d %d that is outside of map\n", x, y);
                 return -1;
@@ -848,7 +850,12 @@ int Environment_xy::SetStart(const std::vector<pose_cont_t>& start_m,
         PoseContToDisc(start_m[agent_i].x, start_m[agent_i].y, start_m[agent_i].z, 
                        start_m[agent_i].theta,
                        x_agent, y_agent, z_agent, theta_agent);
-    
+        /*
+        SBPL_INFO("env: setting start of agent %d to %.3f %.3f %0.3f %0.3f (%d %d %d %d)", 
+                  agent_i,
+                  start_m[agent_i].x,start_m[agent_i].y,start_m[agent_i].z,start_m[agent_i].theta,
+                  x_agent, y_agent, z_agent, theta_agent);
+        */
         if (!IsWithinMapCell(x_agent, y_agent)) {
             SBPL_ERROR("ERROR: trying to set a start cell %d %d that is outside of map\n", x_agent, y_agent);
             return -1;
