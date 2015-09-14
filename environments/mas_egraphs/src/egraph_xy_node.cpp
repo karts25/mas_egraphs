@@ -135,7 +135,7 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
             break;
         case GLOBAL:
             waitforReplies();
-            //ROS_INFO("Agent %d starting plan with condition = GLOBAL\n", agentID_);             
+            ROS_INFO("Agent %d starting plan with condition = GLOBAL", agentID_);             
             //ROS_INFO("Agent %d: thinks poses are (%f, %f) and (%f, %f)\n", agentID_, observed_state_.poses[0].x, observed_state_.poses[0].y,
             //observed_state_.poses[1].x, observed_state_.poses[1].y);
             egraph_mgr_->clearEGraphs();
@@ -147,7 +147,7 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
             startstate_id = env_->SetStart(observed_state_.poses, observed_state_.goalsVisited);
             break;
         case LOCAL:
-            //printf("\n\nAgent %d starting plan with condition = LOCAL\n", agentID_);   
+            ROS_INFO("\n\nAgent %d starting plan with condition = LOCAL", agentID_);   
             params_copy.return_first_solution = true;
             params_copy.feedback_path = false; // local plans do not update the experience
             params_copy.use_egraph = true;
@@ -180,7 +180,7 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
     if(ret)
         visualizePath(solution_stateIDs);        
   
-    //ROS_INFO("Agent %d: Plan length is %d my cost is %d \n", agentID_, solution_stateIDs.size(), solution_cost_i);
+    ROS_INFO("Agent %d: Plan length is %d my cost is %d \n", agentID_, solution_stateIDs.size(), solution_cost_i);
     return ret;
 }
 
@@ -308,7 +308,7 @@ void EGraphXYNode::startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& 
     double t_end = ros::Time::now().toSec();
 
     // construct stats message
-    printf("Agent %d is done. Publishing stats\n", agentID_);
+    ROS_INFO("Agent %d is done. Publishing stats\n", agentID_);
     mas_egraphs::MasStats mas_stats_msg;
     mas_stats_msg.agentID = agentID_;
     mas_stats_msg.success = ret;
@@ -486,7 +486,7 @@ void EGraphXYNode::updateCosts(int x, int y, unsigned char c){
 
 void EGraphXYNode::sendCommunication(){
     // only communicate when everything is already synced
-    waitforReplies();
+    //waitforReplies();
     mas_egraphs::MasComm comm_msg;
     // increment packetID and send
     observed_state_.lastpacketID_V[agentID_]++;
@@ -524,7 +524,7 @@ void EGraphXYNode::waitforReplies(){
            *std::min_element(observed_state_.lastpacketID_V.begin(), 
                              observed_state_.lastpacketID_V.end()))  
         {      
-            //ROS_INFO("Agent %d: Waiting for replies", agentID_);
+            ROS_INFO("Agent %d: Waiting for replies", agentID_);
             ros::Duration(0.5).sleep();
         }
     //egraph_mgr_->printVector(observed_state_.lastpacketID_V);
@@ -532,7 +532,7 @@ void EGraphXYNode::waitforReplies(){
 
 
 void EGraphXYNode::receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg){
-    //ROS_INFO("Agent %d received message #%d with pose (%f, %f)  from Agent %d\n", agentID_, msg->packetID, msg->x, msg->y, msg->agentID);
+    ROS_INFO("Agent %d received message #%d with pose (%f, %f)  from Agent %d\n", agentID_, msg->packetID, msg->x, msg->y, msg->agentID);
     // TODO: Add locking: not thread safe
 
     // update robot pose
@@ -636,7 +636,7 @@ void EGraphXYNode::visualizePoses() const{
         if(agent_i % 2)
             marker.type = visualization_msgs::Marker::ARROW;
         else
-            marker.type = visualization_msgs::Marker::CYLINDER;
+            marker.type = visualization_msgs::Marker::ARROW;
         marker.header.stamp = time;
         marker.header.frame_id = costmap_ros_->getGlobalFrameID();
         contPosetoGUIPose(belief_state_.poses[agent_i], marker); 
