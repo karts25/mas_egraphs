@@ -804,7 +804,7 @@ int Environment_xy::SetGoal(std::vector<pose_cont_t> goal_m)
             goal[goal_i].x = x;
             goal[goal_i].y = y;
             goal[goal_i].z = z;
-            goal[goal_i].theta = theta;       
+            goal[goal_i].theta = theta;                  
         }
     
     EnvXYHashEntry_t* OutHashEntry;

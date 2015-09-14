@@ -88,10 +88,10 @@ class LazyAEGPlanner : public SBPLPlanner{
                            EGraphReplanParams params, int* solcost);
         virtual int replan(std::vector<int>* solution_stateIDs_V, EGraphReplanParams params);
         virtual int replan(std::vector<int>* solution_stateIDs_V, EGraphReplanParams params, int* solcost);
-        virtual void get_pathcost_per_agent(std::vector<int>& solution_stateIDs_V, 
+        virtual void get_pathcost_per_agent(const std::vector<int>& solution_stateIDs_V, 
                                            std::vector<int>& pathcost_per_agent) const;
         virtual int set_goal(int goal_stateID){
-            ROS_WARN("set_goal is not used. we assume the goal conditions have been set in the environment and use EGraphable::isGoal");
+            //ROS_WARN("set_goal is not used. we assume the goal conditions have been set in the environment and use EGraphable::isGoal");
             return 1;
         };
         virtual int set_goal();

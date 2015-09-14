@@ -665,7 +665,7 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
   //put start state in the heap
   start_state->g = 0;
   //start_state->g_peragent = std::vector<int>(egraph_mgr_->egraph_env_->GetNumAgents(),0);
-  // printf("start state heuristic is %d | heur_per_agent: ", start_state->h);
+  //printf("start state heuristic is %d \n ", start_state->h);
   //for(int i = 0; i < (int) start_state->h_peragent.size(); i++)
   //  printf("%d ", start_state->h_peragent[i]);
   //printf("\n");
@@ -860,11 +860,12 @@ int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGra
 }
 
 template <typename HeuristicType>
-void LazyAEGPlanner<HeuristicType>::get_pathcost_per_agent(std::vector<int>& solution_stateIDs_V,
+void LazyAEGPlanner<HeuristicType>::get_pathcost_per_agent(const std::vector<int>& solution_stateIDs_V,
                                                            std::vector<int>& pathcost_per_agent) const {
+    pathcost_per_agent.clear();
     pathcost_per_agent.resize(egraph_mgr_->egraph_env_->GetNumAgents(), 0);
-    for(unsigned int i = 1; i < solution_stateIDs_V.size(); i++){
-        for(int agent_i = 0; agent_i < egraph_mgr_->egraph_env_->GetNumAgents(); agent_i++){
+    for(int agent_i = 0; agent_i < egraph_mgr_->egraph_env_->GetNumAgents(); agent_i++){
+        for(unsigned int i = 1; i < solution_stateIDs_V.size(); i++){
             if(egraph_mgr_->egraph_env_->isActive(solution_stateIDs_V[i], agent_i) )
                 {
                     pathcost_per_agent[agent_i] += egraph_mgr_->egraph_env_->GetPerActionCost();

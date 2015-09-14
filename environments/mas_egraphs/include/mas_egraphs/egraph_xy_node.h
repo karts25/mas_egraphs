@@ -120,7 +120,7 @@ private:
   void receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg);
   void sendCommunication();
 
-  void waitforReplies() const;
+  void waitforReplies();
   void initializeNode();
   // loops between execution and replanning until execute signals completion
   bool agentManager(EGraphReplanParams& params, std::vector<double>& plan_times_s);
