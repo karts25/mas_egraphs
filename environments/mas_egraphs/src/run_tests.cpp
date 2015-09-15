@@ -58,10 +58,10 @@ int main(int argc, char** argv){
 
     // Set values to sweep eps
     std::vector<double> eps_comm_values;
-    //eps_comm_values.push_back(1);
-    //eps_comm_values.push_back(3);
-    eps_comm_values.push_back(5);    
-
+    eps_comm_values.push_back(1);
+    eps_comm_values.push_back(2);
+    eps_comm_values.push_back(3);    
+    eps_comm_values.push_back(10);    
     fscanf(fin,"experiments:\n\n");
     double start_x, start_y, start_z, start_theta, goal_x, goal_y, goal_z, goal_theta;
 

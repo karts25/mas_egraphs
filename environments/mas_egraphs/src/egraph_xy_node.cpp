@@ -124,7 +124,7 @@ unsigned char EGraphXYNode::costMapCostToSBPLCost(unsigned char newcost){
         return (unsigned char) (newcost/sbpl_cost_multiplier_ + 0.5);
 }
 
-bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs,
+int EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs,
                             int& solution_cost_i, double& plan_time){
     EGraphReplanParams params_copy(params);
     int startstate_id;
@@ -134,10 +134,11 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
             return true;
             break;
         case GLOBAL:
-            waitforReplies();
+            //waitforReplies();
+            //planner_->set_comm_received(false);
             ROS_INFO("Agent %d starting plan with condition = GLOBAL", agentID_);             
-            //ROS_INFO("Agent %d: thinks poses are (%f, %f) and (%f, %f)\n", agentID_, observed_state_.poses[0].x, observed_state_.poses[0].y,
-            //observed_state_.poses[1].x, observed_state_.poses[1].y);
+            ROS_INFO("Agent %d: thinks poses are (%f, %f) (%f, %f) (%f %f)\n", agentID_, observed_state_.poses[0].x, observed_state_.poses[0].y,
+                     observed_state_.poses[1].x, observed_state_.poses[1].y, observed_state_.poses[2].x, observed_state_.poses[2].y);
             egraph_mgr_->clearEGraphs();
             params_copy.feedback_path = true;
             params_copy.use_egraph = false;
@@ -148,6 +149,7 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
             break;
         case LOCAL:
             ROS_INFO("\n\nAgent %d starting plan with condition = LOCAL", agentID_);   
+            //planner_->set_comm_received(false);
             params_copy.return_first_solution = true;
             params_copy.feedback_path = false; // local plans do not update the experience
             params_copy.use_egraph = true;
@@ -168,7 +170,8 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
     solution_stateIDs.clear();
 
     double plan_time_start = ros::Time::now().toSec();
-    bool ret = planner_->replan(&solution_stateIDs, params_copy);
+    int ret = planner_->replan(&solution_stateIDs, params_copy);
+    ROS_INFO("Agent %d: Planner returned %d", agentID_, ret);
     double plan_time_end = ros::Time::now().toSec();
     plan_time = plan_time_end - plan_time_start;
     //env_->PrintTimingStats();
@@ -177,10 +180,10 @@ bool EGraphXYNode::makePlan(EGraphReplanParams& params, std::vector<int>& soluti
     planner_->get_pathcost_per_agent(solution_stateIDs, pathcost_per_agent); 
     solution_cost_i = pathcost_per_agent[agentID_];
    
-    if(ret)
+    if(ret == 1)
         visualizePath(solution_stateIDs);        
   
-    ROS_INFO("Agent %d: Plan length is %d my cost is %d \n", agentID_, solution_stateIDs.size(), solution_cost_i);
+    //ROS_INFO("Agent %d: Plan length is %d my cost is %d \n", agentID_, solution_stateIDs.size(), solution_cost_i);
     return ret;
 }
 
@@ -364,14 +367,15 @@ bool EGraphXYNode::execute(const std::vector<int>& solution_stateIDs_V, int& cos
             return false;
         }
 
-        // agent has retired
+        //agent has retired
         if(!coord[active_agent_offset])
             break;
 
         //printf("\n-------------------------\n");
         ros::Duration(0.25).sleep();    
     }
-    // if agent is done with its task, communicate and return
+        
+    ROS_INFO("Agent %d sending communication because he has finished executing", agentID_);
     sendCommunication();
     return true;
 }
@@ -386,58 +390,63 @@ bool EGraphXYNode::agentManager(EGraphReplanParams& params, std::vector<double> 
     double plan_time_s;
     while(true){    
         visualizeCommPackets();   
-        bool planExists = makePlan(params, solution_stateIDs, cost_plan_local_i, plan_time_s);      
-        plan_times_s.push_back(plan_time_s);    
+        int planExists = makePlan(params, solution_stateIDs, cost_plan_local_i, plan_time_s);      
         if (replan_condition_ == GLOBAL){
             cost_plan_global_i = cost_plan_local_i;
             cost_traversed_i = 0;
+            plan_times_s.push_back(plan_time_s);    
         }
+      
+        ROS_INFO("Agent %d: makeplan done. planExists = %d", agentID_, planExists);
         // if the plan doesn't exist, return false
-        if(!planExists)
-            return false;    
-        if(solution_stateIDs.empty())
-            return true;
-        std::vector<int> new_assignments;
-        env_->getAssignments(solution_stateIDs.back(), new_assignments);
+        if(planExists == 0)
+            return false;           
+        std::vector<int> new_assignments = observed_state_.assignments;
+        if(!solution_stateIDs.empty())
+            env_->getAssignments(solution_stateIDs.back(), new_assignments);
       
         if(replan_condition_ == LOCAL){
             // Initiate communication if goal assignments have switched
             if(observed_state_.assignments != new_assignments){
-                //ROS_INFO("Agent %d initiating communication because assignments switched\n", agentID_);
+                ROS_INFO("Agent %d initiating communication because assignments switched\n", agentID_);
                 //ros::Duration(0.1).sleep();
                 sendCommunication();
             }
             // Initiate communication if deviation is too large
+            
             else if(cost_plan_local_i >= 
-               params.epsE*(cost_plan_global_i - params.final_eps*cost_traversed_i)){
-                //ROS_INFO("Agent %d initiating communication because deviation is too large\n", 
-                //agentID_);                               
+                    params.epsE*(cost_plan_global_i - params.final_eps*cost_traversed_i)){
+                ROS_INFO("Agent %d initiating communication because deviation is too large\n", 
+                         agentID_);                               
                 //ROS_INFO("LHS %f RHS %f\n", (float) cost_plan_local_i,
                 //params.epsE*((cost_plan_global_i - params.final_eps*cost_traversed_i)));    
                 sendCommunication();
             }
         }
-
-        replan_condition_ = NOTREQ;
+        if(planExists != 3)            
+            replan_condition_ = NOTREQ;
         observed_state_.assignments = new_assignments;
-
-        // If this agent has something to do, execute
-        bool isComplete;
-        if(env_->isActive(solution_stateIDs[1], agentID_))
-            isComplete = execute(solution_stateIDs, cost_traversed_i);
-    
-        // sit around and wait for a communication, if we have retired
-        while(replan_condition_ == NOTREQ){     
-            ros::Duration(0.1).sleep();     
-        }
-
+        
         // Initiate communication because we have not replied to a message sent by another agent
         int most_recent_packetID = *std::max_element(observed_state_.lastpacketID_V.begin(), 
                                                      observed_state_.lastpacketID_V.end());      
 
         if(observed_state_.lastpacketID_V[agentID_] < most_recent_packetID){
+            ROS_INFO("Agent %d: initating communication coz Last sent: %d <  Last received %d", agentID_, observed_state_.lastpacketID_V[agentID_], most_recent_packetID);
             sendCommunication();
         }      
+
+        // If this agent has something to do, execute
+        bool isComplete;
+        if((planExists == 1) && (env_->isActive(solution_stateIDs[1], agentID_)))
+            isComplete = execute(solution_stateIDs, cost_traversed_i);        
+
+        // sit around and wait for a communication, if we have retired
+       
+        while(replan_condition_ == NOTREQ){     
+            ros::Duration(0.1).sleep();     
+        }
+
    
         // if we "know" all goals have been visited, we are done
         if (std::all_of(observed_state_.goalsVisited.begin(),
@@ -515,15 +524,21 @@ void EGraphXYNode::sendCommunication(){
     visualizeCommPackets();
 
     // wait for replies
+    ros::Duration(0.5).sleep();
     waitforReplies();
 }
 
 void EGraphXYNode::waitforReplies(){
     // do nothing until we have received as many messages as we have sent
-    while(observed_state_.lastpacketID_V[agentID_] < 
+
+    while(observed_state_.lastpacketID_V[agentID_] > 
            *std::min_element(observed_state_.lastpacketID_V.begin(), 
                              observed_state_.lastpacketID_V.end()))  
-        {      
+        {                 
+            if (std::all_of(observed_state_.goalsVisited.begin(),
+                            observed_state_.goalsVisited.end(), 
+                            [](int i){return i >= 0;}))
+                break;
             ROS_INFO("Agent %d: Waiting for replies", agentID_);
             ros::Duration(0.5).sleep();
         }
@@ -555,6 +570,7 @@ void EGraphXYNode::receiveCommunication(const mas_egraphs::MasComm::ConstPtr& ms
     // Register this packet id
     observed_state_.lastpacketID_V[msg->agentID] = msg->packetID;    
     replan_condition_ = GLOBAL;
+    planner_->set_comm_received(true);
     //ROS_INFO("Agent %d set replan condition to global", agentID_);     
 }
 

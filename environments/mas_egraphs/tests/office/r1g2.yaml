@@ -1,14 +1,10 @@
 experiments:
 
-  - test: test_1
-    num_goals: 1
-    start: 15 2 0.0 1.58
-    goal:  5 10.0 0 
   - test: test_2
     num_goals: 2
-    start: 5 3 0.0 1.58
-    goal:  7 13.0 0 
-    goal: 15 2 0.0 
+    start: 15 3 0.0 1.58
+    goal:  5 10.0 0 
+    goal:  5 2 0.0 
 
   
 

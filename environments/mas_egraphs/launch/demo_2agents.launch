@@ -2,7 +2,7 @@
   <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 map base_link 10" />
   <node name="map_server" pkg="map_server" type="map_server" args="$(find mas_egraphs)/maps/office_known.pgm 0.1">
   </node>
-  <node name="unknown_map_server" pkg="map_server" type="map_server" args="$(find mas_egraphs)/maps/office_unknown.pgm 0.1">
+  <node name="unknown_map_server" pkg="map_server" type="map_server" args="$(find mas_egraphs)/maps/office_unknown1.pgm 0.1">
   <remap from="map" to="map_unknown"/>
   </node>
   <node name="sensorNode" pkg = "mas_egraphs" type="sensorNode" output = "screen">
@@ -16,7 +16,7 @@
     <param name="agentID" type="int" value="0"/>
     <param name="num_agents" type="int" value="2" />
     <param name="primitive_filename_1" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />
-    <param name="primitive_filename_2" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />	
+    <param name="primitive_filename_2" value="$(find mas_egraphs)/config/hexacopter_equitime.mprim" />	
   </node>
 
 <node name="egraphXYNode_1" pkg="mas_egraphs" type="egraphXYNode" output="screen">
@@ -25,7 +25,7 @@
     <param name="agentID" type="int" value="1"/>
     <param name="num_agents" type="int" value="2" />
     <param name="primitive_filename_1" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />
-    <param name="primitive_filename_2" value="$(find mas_egraphs)/config/segbot_equitime.mprim" />	
+    <param name="primitive_filename_2" value="$(find mas_egraphs)/config/hexacopter_equitime.mprim" />	
 </node>  
 
 </launch>

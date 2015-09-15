@@ -112,6 +112,8 @@ class LazyAEGPlanner : public SBPLPlanner{
             printf("Not supported. Use ReplanParams");
         };
 
+        void set_comm_received(bool value);
+
         LazyAEGPlanner(DiscreteSpaceInformation* environment, bool bforwardsearch, 
                        EGraphManagerPtr egraph_mgr);
         ~LazyAEGPlanner(){};
@@ -130,7 +132,7 @@ class LazyAEGPlanner : public SBPLPlanner{
 
         EGraphReplanParams params;
         EGraphManagerPtr egraph_mgr_;
-
+        bool comm_received_;
         bool bforwardsearch; //if true, then search proceeds forward, otherwise backward
         LazyAEGState goal_state;
         LazyAEGState* start_state;
@@ -181,7 +183,7 @@ class LazyAEGPlanner : public SBPLPlanner{
         virtual bool outOfTime();
         virtual void initializeSearch();
         virtual void prepareNextSearchIteration();
-        virtual bool Search(std::vector<int>& pathIds, int & PathCost);
+        virtual int Search(std::vector<int>& pathIds, int & PathCost);
 
 };
 #include<mas_egraphs/../../src/egraph_planner.hpp>

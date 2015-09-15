@@ -53,6 +53,7 @@ LazyAEGPlanner<HeuristicType>::LazyAEGPlanner(DiscreteSpaceInformation* environm
   //goal_state_id = -1;
   start_state_id = -1;
   evaluated_snaps = 0;
+  comm_received_ = false;
 }
 
 template <typename HeuristicType>
@@ -163,6 +164,8 @@ void LazyAEGPlanner<HeuristicType>::ExpandState(LazyAEGState* parent){
     //egraph_mgr_->clearSnapSuccessorsCache();
   }
   
+  //printf("costs are: ");
+  //egraph_mgr_->printVector(costs);
   // make sure our costs are nonzero
   for (auto& cost : costs){
       assert(cost > 0);
@@ -371,7 +374,7 @@ void LazyAEGPlanner<HeuristicType>::updateGoal(LazyAEGState* state){
   }
 }
 
-//returns 1 if the solution is found, 0 if the solution does not exist and 2 if it ran out of time
+//returns 1 if the solution is found, 0 if the solution does not exist, 2 if ran out of time, 3 if communication was received so break
 template <typename HeuristicType>
 int LazyAEGPlanner<HeuristicType>::ImprovePath(){
   //expand states until done
@@ -381,7 +384,14 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
         min_key.key[0] < INFINITECOST && 
         (goal_state.g > min_key.key[0] || !goal_state.isTrueCost) &&
         !outOfTime()){
-
+      
+      if(comm_received_)
+          {       
+              printf("Breaking from plan coz comm received\n");
+              comm_received_ = false;
+              return 3;
+          }
+      
     //get the state		
     LazyAEGState* state = (LazyAEGState*)heap.deleteminheap();
 
@@ -421,7 +431,7 @@ int LazyAEGPlanner<HeuristicType>::ImprovePath(){
       //expand the state
       expands++;
       ExpandState(state);
-      if(expands%10000 == 0)
+      if(expands%1000 == 0)
         printf("expands so far=%u\n", expands);
     }
     else //otherwise the state needs to be evaluated for its true cost 
@@ -685,7 +695,7 @@ void LazyAEGPlanner<HeuristicType>::initializeSearch(){
 }
 
 template <typename HeuristicType>
-bool LazyAEGPlanner<HeuristicType>::Search(vector<int>& pathIds, int& PathCost){
+int LazyAEGPlanner<HeuristicType>::Search(vector<int>& pathIds, int& PathCost){
   CKey key;
   TimeStarted = clock();
 
@@ -693,7 +703,6 @@ bool LazyAEGPlanner<HeuristicType>::Search(vector<int>& pathIds, int& PathCost){
 
   //the main loop of ARA*
   while(eps_satisfied > params.final_eps && !outOfTime()){
-
     //run weighted A*
     clock_t before_time = clock();
     int before_expands = search_expands;
@@ -701,9 +710,13 @@ bool LazyAEGPlanner<HeuristicType>::Search(vector<int>& pathIds, int& PathCost){
     //1 if the solution is found
     //0 if the solution does not exist
     //2 if it ran out of time
+    //3 if communication caused a break
     int ret = ImprovePath();
     if(ret == 1) //solution found for this iteration
       eps_satisfied = eps;
+    
+    if(ret == 3) // break out coz communication received       
+        return 3;
     int delta_expands = search_expands - before_expands;
     double delta_time = double(clock()-before_time)/CLOCKS_PER_SEC;
 
@@ -834,7 +847,7 @@ int LazyAEGPlanner<HeuristicType>::replan(vector<int>* solution_stateIDs_V, EGra
   //plan
   vector<int> pathIds; 
   int PathCost;
-  bool solnFound = Search(pathIds, PathCost);
+  int solnFound = Search(pathIds, PathCost);
   //copy the solution
   *solution_stateIDs_V = pathIds;
   *solcost = PathCost;
@@ -937,3 +950,8 @@ void LazyAEGPlanner<HeuristicType>::get_search_stats(vector<PlannerStats>* s){
   }
 }
 
+template <typename HeuristicType>
+void LazyAEGPlanner<HeuristicType>::set_comm_received(bool value)
+{
+    comm_received_ = value;
+}

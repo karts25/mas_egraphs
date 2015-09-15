@@ -114,7 +114,7 @@ private:
   void updateCosts(int x, int y);
   void updateCosts(int x, int y, unsigned char c);
   void interruptPlannerCallback(std_msgs::EmptyConstPtr);
-  bool makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs, 
+  int makePlan(EGraphReplanParams& params, std::vector<int>& solution_stateIDs, 
                 int& solution_cost_i, double& plan_time);
   void startMASPlanner(const mas_egraphs::GetXYThetaPlan::ConstPtr& msg);
   void receiveCommunication(const mas_egraphs::MasComm::ConstPtr& msg);

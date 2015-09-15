@@ -39,6 +39,7 @@
 #include <sbpl/headers.h>
 //#include <sbpl/discrete_space_information/environment.h>
 #include <sbpl/utils/utils.h>
+#include <mas_egraphs/key.h>
 #include <string>
 #include <mas_egraphs/mas_config.h>
 #include <geometry_msgs/PolygonStamped.h>

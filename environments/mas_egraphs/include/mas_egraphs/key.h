@@ -32,7 +32,7 @@
 #include <iostream>
 #define KEY_SIZE 10
 
-#define INFINITECOST 1000000000
+#define INFINITECOST 1000000
 
 class CKey
 {

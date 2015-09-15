@@ -793,7 +793,7 @@ int Environment_xy::SetGoal(std::vector<pose_cont_t> goal_m)
     for (int goal_i = 0; goal_i < EnvXYCfg.numGoals; goal_i ++)
         {
             PoseContToDisc(goal_m[goal_i].x, goal_m[goal_i].y, goal_m[goal_i].z, goal_m[goal_i].theta,  x, y, z, theta);
-            /*SBPL_INFO("env: setting goal to %.3f %.3f %0.3f %0.3f (%d %d %d %d)", 
+            /* SBPL_INFO("env: setting goal to %.3f %.3f %0.3f %0.3f (%d %d %d %d)", 
                       goal_m[goal_i].x, goal_m[goal_i].y, goal_m[goal_i].z, goal_m[goal_i].theta,
                       x, y, z, theta);
             */
@@ -1007,6 +1007,7 @@ void Environment_xy::GetLazySuccsWithUniqueIds(int SourceStateID,
                                                std::vector<bool>* isTrueCost){ 
     clock_t GetLazySuccsWithUniqueIds_t0 = clock();
     GetSuccs(SourceStateID, SuccIDV, CostV);
+    isTrueCost->clear();
     isTrueCost->resize((int)SuccIDV->size(), true);
     GetLazySuccsWithUniqueIdsClock += clock() - GetLazySuccsWithUniqueIds_t0;
 }
@@ -1023,14 +1024,11 @@ void Environment_xy::GetSuccs(int SourceStateID,
                               std::vector<int>* SuccIDV,
                               std::vector<int>* CostV)
 {
+
     clock_t GetSuccs_t0 = clock();
 #ifdef DEBUG_ENV
     printf("\n[Environment]: In GetSuccs\n");
 #endif
-    //clear the successor array
-    SuccIDV->clear();
-    CostV->clear();
-
     //get X, Y for the state
     EnvXYHashEntry_t* HashEntry = StateID2CoordTable[SourceStateID];
     // goal state should be absorbing
@@ -1072,7 +1070,7 @@ void Environment_xy::GetSuccs(int SourceStateID,
         activeagent_i++;
         numPrimitives*= (EnvXYCfg.robotConfigV[agent_i].actionwidth + 1);
     }
-
+    //ROS_INFO("Numprimitives = %d", numPrimitives);
     EnvXYHashEntry_t* OutHashEntry;
     std::vector<pose_disc_t> poses(EnvXYCfg.numAgents);
     std::vector<bool> activeAgents(EnvXYCfg.numAgents, false);
@@ -1080,6 +1078,9 @@ void Environment_xy::GetSuccs(int SourceStateID,
 
     // Make successors from all possible combinations of active agents and actions
     // We have [agent1.actionwidth*agent2.actionwidth ....]  primitives
+    //clear the successor array
+    SuccIDV->clear();
+    CostV->clear();    
     SuccIDV->reserve(numPrimitives);
     CostV->reserve(numPrimitives);
     for(int primitive_i = 0; primitive_i < numPrimitives; primitive_i++){
@@ -1099,6 +1100,11 @@ void Environment_xy::GetSuccs(int SourceStateID,
                     break;
                 case mas_config::SUM:
                     cost += allnewCosts[agent_ctr][action_i];
+                    if(cost < 0)
+                        ROS_INFO("Switch statement: allnewcosts of agent %d, action %d = %d, cost is %d",
+                                 agent_ctr, action_i,
+                                 allnewCosts[agent_ctr][action_i],
+                                 cost);
                     break;
                 }
             int agent_index = activeAgents_indices[agent_ctr];
@@ -1108,14 +1114,10 @@ void Environment_xy::GetSuccs(int SourceStateID,
                 activeAgents[agent_index] = 0;
             }
         }
-
         clock_t GetSuccsPruning_t0 = clock();
-        if (cost >= INFINITECOST)
+        if (cost >= mas_config::MAS_INFINITECOST)
             continue;
   
-        std::vector<int> goalsVisited = HashEntry->goalsVisited;
-        getGoalsVisited(poses, goalsVisited);
-    
         int numActiveAgents_successor = std::accumulate(activeAgents.begin(),
                                                         activeAgents.end(),
                                                         0);
@@ -1133,10 +1135,17 @@ void Environment_xy::GetSuccs(int SourceStateID,
         clock_t GetSuccsPruning_t1 = clock();
         GetSuccsPruningClock += GetSuccsPruning_t1 - GetSuccsPruning_t0;
         clock_t CreateHashEntry_t0 = clock();
+        
+        std::vector<int> goalsVisited = HashEntry->goalsVisited;
+        getGoalsVisited(poses, goalsVisited);
+    
         if ((OutHashEntry = (this->*GetHashEntry)(poses, goalsVisited, activeAgents)) == NULL) {
             //have to create a new entry
             OutHashEntry = (this->*CreateNewHashEntry)(poses, goalsVisited, activeAgents);
         }
+        if(cost <= 0)
+            ROS_INFO("2. cost is %d", cost);
+
     
         SuccIDV->push_back(OutHashEntry->stateID);
         CostV->push_back(cost);
@@ -1169,7 +1178,7 @@ void Environment_xy::GetSuccsForAgent(int SourceStateID, int agentID, pose_disc_
         newPose.z = pose.z; // assume planar movement
         newPose.theta = NORMALIZEDISCTHETA(action->endtheta, EnvXYCfg.NumThetaDirs);
         if(!IsValidPose(agentID, newPose))
-            cost = INFINITECOST;
+            cost = mas_config::MAS_INFINITECOST;
         else
             cost = action->cost;
     
@@ -1181,9 +1190,10 @@ void Environment_xy::GetSuccsForAgent(int SourceStateID, int agentID, pose_disc_
         cost = 0;
     }
     else
-        cost = INFINITECOST;
+        cost = mas_config::MAS_INFINITECOST;
     newPosesV.push_back(pose);
     costV.push_back(cost);
+
     clock_t GetSuccsForAgent_t1 = clock();
     GetSuccsForAgentClock += GetSuccsForAgent_t1 - GetSuccsForAgent_t0;
 }

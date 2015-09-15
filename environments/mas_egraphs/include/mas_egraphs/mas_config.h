@@ -4,6 +4,7 @@
 
 namespace mas_config
 {
+const int MAS_INFINITECOST = 1000000;
 enum costfunc {SUM, MAX}; 
 }
 #endif
